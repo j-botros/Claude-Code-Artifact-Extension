@@ -26,6 +26,10 @@ Owned by the core agent only. Keep the latest run first. Keep only the last few 
   - Edit was not available to the tester, so it rewrote its handoff with Write. The tester tools list in `.claude/agents/tester.md` still needs Edit (open since run 4).
 - Next: `ui-tests` and `integration-tests` are still blocked (lock file). No `developer` or `tester` task is `todo`, so the next scheduled run should write `PAUSE`, unless the owner adds a task first.
 
+### Run 14 (owner unblock, 2026-11-03)
+- Owner approved unblocking. `ui-tests` and `integration-tests` are back to `todo`. Their blocker was stale: `npm install` is allowed in `.claude/settings.json` (PR #17), but the runner prompt listed only `npm ci`. The prompt now lists `npm install` too.
+- Removed `PAUSE` after this merged, so runs resume.
+
 ### Run 13 (2026-11-03)
 - Task: `integration-tests` (developer, then tester). Result: blocked before the developer ran. No commits; branch `task/integration-tests` was created from `origin/dev` and has no changes. TASKS.md row is `blocked`.
 - Why: the task needs `@vscode/test-cli` and `@vscode/test-electron` in `devDependencies`. Neither is in `package.json`, so adding them needs `npm install` to update `package-lock.json`. `npm install` is not on the shell allow list. This is the same lock-file blocker as `ui-tests` (run 12). `npx vscode-test` (which downloads VS Code) is also not on the allow list.
