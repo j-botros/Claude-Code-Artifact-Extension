@@ -68,4 +68,28 @@
 
 ## Testing (tester)
 
-(to be filled by the tester)
+**Verdict: PASS**
+
+**Added:** `test/integration/planFlows.test.ts` (10 tests). `extension.test.ts` is unchanged. Stubs are written at test time under `out-test/stub-bin/<case>/` (gitignored), chmod 0755, `/bin/cat` by absolute path, with `PATH` set to only that case directory and restored in teardown. `showInputBox`, `showWarningMessage` and `showErrorMessage` are replaced per test and restored in teardown.
+
+**Commands and results:**
+- `npm run compile`: passed.
+- `npm run test:unit`: 14 files, 214 tests passed, 0 failed.
+- `npm run test:integration` (VS Code 1.107.0): 14 passing, 0 failing (10 new, 4 existing).
+- `npm test`: unit 214 passed; UI 4 passed (Playwright); integration 14 passing. 0 failures.
+
+**Cases (all passing):**
+1. claude succeeds: tab with the plan title opens; `PlanPanel.lastRenderedHtml` has title, summary, file path, both steps, and verification in order; no warning modal.
+2. claude missing, warning cancelled: error "The agy fallback was cancelled."; agy marker file absent. Runs first, because the accept flag persists once set.
+3. claude not logged in, agy succeeds: plan tab rendered; modal shown once.
+4. Extra: after accept, the modal is not shown again.
+5. claude and agy missing: `AGY_MISSING_MESSAGE`.
+6. claude not logged in, agy missing: `AGY_MISSING_MESSAGE`; `NOT_LOGGED_IN_MESSAGE` not shown.
+7. claude not logged in, agy empty twice: `AGY_EMPTY_MESSAGE`; marker shows agy ran exactly twice.
+8. `reviewPlan` with claude succeeding: `{ ok: true }` with the revised title.
+9. `reviewPlan` with claude not logged in and agy missing: `AGY_MISSING_MESSAGE`.
+10. `reviewPlan` with both missing: `AGY_MISSING_MESSAGE`. `MISSING_CLI_MESSAGE` is never returned by `reviewPlan` in this flow, because a missing `claude` always goes to the agy fallback.
+
+**Not run:** nothing skipped. Note: the cancel test (case 2) relies on the `agyWarningAccepted` flag being unset at host start; this held in a fresh test host on both runs. No shell command was refused.
+
+These stub-based tests cover control flow only. They do not prove the real `claude` or `agy` CLI works.
