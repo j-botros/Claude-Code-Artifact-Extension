@@ -13,6 +13,19 @@ Owned by the core agent only. Keep the latest run first. Keep only the last few 
 
 ## Run log
 
+### Run 15 (2026-11-03)
+- Task: `ui-tests` (developer, then tester). Developer added `@playwright/test` 1.55.0 (exact pin), the `test:ui` script, `playwright.config.ts`, `vitest.config.ts` (excludes `test/ui` and `test/integration` from unit runs), and the `.gitignore` entries (commit `dd48e15`). Tester added 4 specs in `test/ui/planPanel.spec.ts` (commit `ad4aad2`): section order, light and dark themes, comments surviving a reload, and title and step edits surviving a reload. Verdict PASS. No `src/` changes.
+- Core agent re-ran `npm run test:ui` (4 passed) and `npm run test:unit` (193 passed, 13 files). Added the README change (`npm run test:ui` moved to the available table, commit `e287a83`). Opened PR #39 into `dev` and merged it. Marked the task `done`.
+- Not verified: the UI specs run against the compiled `out/webview/planPanel.js` with a stubbed `vscode` module and a stubbed `acquireVsCodeApi`. They do not run inside Antigravity or VS Code.
+- Decisions (not in CLAUDE.md):
+  - Branch is `task/ui-tests-2`, not `task/ui-tests`. The local `task/ui-tests` holds a stale run 12 docs commit. Not deleted: deleting a branch needs owner sign-off.
+  - Playwright is pinned to 1.55.0 (released August 2025). The two-week rule is met. The newest release was not checked: WebSearch was denied permission in this run. Owner: choose a newer pin if you want one.
+  - `test:ui` keeps `--pass-with-no-tests`. It is harmless now and can be removed.
+- Process notes:
+  - The tester's Edit tool was not available. It rewrote `handoffs/ui-tests.md` with Write. The Brief and Development sections were kept unchanged. The tester tools list in `.claude/agents/tester.md` still needs Edit (open since run 4).
+  - The developer and tester commit trailers use the Haiku 5.5 line from the brief, as the run asked.
+- Next: `integration-tests` (developer, then tester) is the next `todo`. It needs `@vscode/test-cli` and `@vscode/test-electron`, which `npm install` can add. The VS Code download is run through `npx vscode-test`, which is not on the shell allow list, so the run is likely to block again. Owner: allow `npx vscode-test` if you want it to run.
+
 ### Run 14 (2026-11-03)
 - Task: `pause-and-alert` (developer, then tester). Developer changed `scripts/agent-run.sh` (commit `98b285d`): `runnable_task_id` reads only the Owner and Status columns; `--check-queue FILE` mode with no side effects; an empty queue now writes `PAUSE`, runs a fixed-text `osascript` notification, calls `notify`, logs, and exits 0. Tester added 5 tests in `test/unit/agentRunQueue.test.ts` with three fixtures (commit `ad27241`). Verdict PASS. 193 unit tests.
 - Core agent re-ran `npm run test:unit` (193 passed) and read the script diff. Opened PR #37 into `dev` and merged it. Marked the task `done`. README has no scheduler content, so no README change.
@@ -177,5 +190,6 @@ Owned by the core agent only. Keep the latest run first. Keep only the last few 
 - Owner: confirm the latest stable VS Code version before the first publish.
 
 ## Blockers
-- `ui-tests` is blocked: `npm install` is not on the shell allow list, so Playwright cannot be added to the lock file. See run 12.
-- `integration-tests` is blocked for the same reason: `@vscode/test-cli` and `@vscode/test-electron` need `npm install`, and `npx vscode-test` is not on the allow list. See run 13.
+- `ui-tests` is done (run 15, PR #39). Its earlier blocker is gone.
+- `integration-tests` is not blocked yet, but it will probably block: `npx vscode-test` (which downloads VS Code) is not on the shell allow list. See run 13 and the run 15 next step.
+- Owner approval needed for: deleting the stale local `task/ui-tests` branch, and any Playwright version newer than 1.55.0.
