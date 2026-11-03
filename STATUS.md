@@ -13,6 +13,20 @@ Owned by the core agent only. Keep the latest run first. Keep only the last few 
 
 ## Run log
 
+### Run 17 (2026-11-03)
+- Task: `npm-audit-patch` (developer, then tester). Developer changed only `package.json` and `package-lock.json` (commit `d46dca8`): `vitest` 3.2.4 to 3.2.7 and `@playwright/test` 1.55.0 to 1.64.1, both exact pins. No `overrides` added, because npm reports no fix for the rest. Audit went from 14 to 12 (2 critical, 1 high, 8 moderate, 1 low). Both playwright high findings are fixed.
+- Tester verdict: PASS. Compile passes. Unit 193, UI 4, integration 4. Only the two files changed in the code commit. Chromium was already installed.
+- Core agent: committed the handoff (`f6b58d2`), opened PR #45 into `dev`, and merged it once the tests passed. Marked the task `done`. README needs no change: it does not mention these versions.
+- Not verified: publish dates of vitest 3.2.7 and @playwright/test 1.64.1. `npm view` is not on the allow list. Owner: confirm both are at least two weeks old.
+- Major upgrades for later (not done, need owner sign-off):
+  - vitest 5.1.0 clears the `tinypool` critical and `@vitest/mocker` moderate. This is the largest remaining item.
+  - `@vscode/vsce` 4.x: not tried, not confirmed.
+  - The remaining 12 have no fix available: `serialize-javascript`, `diff`, `glob`, `minimatch`, `mocha`, `test-exclude`, `c8`, `@vscode/test-cli`, and `@vscode/vsce`. They are dev-only tooling.
+- Process notes:
+  - The developer and tester trailers use the Haiku 5.5 line from the brief.
+  - The tester's Edit tool worked this run, so the tester did not need Write for its handoff section.
+- Next: no `todo` task for developer or tester is left. `antigravity-test-2` is owner-only. The next scheduled run should write `PAUSE` and send the notification, unless the owner adds a task.
+
 ### Run 16 (2026-11-03)
 - Task: `integration-tests` (developer, then tester, then developer round 2). Developer added `@vscode/test-cli` 0.0.15 and `@vscode/test-electron` 3.1.0 (exact pins, both at least two weeks old, checked with `npm view`), `@types/mocha` 10.0.10, `.vscode-test.mjs` (VS Code 1.107.0), `tsconfig.test.json`, the `test:integration` and `test` scripts, and `.gitignore` and `.vscodeignore` entries. Core agent fixed the `.vscode-test.mjs` glob to `out-test/test/integration/**` (commit `ec5cd8c`).
 - Round 1 tester: FAIL. The four integration specs passed (`test/integration/extension.test.ts`, commit `6797657`), but `npm test` failed at the unit step: vitest picked up the compiled spec in `out-test/`. Round 2 added `out-test/**` to the vitest exclude (commit `6457f06`). Round 2 developer's report says `npm test` passed.

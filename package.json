@@ -62,7 +62,7 @@
     "package": "vsce package"
   },
   "devDependencies": {
-    "@playwright/test": "1.55.0",
+    "@playwright/test": "1.64.1",
     "@types/mocha": "10.0.10",
     "@types/node": "22.15.21",
     "@types/vscode": "^1.107.0",
@@ -70,6 +70,6 @@
     "@vscode/test-electron": "3.1.0",
     "@vscode/vsce": "3.6.0",
     "typescript": "5.9.3",
-    "vitest": "3.2.4"
+    "vitest": "3.2.7"
   }
 }
