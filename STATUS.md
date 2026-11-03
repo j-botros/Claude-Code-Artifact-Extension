@@ -5,11 +5,11 @@ Owned by the core agent only. Keep the latest run first. Keep only the last few 
 ## Current state
 - Stage: early idea, with a working scaffold. `Claude Artifact: Open Sample Plan` opens a webview with a sample plan. The owner confirmed it renders in Antigravity.
 - Branches: `main` and `dev` exist on GitHub. `dev` includes PRs #1 through #6, #12, #18, #23, and #26.
-- Packaging: `npm run package` produces a `.vsix` that installs in Antigravity 1.107.0. `engines.vscode` is `^1.107.0` and `@types/vscode` is pinned to `1.107.0`.
+- Packaging: `npm run package` produces a `.vsix` that installs in Antigravity 1.107.0. `engines.vscode` is `^1.107.0` and `@types/vscode` is pinned to `1.107.0`. Latest stable VS Code is 1.144.0 (published 2026-10-28, checked 2026-11-03).
 - Compile: `npm run compile` passes. `npm test` passes (unit 214, UI 4, integration 4) as of run 19 (PR #49).
 - `.vscode/launch.json` exists.
 - Agent setup: `.claude/agents/developer.md`, `.claude/agents/tester.md`, and `.claude/settings.json` are committed.
-- Scheduler: the launchd job is NOT installed. The owner has to install it. The `PAUSE` file is in the repo root until the owner removes it.
+- Scheduler (as of 2026-11-03): the launchd job `com.j-botros.claude-artifact-agent` is installed and loaded. It runs back to back, up to 12 runs per chain, and writes `PAUSE` when the queue is empty.
 
 ## Run log
 
@@ -242,12 +242,13 @@ Owned by the core agent only. Keep the latest run first. Keep only the last few 
 - Verified: `dev` is on GitHub and `gh` is logged in.
 - Stalled: the agent couldn't write files in headless mode. Fixed by PR #3 (`--permission-mode acceptEdits`).
 
-## Open questions
-- Owner: remove `PAUSE` when ready for the runner to work.
-- Owner: install the launchd job yourself (see the commands in the chat). The classifier blocked the agent from installing it.
-- Owner: npm reported 6 audit vulnerabilities. Not addressed.
-- Owner: CLAUDE.md Section 8 seems to be missing. Restore it if that wasn't intentional.
-- Owner: confirm the latest stable VS Code version before the first publish.
+## Open questions (as of 2026-11-03)
+- Owner: `antigravity-test-2` (install the `.vsix` in Antigravity and check the features) is not recorded as done.
+- Owner: Open VSX publishing is not started. It needs your sign-off for each publish.
+- Resolved: CLAUDE.md has never had a Section 8 in its git history. The earlier note saying it was missing was wrong.
+- Vitest 5.1.0 is too new for the two-week rule. Queued as `vitest-pin-two-weeks`.
+- Audit: 9 findings remain on dev. 8 are dev-only tooling with no fix yet, and `@vscode/vsce` 4.x is a major upgrade. The high one is `serialize-javascript`, which comes from `mocha` through `@vscode/test-cli`.
+- Login check is too broad. Queued as `login-check-tighten`.
 
 ## Blockers
 - `ui-tests` is done (run 15, PR #39). Its earlier blocker is gone.
