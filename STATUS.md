@@ -13,6 +13,21 @@ Owned by the core agent only. Keep the latest run first. Keep only the last few 
 
 ## Run log
 
+### Run 11 (2026-11-03)
+- Task: `implement-apply` (developer, then tester). Developer added `src/plan/applyHunks.ts` (pure `applyAcceptedHunks`), and in `src/review/hunkReview.ts` the Apply lens, the `claudeArtifact.applyAccepted` command, the confirmation, the freshness and unsaved-changes checks, the `WorkspaceEdit` write, per-file results, and the session end (commit `4573137`). Tester added 32 tests in `test/unit/applyHunks.test.ts` (commit `902d4a8`). Verdict PASS for the pure logic. 188 unit tests.
+- Core agent re-ran `npm run compile` (exit 0) and `npm run test:unit` (188 passed). Read the write path in `hunkReview.ts`: writes only in `writeOneFile`, through `WorkspaceEdit`, with `createDirectory` only for parent folders of new files. Updated the README feature and status text. Opened PR #34 into `dev`. Marked the task `done`.
+- Not verified: `src/review/hunkReview.ts` needs the VS Code host. Owner: open a plan with `proposedFiles`, accept some hunks, click Apply accepted, and check the confirmation, the file contents, undo per file, and that the session ends after a write. Use a throwaway workspace.
+- Decisions (not in CLAUDE.md):
+  - The confirmation is per extension session (a module flag). It is set only after the user clicks Apply. A cancel asks again next time.
+  - A successful run ends the session. A second apply needs a new Implement the Design click.
+  - Each proposed file has its own Apply lens. Any of them applies the whole session.
+- Known limits (not fixed):
+  - CRLF files may get mixed line endings, because the proposed text from the plan is usually LF.
+- Process notes:
+  - The tester could not use Edit and rewrote its handoff with Write. The core agent checked that the Brief and Development sections are unchanged. The tester tools list in `.claude/agents/tester.md` still needs Edit (open since run 4).
+  - The tester's commit uses the Sonnet 5.5 trailer from the attribution reminder. The brief asked for Haiku 5.5. Left as is.
+- Next: `ui-tests` (developer, then tester) is the next `todo` in table order.
+
 ### Run 10 (2026-11-03)
 - Task: `implement-review` (developer, then tester). Developer added `src/plan/diffHunks.ts` (pure `splitHunks`), `src/plan/hunkDecisions.ts`, `src/review/hunkReview.ts` (read-only diff editor with ✓ and ✗ CodeLens), the `proposedFiles` field in `plan.ts` and `planPrompt.ts`, and the Implement the Design button in `planPanel.ts` (commit `a59d552`). The core agent added the optional `proposedFiles` field to CLAUDE.md, Section 3 (commit `35f198f`).
 - Tester added 33 unit tests, in `test/unit/diffHunks.test.ts` and `test/unit/proposedFiles.test.ts`, and updated `planRendererReview.test.ts` (commit `87a23d8`). Verdict PASS. 156 unit tests. The tester could not commit: its `git add` was denied, so the core agent committed the test files and the Testing section.
