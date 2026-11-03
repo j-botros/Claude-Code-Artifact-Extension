@@ -4,7 +4,7 @@ Owned by the core agent only. Keep the latest run first. Keep only the last few 
 
 ## Current state
 - Stage: early idea, with a working scaffold. `Claude Artifact: Open Sample Plan` opens a webview with a sample plan. The owner confirmed it renders in Antigravity.
-- Branches: `main` and `dev` exist on GitHub. `dev` includes PRs #1 through #6, #12, #18, and #23.
+- Branches: `main` and `dev` exist on GitHub. `dev` includes PRs #1 through #6, #12, #18, #23, and #26.
 - Packaging: `npm run package` produces a `.vsix` that installs in Antigravity 1.107.0. `engines.vscode` is `^1.107.0` and `@types/vscode` is pinned to `1.107.0`.
 - Compile: `npm run compile` passes. Unit tests: `npm run test:unit` passes (11 tests).
 - `.vscode/launch.json` exists.
@@ -12,6 +12,16 @@ Owned by the core agent only. Keep the latest run first. Keep only the last few 
 - Scheduler: the launchd job is NOT installed. The owner has to install it. The `PAUSE` file is in the repo root until the owner removes it.
 
 ## Run log
+
+### Run 6 (2026-11-03)
+- Task: `comments-ui` (developer, then tester). Developer added a comment `textarea` per step, enabled scripts, and added one nonce'd inline script that restores and saves comments in `vscode.getState` / `setState` (commit `366fd3e`). Verdict: developer's change broke three existing `planRenderer` assertions, not one as the brief expected (script, `</script>` escape check, step `<li>` regex). Tester updated them and added 17 renderer tests in total, verdict PASS (commit `b2dba9d`).
+- Core agent re-ran `npm run compile` and `npm run test:unit` (66 passed). Added the README status line (commit `113c317`). Opened PR #26 into `dev` and merged it (merge commit `a2f1696`). Marked the task `done`.
+- Decision: comments are kept in webview state only, not on disk, and are not sent to Claude Code. This matches the brief.
+- Process notes:
+  - Edit was not available to the tester, so it rewrote its handoff with Write. The tester tools list in `.claude/agents/tester.md` still needs Edit.
+  - Developer and tester commits use the Haiku 5.5 Co-Authored-By line from the brief. The attribution reminder in this run asked for Sonnet 5.5 on new commits; the brief won, as in earlier runs.
+- Not verified: the comment UI has no UI test and was not run in the Extension Development Host. Covered by `ui-tests` later.
+- Next: `edit-ui` (developer, then tester) is the next `todo` in table order.
 
 ### Run 5 (2026-11-03)
 - Task: `claude-plan-generation` (developer, then tester). Developer added `src/claude/streamParser.ts`, `src/claude/claudeRunner.ts`, `src/plan/planPrompt.ts`, and the `claudeArtifact.generatePlan` command (commit `495465a`). Tester added 22 unit tests with fixture streams (commit `e76a1b9`), verdict PASS.
