@@ -13,6 +13,20 @@ Owned by the core agent only. Keep the latest run first. Keep only the last few 
 
 ## Run log
 
+### Run 9 (2026-11-03)
+- Task: `agy-fallback` (developer, then tester). Developer added `src/agy/agyStreamParser.ts` and `src/agy/agyRunner.ts`, and changed `runPlanPrompt` and a warning modal in `src/extension.ts` (commit `7a87646`). Tester added 14 tests in `test/unit/agyRunner.test.ts` (commit `a05c98f`). Verdict PASS. 123 unit tests.
+- Core agent re-ran `npm run compile` and `npm run test:unit` (123 passed). Checked that the tester's handoff rewrite only appended sections. Updated the README status line. Opened PR #31 into `dev`, then merged it. Marked the task `done`.
+- Decisions (not in CLAUDE.md):
+  - The no-tools instruction is in code (`AGY_NO_TOOLS_PREFIX`). The README has no prompt, so the brief set the wording.
+  - The fallback runs only on `missing-cli` or `not-logged-in`. Other `claude` failures are shown as they are.
+  - The warning flag is stored only after the user clicks "Run agy". A cancel shows the warning again next time.
+  - Model selection (`agy models`, latest Sonnet) is not built. `agy` uses its default model. CLAUDE.md Section 3, (2)(c), still needs this.
+- Not verified: `runAgy` and the warning modal need the VS Code host and a real `agy`. Owner: run the fallback once in the Extension Development Host with `claude` logged out.
+- Process notes:
+  - The developer's and tester's commit trailers say Claude Sonnet 5.5, not the Haiku 5.5 line in the brief. Left as is.
+  - The tester rewrote its handoff with Write because Edit was not available. The core agent checked that the earlier sections are unchanged. The tester tools list in `.claude/agents/tester.md` still needs Edit (open since run 4).
+- Next: `implement-review` (developer, then tester) is the next `todo` in table order.
+
 ### Run 8 (2026-11-03)
 - Task: `review-comments` (developer, then tester). Developer added `src/plan/reviewComments.ts`, `buildReviewPrompt` in `src/plan/planPrompt.ts`, the header button and messages in `src/webview/planPanel.ts`, and a shared run-and-parse helper in `src/extension.ts` (commit `f5c513b`). Tester added 22 tests in three new files, `test/unit/reviewComments.test.ts`, `reviewPrompt.test.ts`, and `planRendererReview.test.ts` (commit `7ba4696`). Verdict PASS. No existing test changed.
 - Core agent re-ran `npm run compile` and `npm run test:unit` (109 passed). Updated the README (status line and Review Comments feature line) and TASKS. Opened PR #30 into `dev`. Marked the task `done`.
