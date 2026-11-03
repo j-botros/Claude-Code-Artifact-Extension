@@ -7,6 +7,7 @@
 #   - the working tree has uncommitted changes (so nothing the owner is editing gets touched)
 #
 # Output: logs/run-<timestamp>.log (summary lines) and logs/run-<timestamp>.jsonl (agent stream).
+# If DISCORD_WEBHOOK_URL is set, posts a message when a run ends or is skipped for a dirty tree.
 
 set -u
 
@@ -23,6 +24,18 @@ log() {
   echo "[$(date '+%F %T')] $*" | tee -a "$LOG"
 }
 
+# Posts a message to the Discord webhook in DISCORD_WEBHOOK_URL. Does nothing if the variable is
+# unset. The URL is never written to the log. A failed post is logged but never stops the run.
+notify() {
+  if [ -z "${DISCORD_WEBHOOK_URL:-}" ]; then
+    return 0
+  fi
+  local body
+  body=$(printf '%s' "$1" | python3 -c 'import json,sys; print(json.dumps({"content": sys.stdin.read()}))') || return 0
+  curl -fsS -m 15 -H 'Content-Type: application/json' -d "$body" "$DISCORD_WEBHOOK_URL" >/dev/null 2>&1 \
+    || log "Discord notification failed."
+}
+
 if [ -f PAUSE ]; then
   log "PAUSE file present. Exiting without changes."
   exit 0
@@ -36,6 +49,7 @@ trap 'rmdir "$LOCK" 2>/dev/null' EXIT
 
 if [ -n "$(git status --porcelain)" ]; then
   log "Working tree has uncommitted changes. Exiting so nothing is lost."
+  notify "Artifact runner ${STAMP}: skipped. The working tree has uncommitted changes."
   exit 1
 fi
 
@@ -63,4 +77,7 @@ log "Starting core agent run. Stream: $JSONL"
 claude -p "$(cat scripts/core-prompt.md)" --permission-mode acceptEdits --output-format stream-json --verbose >"$JSONL" 2>>"$LOG"
 STATUS=$?
 log "Core agent exited with status $STATUS."
+# Latest PR link in the agent's stream, if the run mentioned one.
+PR_URL="$(grep -o 'https://github.com/[^" \\]*/pull/[0-9]*' "$JSONL" 2>/dev/null | tail -1)"
+notify "Artifact runner ${STAMP}: agent exited with status ${STATUS}.${PR_URL:+ ${PR_URL}}"
 exit "$STATUS"
