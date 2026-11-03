@@ -3,4 +3,6 @@ PAUSE
 node_modules/
 out/
 *.vsix
+test-results/
+playwright-report/
 .DS_Store
