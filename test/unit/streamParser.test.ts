@@ -97,7 +97,7 @@ describe("classifyRun", () => {
   });
 
   it("maps auth wording in stderr to not-logged-in", () => {
-    const r = classifyRun(1, "", "Error: please log in first");
+    const r = classifyRun(1, "", "Invalid API key. Please run /login");
     expect(r.ok === false && r.kind).toBe("not-logged-in");
   });
 
@@ -127,9 +127,26 @@ describe("classifyRun", () => {
 });
 
 describe("looksLikeAuthProblem", () => {
-  it("detects real auth wording", () => {
-    for (const s of ["Not logged in", "Please run /login", "Invalid API key", "401 Unauthorized", "authentication failed", "claude auth login"]) {
-      expect(looksLikeAuthProblem(s)).toBe(true);
+  // "not logged in" is from the task brief wording only, not confirmed against
+  // the real CLI. The other two phrases appear in test/unit/fixtures/claude-error.jsonl.
+  it("matches 'not logged in' (case-insensitive)", () => {
+    expect(looksLikeAuthProblem("Not logged in")).toBe(true);
+    expect(looksLikeAuthProblem("error: you are NOT LOGGED IN")).toBe(true);
+  });
+
+  it("matches 'please run /login' (case-insensitive)", () => {
+    expect(looksLikeAuthProblem("Please run /login")).toBe(true);
+    expect(looksLikeAuthProblem("please run /login to continue")).toBe(true);
+  });
+
+  it("matches 'invalid api key' (case-insensitive)", () => {
+    expect(looksLikeAuthProblem("Invalid API key")).toBe(true);
+    expect(looksLikeAuthProblem("Invalid API key. Please run /login")).toBe(true);
+  });
+
+  it("no longer matches the old loose auth wording", () => {
+    for (const s of ["401 Unauthorized", "authentication failed", "claude auth login", "please log in first", "run /login"]) {
+      expect(looksLikeAuthProblem(s)).toBe(false);
     }
   });
 
@@ -139,11 +156,14 @@ describe("looksLikeAuthProblem", () => {
     }
   });
 
-  // Documents the looseness the developer flagged: text that merely mentions a
-  // login or an API key is classified as an auth problem.
-  it("flags unrelated text that merely mentions login or API key (known looseness)", () => {
-    expect(looksLikeAuthProblem("Failed to parse the login page component")).toBe(true);
-    expect(looksLikeAuthProblem("The plan adds an api key setting")).toBe(true);
+  it("does not flag unrelated text that merely mentions login or API key", () => {
+    expect(looksLikeAuthProblem("Failed to parse the login page component")).toBe(false);
+    expect(looksLikeAuthProblem("The plan adds an api key setting")).toBe(false);
+  });
+
+  it("does not match 'log in' inside other words", () => {
+    expect(looksLikeAuthProblem("catalog in the registry")).toBe(false);
+    expect(looksLikeAuthProblem("The user will log in later")).toBe(false);
   });
 });
 

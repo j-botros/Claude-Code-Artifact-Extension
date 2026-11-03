@@ -14,9 +14,15 @@ export type RunResult =
   | { ok: true; text: string }
   | { ok: false; kind: "missing-cli" | "not-logged-in" | "failed" | "timeout"; message: string };
 
-/** Returns true when text mentions login or authentication problems. */
+/**
+ * Returns true only when text contains a real not-logged-in message from the `claude` CLI.
+ * Matched phrases (case-insensitive): "not logged in", "please run /login", "invalid api key".
+ * Broader words such as "authenticat", "unauthorized", bare "login" or "log in", "api key"
+ * alone, "auth login", and "/login" alone are excluded because unrelated errors
+ * (for example "Failed to parse the login page component") also contain them.
+ */
 export function looksLikeAuthProblem(text: string): boolean {
-  return /log(ged)?[ -]?in|authenticat|unauthori[sz]ed|\/login|auth login|api key/i.test(text);
+  return /not logged in|please run \/login|invalid api key/i.test(text);
 }
 
 /** Keeps only the last few hundred characters of stderr so messages stay short. */
