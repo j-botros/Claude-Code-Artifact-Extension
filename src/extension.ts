@@ -1,21 +1,56 @@
 import * as vscode from "vscode";
-import { runClaude } from "./claude/claudeRunner";
+import { AgyRunResult, runAgyWithRetry } from "./agy/agyRunner";
+import { RunResult, runClaude } from "./claude/claudeRunner";
 import { Plan, parsePlanJson, samplePlan } from "./plan/plan";
 import { buildPlanPrompt, buildReviewPrompt } from "./plan/planPrompt";
 import { PlanPanel } from "./webview/planPanel";
 
-/** Runs Claude Code headless with a prompt and parses the reply into a plan. */
+/** Extension context, stored in activate so the agy warning flag can use globalState. */
+let extensionContext: vscode.ExtensionContext | undefined;
+
+/** Text of the one-time warning shown before the first agy run. */
+const AGY_WARNING =
+  "The agy fallback runs under your own agy permission settings and is not sandboxed. Those settings may allow agy to run shell commands without asking. The extension asks agy not to use tools, but that is not a security boundary. Review ~/.gemini/config/config.json (userSettings: permissionPreset, autoExecutionPolicy) before you continue.";
+
+/**
+ * Runs the prompt through agy. Shows the security warning modal once
+ * (remembered in globalState); cancelling returns a failure without running agy.
+ */
+async function runAgyFallback(prompt: string, cwd: string): Promise<AgyRunResult> {
+  const accepted = extensionContext?.globalState.get<boolean>("agyWarningAccepted") === true;
+  if (!accepted) {
+    const choice = await vscode.window.showWarningMessage(AGY_WARNING, { modal: true }, "Run agy");
+    if (choice !== "Run agy") {
+      return { ok: false, kind: "failed", message: "The agy fallback was cancelled." };
+    }
+    await extensionContext?.globalState.update("agyWarningAccepted", true);
+  }
+  return vscode.window.withProgress(
+    { location: vscode.ProgressLocation.Notification, title: "Asking agy for a plan..." },
+    () => runAgyWithRetry(prompt, cwd)
+  );
+}
+
+/**
+ * Runs Claude Code headless with a prompt and parses the reply into a plan.
+ * Falls back to agy only when claude is missing or not logged in.
+ */
 async function runPlanPrompt(
   prompt: string,
   cwd: string
 ): Promise<{ ok: true; plan: Plan } | { ok: false; message: string }> {
-  const result = await runClaude(prompt, cwd);
+  let result: RunResult | AgyRunResult = await runClaude(prompt, cwd);
+  let source = "Claude Code";
+  if (!result.ok && (result.kind === "missing-cli" || result.kind === "not-logged-in")) {
+    result = await runAgyFallback(prompt, cwd);
+    source = "agy";
+  }
   if (!result.ok) {
     return { ok: false, message: result.message };
   }
   const parsed = parsePlanJson(result.text);
   if (!parsed.ok) {
-    return { ok: false, message: `Claude Code returned a plan that could not be read: ${parsed.error}` };
+    return { ok: false, message: `${source} returned a plan that could not be read: ${parsed.error}` };
   }
   return { ok: true, plan: parsed.plan };
 }
@@ -62,6 +97,7 @@ async function generatePlan(): Promise<void> {
 
 /** Called by VS Code when the extension activates; registers the commands. */
 export function activate(context: vscode.ExtensionContext): void {
+  extensionContext = context;
   context.subscriptions.push(
     vscode.commands.registerCommand("claudeArtifact.openSamplePlan", () => {
       PlanPanel.show(samplePlan, reviewPlan);
