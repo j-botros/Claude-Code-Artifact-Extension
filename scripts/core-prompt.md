@@ -9,7 +9,7 @@ Do this run:
 
 Shell rules for this run:
 - Run one shell command per call. Do not chain commands with `&&`, `;`, or `|`. Chained commands are refused.
-- Only use commands the allow list covers: git status, git diff, git log, git add, git commit, git checkout -b task/..., git checkout task/..., git push origin task/..., gh pr create, gh pr view, gh pr merge, npm install, npm run, npm test, npx vitest, npx playwright.
+- Only use commands the allow list covers: git status, git diff, git log, git add, git commit, git checkout -b task/..., git checkout task/..., git push origin task/..., gh pr create, gh pr view, gh pr merge, npm ci, npm run, npm test, npx vitest, npx playwright.
 - Do not run `git branch --unset-upstream`, `node -v`, `npm -v`, or any other command outside that list. If you need one, write it in STATUS.md as a request instead.
 - Push with `git push origin task/<id>` only, without `-u`.
 5. Write the brief to handoffs/<id>.md, then run the developer subagent on it. Then run the tester subagent on the same branch. Follow the orchestration loop in CLAUDE.md, Section 6a, including the limit of 3 developer-tester rounds.
