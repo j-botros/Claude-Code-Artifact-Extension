@@ -1,0 +1,5 @@
+{"type":"system","subtype":"init","session_id":"s1","model":"claude-sonnet","version":"2.0.0"}
+{"type":"system","subtype":"thinking_tokens","tokens":12}
+{"type":"assistant","message":{"content":[{"type":"text","text":"Working on it."}]}}
+{"type":"rate_limit_event","info":{}}
+{"type":"result","subtype":"success","is_error":false,"result":"{\"title\":\"T\",\"overview\":{\"summary\":\"S\",\"outOfScope\":null},\"proposedChanges\":{\"language\":\"typescript\",\"code\":\"export function f(): void;\"},\"files\":[{\"path\":\"src/a.ts\",\"change\":\"Add a.\",\"isNew\":true}],\"implementationSteps\":[\"one\"],\"verification\":[\"check\"]}"}

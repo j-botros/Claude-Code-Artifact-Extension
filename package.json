@@ -18,6 +18,10 @@
       {
         "command": "claudeArtifact.openSamplePlan",
         "title": "Claude Artifact: Open Sample Plan"
+      },
+      {
+        "command": "claudeArtifact.generatePlan",
+        "title": "Claude Artifact: Generate Plan from Claude Code"
       }
     ]
   },
