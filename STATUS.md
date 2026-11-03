@@ -13,6 +13,18 @@ Owned by the core agent only. Keep the latest run first. Keep only the last few 
 
 ## Run log
 
+### Run 8 (2026-11-03)
+- Task: `review-comments` (developer, then tester). Developer added `src/plan/reviewComments.ts`, `buildReviewPrompt` in `src/plan/planPrompt.ts`, the header button and messages in `src/webview/planPanel.ts`, and a shared run-and-parse helper in `src/extension.ts` (commit `f5c513b`). Tester added 22 tests in three new files, `test/unit/reviewComments.test.ts`, `reviewPrompt.test.ts`, and `planRendererReview.test.ts` (commit `7ba4696`). Verdict PASS. No existing test changed.
+- Core agent re-ran `npm run compile` and `npm run test:unit` (109 passed). Updated the README (status line and Review Comments feature line) and TASKS. Opened PR #30 into `dev`. Marked the task `done`.
+- Not verified: the review path needs the VS Code host and a logged-in `claude`. Owner: run Review Comments once in the Extension Development Host, and check that the returned plan replaces the view and that comments clear.
+- Decisions (not in CLAUDE.md):
+  - A successful review clears the comments and the saved edits, because step numbers may change. The returned plan is not saved to `.claude/plans/`.
+  - The review prompt has the same no-files, no-commands rule as the generate prompt, and runs with `--permission-mode plan`.
+- Process notes:
+  - The developer's commit trailer says Claude Sonnet 5.5, not the Haiku 5.5 line in the brief. The tester and core commits use Haiku 5.5. Left as is.
+  - Edit was not available to the tester, so it rewrote its handoff with Write. The tester tools list in `.claude/agents/tester.md` still needs Edit (open since run 4).
+- Next: `agy-fallback` (developer, then tester) is the next `todo` in table order. It needs the README no-tools prompt; the README does not have one yet, so the developer may need a decision from the owner.
+
 ### Run 7 (2026-11-03)
 - Task: `edit-ui` (developer, then tester). Developer added `src/plan/planEdits.ts` (`applyPlanEdits`, `planFileName`) and the editable title, summary, out-of-scope, and step fields in `src/webview/planPanel.ts` (commit `3ecb053`). Save writes the plan to `.claude/plans/<slug>.json` through `vscode.workspace.fs`, one save at a time. Tester updated the 7 assertions the markup broke and added 17 `planEdits` tests (commit `5ab8f07`). Verdict PASS, 87 unit tests.
 - Core agent re-ran `npm run compile` and `npm run test:unit` (87 passed). Added the README status and feature lines (commit `240600b`). Opened PR #28 into `dev` and merged it. Marked the task `done`.
