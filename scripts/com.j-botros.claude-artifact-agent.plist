@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Runs scripts/agent-run.sh every 30 minutes. The Mac must be awake for runs to happen.
+
+  Install (only after a supervised run has worked):
+    cp scripts/com.j-botros.claude-artifact-agent.plist ~/Library/LaunchAgents/
+    launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.j-botros.claude-artifact-agent.plist
+
+  Stop:
+    launchctl bootout gui/$(id -u)/com.j-botros.claude-artifact-agent
+    or create a PAUSE file in the repo root.
+
+  The paths below are absolute because launchd does not expand ~ or relative paths.
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.j-botros.claude-artifact-agent</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>/Users/jobo/Documents/Projects/Claude-Code-Artifact-Extension/scripts/agent-run.sh</string>
+  </array>
+
+  <key>WorkingDirectory</key>
+  <string>/Users/jobo/Documents/Projects/Claude-Code-Artifact-Extension</string>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/Users/jobo/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+    <key>HOME</key>
+    <string>/Users/jobo</string>
+  </dict>
+
+  <key>StartInterval</key>
+  <integer>1800</integer>
+
+  <key>RunAtLoad</key>
+  <false/>
+
+  <key>StandardOutPath</key>
+  <string>/Users/jobo/Documents/Projects/Claude-Code-Artifact-Extension/logs/launchd.out</string>
+
+  <key>StandardErrorPath</key>
+  <string>/Users/jobo/Documents/Projects/Claude-Code-Artifact-Extension/logs/launchd.err</string>
+</dict>
+</plist>
