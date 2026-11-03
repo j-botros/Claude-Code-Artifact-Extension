@@ -30,7 +30,8 @@
   - `files`: an array of `{ path, change, isNew }`. `path` is a relative path. `change` is one line. `isNew` is true for new files.
   - `implementationSteps`: an ordered array of short strings, one or two lines each. Reference existing helpers by name instead of re-describing them.
   - `verification`: an array of strings: how each change is tested, or why it isn't.
-  - The plan prompt for Claude Code must ask for exactly this shape.
+  - `proposedFiles` (optional, used only by Implement the Design): an array of `{ path, content }`. `path` is a relative path inside the workspace. `content` is the full new file. Omit the field when no files are proposed. It is not rendered as part of the plan text.
+  - The plan prompt for Claude Code must ask for exactly this shape, with `proposedFiles` marked as optional.
 - **Implement the Design (decided):** Claude Code never writes files. The plan may include an optional `proposedFiles` array of `{ path, content }`, where `content` is the full new file. The extension computes a diff per file and shows each hunk as green or red with a ✓ (accept) and ✗ (reject) CodeLens. Only accepted hunks are written, in place in the current workspace, through VS Code's edit API, after a confirmation before the first write. This is an explicit user action from the button, never automatic. It does not use Antigravity's built-in accept and reject, which no public extension API exposes.
 - **Key dependencies or external services:**
   - Extension API (primary target): the VS Code extension API. Google's Antigravity docs do not document extension development, so the VS Code API is the reference. Whether Antigravity runs VS Code extensions the same way is unconfirmed (inferred).
