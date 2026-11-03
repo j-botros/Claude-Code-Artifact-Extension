@@ -13,6 +13,22 @@ Owned by the core agent only. Keep the latest run first. Keep only the last few 
 
 ## Run log
 
+### Run 10 (2026-11-03)
+- Task: `implement-review` (developer, then tester). Developer added `src/plan/diffHunks.ts` (pure `splitHunks`), `src/plan/hunkDecisions.ts`, `src/review/hunkReview.ts` (read-only diff editor with ✓ and ✗ CodeLens), the `proposedFiles` field in `plan.ts` and `planPrompt.ts`, and the Implement the Design button in `planPanel.ts` (commit `a59d552`). The core agent added the optional `proposedFiles` field to CLAUDE.md, Section 3 (commit `35f198f`).
+- Tester added 33 unit tests, in `test/unit/diffHunks.test.ts` and `test/unit/proposedFiles.test.ts`, and updated `planRendererReview.test.ts` (commit `87a23d8`). Verdict PASS. 156 unit tests. The tester could not commit: its `git add` was denied, so the core agent committed the test files and the Testing section.
+- Core agent re-ran `npm run compile` (exit 0) and `npm run test:unit` (156 passed). Grepped `src/review/` for write calls: none. Updated the README status and feature lines (commit `b397586`). Opened PR #32 into `dev` and merged it. Marked the task `done`.
+- Branch name: `task/implement-review` already existed locally and on origin. It points at `ff767b6`, an older merged commit that is already in `dev`. The core agent did not reset or delete it, and used `task/implement-review-2` instead.
+- Decisions (not in CLAUDE.md):
+  - `proposedFiles` is optional. Paths must be relative with no `..`, and `parsePlanJson` rejects anything else. `applyPlanEdits` keeps the field.
+  - Accept and reject are in-memory only and are not persisted. A new click replaces the previous review session.
+  - The review uses VS Code's diff editor, with virtual read-only documents for the proposed side. Decorations and CodeLens are placed on that diff.
+  - The developer added one behaviour the brief did not ask for: a decided hunk loses its colour, and its lens shows "Accepted" or "Rejected".
+- Not verified: `src/review/hunkReview.ts` needs the VS Code host and a real click. Owner: open a plan with `proposedFiles` (a generated plan, or one written by hand), click Implement the Design, and check the diff, colours, and lenses. Nothing should be written.
+- Process notes:
+  - The tester's `git add` was denied, even though it is on the allow list. Its handoff and tests were committed by the core agent. The runner's permission setup for the tester may need checking.
+- Owner: delete the stale `task/implement-review` branch (local and origin) when convenient. It is fully merged, so it is safe to delete. Deleting it needs your sign-off under CLAUDE.md, Section 4.
+- Next: `implement-apply` (developer, then tester) is the next `todo` in table order.
+
 ### Run 9 (2026-11-03)
 - Task: `agy-fallback` (developer, then tester). Developer added `src/agy/agyStreamParser.ts` and `src/agy/agyRunner.ts`, and changed `runPlanPrompt` and a warning modal in `src/extension.ts` (commit `7a87646`). Tester added 14 tests in `test/unit/agyRunner.test.ts` (commit `a05c98f`). Verdict PASS. 123 unit tests.
 - Core agent re-ran `npm run compile` and `npm run test:unit` (123 passed). Checked that the tester's handoff rewrite only appended sections. Updated the README status line. Opened PR #31 into `dev`, then merged it. Marked the task `done`.
