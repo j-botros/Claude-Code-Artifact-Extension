@@ -13,6 +13,19 @@ Owned by the core agent only. Keep the latest run first. Keep only the last few 
 
 ## Run log
 
+### Run 14 (2026-11-03)
+- Task: `pause-and-alert` (developer, then tester). Developer changed `scripts/agent-run.sh` (commit `98b285d`): `runnable_task_id` reads only the Owner and Status columns; `--check-queue FILE` mode with no side effects; an empty queue now writes `PAUSE`, runs a fixed-text `osascript` notification, calls `notify`, logs, and exits 0. Tester added 5 tests in `test/unit/agentRunQueue.test.ts` with three fixtures (commit `ad27241`). Verdict PASS. 193 unit tests.
+- Core agent re-ran `npm run test:unit` (193 passed) and read the script diff. Opened PR #37 into `dev` and merged it. Marked the task `done`. README has no scheduler content, so no README change.
+- Not verified: the osascript and PAUSE-creation branch is checked by reading only. It was not run on the real runner.
+- Decisions (not in CLAUDE.md):
+  - The runner now writes `PAUSE` when the queue is empty. Every later tick then stops at the PAUSE check. Remove `PAUSE` after adding a runnable task.
+  - Exit is 0 on an empty queue, so launchd does not count it as a failure.
+  - The Discord `notify` helper is also called. The brief asked only for osascript; this was added because the helper is already in the script and does nothing when unset.
+- Process notes:
+  - The developer's and tester's commit trailers use the Haiku 5.5 line from the brief.
+  - Edit was not available to the tester, so it rewrote its handoff with Write. The tester tools list in `.claude/agents/tester.md` still needs Edit (open since run 4).
+- Next: `ui-tests` and `integration-tests` are still blocked (lock file). No `developer` or `tester` task is `todo`, so the next scheduled run should write `PAUSE`, unless the owner adds a task first.
+
 ### Run 13 (2026-11-03)
 - Task: `integration-tests` (developer, then tester). Result: blocked before the developer ran. No commits; branch `task/integration-tests` was created from `origin/dev` and has no changes. TASKS.md row is `blocked`.
 - Why: the task needs `@vscode/test-cli` and `@vscode/test-electron` in `devDependencies`. Neither is in `package.json`, so adding them needs `npm install` to update `package-lock.json`. `npm install` is not on the shell allow list. This is the same lock-file blocker as `ui-tests` (run 12). `npx vscode-test` (which downloads VS Code) is also not on the allow list.
