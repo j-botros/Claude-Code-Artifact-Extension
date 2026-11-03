@@ -22,6 +22,7 @@ When no `todo` task for developer or tester exists, the scheduled runner exits w
 | implement-apply | Apply only the hunks the user accepted (✓) to the workspace files in place, through VS Code's edit API. Rejected (✗) hunks are left alone. Show each file's result as it is written. Ask for confirmation before the first write in a session. Never run automatically. | developer, then tester | todo | — | — |
 | ui-tests | Add `npm run test:ui`: Playwright, headless Chromium, against the built webview HTML. Cover rendering, light and dark themes, comments, and edits. | developer, then tester | todo | — | — |
 | integration-tests | Add `npm run test:integration` using `@vscode/test-cli`. Cover activation, the command, the webview opening, and the diff review. | developer, then tester | todo | — | — |
+| pause-and-alert | Change `scripts/agent-run.sh` so that when no `developer` or `tester` task is `todo` on origin/dev, it creates a `PAUSE` file in the repo root, sends a macOS notification with `osascript`, and logs why, instead of exiting silently. Edit only `scripts/agent-run.sh`. Test with two fixture TASKS.md files: one with no todo rows, one with a todo row. | developer, then tester | todo | — | — |
 
 ## Blocked
 - None.
