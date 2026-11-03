@@ -70,6 +70,6 @@
     "@vscode/test-electron": "3.1.0",
     "@vscode/vsce": "3.6.0",
     "typescript": "5.9.3",
-    "vitest": "3.2.7"
+    "vitest": "5.1.0"
   }
 }
