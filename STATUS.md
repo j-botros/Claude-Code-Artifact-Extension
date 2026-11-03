@@ -17,7 +17,7 @@ Owned by the core agent only. Keep the latest run first. Keep only the last few 
 - Developer: `9bda88c` (scaffold), `d1559f3` (handoff Development section). Dependencies installed and pinned. `@types/vscode` 1.144.0 was installed because 1.131.0 is not on the registry.
 - Tester: `63ea83a` (unit tests for `parsePlanJson`, `escapeHtml`, `renderPlanHtml`). Verdict PASS. Rounds used: 1 of 3.
 - README updated: available commands moved to their own table. Status line updated.
-- Result: PASS. PR into `dev` and merge follow this run's last step (see TASKS.md for the PR link).
+- Result: PASS. PR #4 into `dev`, merged once tests passed.
 - Process note: at the start of this run I ran `ls -la` in the repo root before checking the allow list. It was read-only, but it was outside the list.
 
 ### Run 1
