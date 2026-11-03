@@ -44,6 +44,19 @@ if ! git fetch origin dev >>"$LOG" 2>&1; then
   exit 1
 fi
 
+# Work from the latest dev, so the agent reads the current TASKS.md, not whatever branch
+# happens to be checked out.
+if ! git checkout -q --detach origin/dev >>"$LOG" 2>&1; then
+  log "Could not check out origin/dev. Exiting."
+  exit 1
+fi
+
+# Skip the run entirely when no developer or tester task is todo, so an empty queue costs nothing.
+if ! git show origin/dev:TASKS.md | grep -E '\| todo \|' | grep -q -E 'developer|tester'; then
+  log "No todo task for developer or tester in TASKS.md. Exiting without calling Claude."
+  exit 0
+fi
+
 log "Starting core agent run. Stream: $JSONL"
 # acceptEdits lets file writes and edits proceed without a prompt. Shell commands are still
 # governed by the allow and deny rules in .claude/settings.json. Do not use bypassPermissions.
