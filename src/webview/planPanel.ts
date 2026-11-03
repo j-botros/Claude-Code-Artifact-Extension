@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { Plan } from "../plan/plan";
+import { Plan, isSafeRelativePath } from "../plan/plan";
 import { applyPlanEdits, planFileName } from "../plan/planEdits";
 import { parseReviewComments } from "../plan/reviewComments";
 
@@ -117,6 +117,12 @@ implementBtn.addEventListener("click", () => {
   statusEl.textContent = "Preparing the review...";
   vscode.postMessage({ type: "implementDesign" });
 });
+document.querySelectorAll("a.file-link").forEach((link) => {
+  link.addEventListener("click", (event) => {
+    event.preventDefault();
+    vscode.postMessage({ type: "openFile", path: link.getAttribute("data-path") });
+  });
+});
 window.addEventListener("message", (event) => {
   const msg = event.data;
   if (msg && msg.type === "implementResult") {
@@ -162,7 +168,11 @@ function renderFiles(files: Plan["files"]): string {
   const rows = files
     .map(
       (f) =>
-        `<tr><td><code>${escapeHtml(f.path)}</code>${f.isNew ? ' <span class="badge">new</span>' : ""}</td><td>${escapeHtml(f.change)}</td></tr>`
+        `<tr><td>${
+          f.isNew
+            ? `<code>${escapeHtml(f.path)}</code> <span class="badge">new</span>`
+            : `<a href="#" class="file-link" data-path="${escapeHtml(f.path)}"><code>${escapeHtml(f.path)}</code></a>`
+        }</td><td>${escapeHtml(f.change)}</td></tr>`
     )
     .join("\n");
   return `<table>
@@ -205,6 +215,7 @@ export function renderPlanHtml(plan: Plan, nonce: string, options?: { resetState
     --table-head-bg: #eaeef2;
     --badge-bg: #1a7f37;
     --badge-fg: #ffffff;
+    --link: #0969da;
   }
   @media (prefers-color-scheme: dark) {
     :root {
@@ -217,6 +228,7 @@ export function renderPlanHtml(plan: Plan, nonce: string, options?: { resetState
       --table-head-bg: #2d2d30;
       --badge-bg: #2ea043;
       --badge-fg: #ffffff;
+      --link: #58a6ff;
     }
   }
   body { background: var(--bg); color: var(--fg); font-family: system-ui, sans-serif; padding: 1.5rem; max-width: 52rem; margin: 0 auto; }
@@ -224,6 +236,7 @@ export function renderPlanHtml(plan: Plan, nonce: string, options?: { resetState
   ol { padding-left: 1.25rem; }
   li { background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 0.5rem 1rem; margin-bottom: 0.75rem; }
   h2 { font-size: 1.05rem; margin: 1.5rem 0 0.5rem; }
+  a.file-link { color: var(--link); }
   code { overflow-wrap: anywhere; }
   .lang-label { color: var(--muted); font-size: 0.75rem; margin-bottom: 0.25rem; }
   pre { background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 0.75rem 1rem; overflow-x: auto; margin: 0; }
@@ -261,6 +274,28 @@ ${renderItems(plan.verification)}
 <script nonce="${nonce}">${resetLine}${COMMENT_SCRIPT}</script>
 </body>
 </html>`;
+}
+
+/**
+ * Opens a workspace file for an openFile message. Rejects non-string, absolute, or ".."
+ * paths silently. Shows an information message with no workspace folder and an error
+ * message when the file cannot be opened. Never throws.
+ */
+export async function openWorkspaceFile(path: unknown): Promise<void> {
+  if (typeof path !== "string" || !isSafeRelativePath(path)) {
+    return;
+  }
+  const folder = vscode.workspace.workspaceFolders?.[0];
+  if (!folder) {
+    void vscode.window.showInformationMessage("Open a folder to open files from the plan.");
+    return;
+  }
+  try {
+    const doc = await vscode.workspace.openTextDocument(vscode.Uri.joinPath(folder.uri, path));
+    await vscode.window.showTextDocument(doc);
+  } catch {
+    void vscode.window.showErrorMessage(`Could not open ${path}`);
+  }
 }
 
 /** Hosts a webview panel that shows a plan. */
@@ -303,6 +338,8 @@ export class PlanPanel {
         this.saveChain = this.saveChain.then(() => this.save(msg));
       } else if (type === "reviewComments") {
         this.saveChain = this.saveChain.then(() => this.review(msg));
+      } else if (type === "openFile") {
+        void openWorkspaceFile((msg as { path?: unknown }).path);
       } else if (type === "implementDesign") {
         this.saveChain = this.saveChain.then(() => this.implement());
       }
