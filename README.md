@@ -48,7 +48,7 @@ Available commands:
 | `npm run compile` | Build the extension |
 | `npm run test:unit` | Unit tests (plan parsing, plan HTML rendering) |
 | `npm run test:ui` | Headless Chromium (Playwright) tests of the artifact view: rendering, themes, comments, edits. Needs `npx playwright install chromium` once. |
-| `npm run test:integration` | Tests inside a VS Code window (downloads VS Code 1.107.0 on first run). Covers activation, the sample-plan command and webview, the diff review lenses, and the plan flows (generate, `agy` fallback, Review Comments) against stub `claude` and `agy` executables. |
+| `npm run test:integration` | Tests inside a VS Code window (downloads VS Code 1.107.0 on first run). Covers activation, the sample-plan command and webview, the diff review lenses, and the plan flows (generate, `agy` fallback, Review Comments) against stub `claude` and `agy` executables, and Apply accepted in a temporary workspace (only accepted hunks written, confirmation, session end). |
 | `npm run package` | Create a `.vsix` file for local install (writes `claude-code-artifact-<version>.vsix` in the repo root) |
 | `npm test` | Run unit, UI, then integration tests |
 
