@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import { Plan } from "../plan/plan";
+import { applyPlanEdits, planFileName } from "../plan/planEdits";
 
 /** Escapes text so it is safe to place inside HTML. */
 export function escapeHtml(text: string): string {
@@ -31,21 +32,71 @@ function renderSteps(steps: string[]): string {
   return steps
     .map(
       (s, i) =>
-        `<li>${escapeHtml(s)}<textarea class="comment" data-step="${i}" aria-label="Comment on step ${i + 1}" rows="2" placeholder="Add a comment"></textarea></li>`
+        `<li><textarea class="step-text" data-step="${i}" aria-label="Edit step ${i + 1}" rows="2">${escapeHtml(s)}</textarea><textarea class="comment" data-step="${i}" aria-label="Comment on step ${i + 1}" rows="2" placeholder="Add a comment"></textarea></li>`
     )
     .join("\n");
 }
 
-/** Fixed script (no plan data) that restores and saves comments via webview state. */
+/** Fixed script (no plan data): comments and edits via webview state, and saving edits to the host. */
 const COMMENT_SCRIPT = `
 const vscode = acquireVsCodeApi();
-function readComments() {
+function readState() {
   const state = vscode.getState();
-  if (state && typeof state === "object" && state.comments && typeof state.comments === "object") {
+  return state && typeof state === "object" ? state : {};
+}
+function readComments() {
+  const state = readState();
+  if (state.comments && typeof state.comments === "object") {
     return state.comments;
   }
   return {};
 }
+const titleBox = document.querySelector("input.edit-title");
+const summaryBox = document.querySelector("textarea.edit-summary");
+const scopeBox = document.querySelector("textarea.edit-outofscope");
+const stepBoxes = Array.from(document.querySelectorAll("textarea.step-text"));
+const statusEl = document.querySelector("p.status");
+function readEdits() {
+  return {
+    title: titleBox.value,
+    summary: summaryBox.value,
+    outOfScope: scopeBox.value,
+    steps: stepBoxes.map((b) => b.value),
+  };
+}
+const saved = readState().edits;
+if (saved && typeof saved === "object") {
+  if (typeof saved.title === "string") { titleBox.value = saved.title; }
+  if (typeof saved.summary === "string") { summaryBox.value = saved.summary; }
+  if (typeof saved.outOfScope === "string") { scopeBox.value = saved.outOfScope; }
+  if (Array.isArray(saved.steps)) {
+    stepBoxes.forEach((b, i) => {
+      if (typeof saved.steps[i] === "string") { b.value = saved.steps[i]; }
+    });
+  }
+}
+let lastSent = null;
+function sendEdits() {
+  lastSent = readEdits();
+  vscode.postMessage({ type: "savePlan", title: lastSent.title, summary: lastSent.summary, outOfScope: lastSent.outOfScope, steps: lastSent.steps });
+}
+[titleBox, summaryBox, scopeBox].concat(stepBoxes).forEach((box) => {
+  box.addEventListener("change", sendEdits);
+});
+titleBox.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    sendEdits();
+  }
+});
+window.addEventListener("message", (event) => {
+  const msg = event.data;
+  if (!msg || msg.type !== "saveResult") { return; }
+  statusEl.textContent = typeof msg.message === "string" ? msg.message : "";
+  if (msg.ok === true && lastSent) {
+    vscode.setState({ comments: readComments(), edits: lastSent });
+  }
+});
 const comments = readComments();
 document.querySelectorAll("textarea.comment").forEach((box) => {
   const key = box.getAttribute("data-step");
@@ -60,7 +111,7 @@ document.querySelectorAll("textarea.comment").forEach((box) => {
     } else {
       next[key] = box.value;
     }
-    vscode.setState({ comments: next });
+    vscode.setState(Object.assign({}, readState(), { comments: next }));
   });
 });
 `;
@@ -86,10 +137,7 @@ ${rows}
 
 /** Builds the full HTML document for a plan. Plan text is always escaped. */
 export function renderPlanHtml(plan: Plan, nonce: string): string {
-  const outOfScope =
-    plan.overview.outOfScope === null
-      ? ""
-      : `<h2>Out of scope</h2>\n<p>${escapeHtml(plan.overview.outOfScope)}</p>`;
+  const outOfScope = `<h2>Out of scope</h2>\n<textarea class="edit-outofscope" aria-label="Edit out of scope" rows="2" placeholder="Nothing excluded">${escapeHtml(plan.overview.outOfScope ?? "")}</textarea>`;
   const language = plan.proposedChanges.language;
   const langClass = /^[a-zA-Z0-9+#-]*$/.test(language) && language !== ""
     ? ` class="language-${escapeHtml(language)}"`
@@ -141,12 +189,15 @@ export function renderPlanHtml(plan: Plan, nonce: string): string {
   th, td { border: 1px solid var(--table-border); padding: 0.4rem 0.75rem; text-align: left; vertical-align: top; overflow-wrap: anywhere; }
   th { background: var(--table-head-bg); }
   textarea { display: block; box-sizing: border-box; width: 100%; background: var(--bg); color: var(--fg); border: 1px solid var(--border); border-radius: 4px; font: inherit; margin-top: 0.4rem; }
+  input.edit-title { display: block; box-sizing: border-box; width: 100%; background: var(--bg); color: var(--fg); border: 1px solid var(--border); border-radius: 4px; font: inherit; font-size: 1.5rem; font-weight: bold; padding: 0.25rem 0.5rem; }
+  .status { color: var(--muted); font-size: 0.85rem; min-height: 1.2em; margin: 0.25rem 0 0.75rem; }
   .badge { background: var(--badge-bg); color: var(--badge-fg); border-radius: 999px; padding: 0 0.5rem; font-size: 0.75rem; margin-left: 0.25rem; }
 </style>
 </head>
 <body>
-<h1>${escapeHtml(plan.title)}</h1>
-<p class="summary">${escapeHtml(plan.overview.summary)}</p>
+<h1><input type="text" class="edit-title" aria-label="Edit title" value="${escapeHtml(plan.title)}"></h1>
+<p class="status" role="status"></p>
+<textarea class="edit-summary" aria-label="Edit summary" rows="3">${escapeHtml(plan.overview.summary)}</textarea>
 ${outOfScope}
 <h2>Proposed changes</h2>
 ${langLabel}<pre><code${langClass}>${escapeHtml(plan.proposedChanges.code)}</code></pre>
@@ -178,8 +229,53 @@ export class PlanPanel {
     return new PlanPanel(panel, plan);
   }
 
-  /** Sets the panel's HTML from the plan. */
+  /** The plan as last saved (or as first shown). */
+  private currentPlan: Plan;
+
+  /** Tail of the save queue, so saves run one at a time. */
+  private saveChain: Promise<void> = Promise.resolve();
+
+  /** Sets the panel's HTML from the plan and listens for save messages. */
   private constructor(private readonly panel: vscode.WebviewPanel, plan: Plan) {
+    this.currentPlan = plan;
     this.panel.webview.html = renderPlanHtml(plan, makeNonce());
+    this.panel.webview.onDidReceiveMessage((msg: unknown) => {
+      if (typeof msg !== "object" || msg === null || (msg as { type?: unknown }).type !== "savePlan") {
+        return;
+      }
+      this.saveChain = this.saveChain.then(() => this.save(msg));
+    });
+  }
+
+  /** Posts a save result to the webview. */
+  private reply(ok: boolean, message: string): void {
+    void this.panel.webview.postMessage({ type: "saveResult", ok, message });
+  }
+
+  /** Validates edits, writes the plan file, then updates the current plan. Never throws. */
+  private async save(input: unknown): Promise<void> {
+    const result = applyPlanEdits(this.currentPlan, input);
+    if (!result.ok) {
+      this.reply(false, result.error);
+      return;
+    }
+    const folder = vscode.workspace.workspaceFolders?.[0];
+    if (!folder) {
+      this.reply(false, "Open a folder to save edits.");
+      return;
+    }
+    try {
+      const dir = vscode.Uri.joinPath(folder.uri, ".claude", "plans");
+      const name = planFileName(result.plan.title);
+      await vscode.workspace.fs.createDirectory(dir);
+      await vscode.workspace.fs.writeFile(
+        vscode.Uri.joinPath(dir, name),
+        new TextEncoder().encode(JSON.stringify(result.plan, null, 2) + "\n")
+      );
+      this.currentPlan = result.plan;
+      this.reply(true, `Saved to .claude/plans/${name}`);
+    } catch (err) {
+      this.reply(false, `Could not save: ${err instanceof Error ? err.message : String(err)}`);
+    }
   }
 }
