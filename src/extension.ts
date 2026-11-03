@@ -36,7 +36,7 @@ async function runAgyFallback(prompt: string, cwd: string): Promise<AgyRunResult
  * Runs Claude Code headless with a prompt and parses the reply into a plan.
  * Falls back to agy only when claude is missing or not logged in.
  */
-async function runPlanPrompt(
+export async function runPlanPrompt(
   prompt: string,
   cwd: string
 ): Promise<{ ok: true; plan: Plan } | { ok: false; message: string }> {
@@ -57,7 +57,7 @@ async function runPlanPrompt(
 }
 
 /** Sends the plan and comments to Claude Code and returns the revised plan. */
-async function reviewPlan(
+export async function reviewPlan(
   plan: Plan,
   comments: Record<number, string>
 ): Promise<{ ok: true; plan: Plan } | { ok: false; message: string }> {

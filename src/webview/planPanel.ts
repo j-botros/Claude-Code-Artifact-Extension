@@ -300,6 +300,9 @@ export async function openWorkspaceFile(path: unknown): Promise<void> {
 
 /** Hosts a webview panel that shows a plan. */
 export class PlanPanel {
+  /** The HTML most recently set on a panel; read by integration tests; the extension does not use it. */
+  static lastRenderedHtml: string | undefined;
+
   /**
    * Opens a new panel showing the given plan; `onReview` handles Review Comments clicks
    * and `onImplement` handles Implement the Design clicks.
@@ -329,6 +332,7 @@ export class PlanPanel {
   ) {
     this.currentPlan = plan;
     this.panel.webview.html = renderPlanHtml(plan, makeNonce());
+    PlanPanel.lastRenderedHtml = this.panel.webview.html;
     this.panel.webview.onDidReceiveMessage((msg: unknown) => {
       if (typeof msg !== "object" || msg === null) {
         return;
@@ -397,6 +401,7 @@ export class PlanPanel {
       this.currentPlan = result.plan;
       this.panel.title = result.plan.title;
       this.panel.webview.html = renderPlanHtml(result.plan, makeNonce(), { resetState: true });
+      PlanPanel.lastRenderedHtml = this.panel.webview.html;
     } catch (err) {
       this.replyReview(`Review failed: ${err instanceof Error ? err.message : String(err)}`);
     }

@@ -13,6 +13,13 @@ Owned by the core agent only. Keep the latest run first. Keep only the last few 
 
 ## Run log
 
+### Run 20 (2026-11-03)
+- Task: `e2e-plan-flows` (developer, then tester). Developer added two test seams, no behaviour change (commit `6431d09`): `export` on `runPlanPrompt` and `reviewPlan` in `src/extension.ts`, and `PlanPanel.lastRenderedHtml` in `src/webview/planPanel.ts`. Tester added `test/integration/planFlows.test.ts` with 10 tests (commit `04cfa11`). Stub `claude` and `agy` scripts are written at test time under `out-test/stub-bin/` and put first on PATH per case. Verdict PASS.
+- Checks: `npm test` passes: unit 214, UI 4, integration 14 (VS Code 1.107.0). Re-run by the core agent.
+- Core agent: added the README integration row (commit `ce12415`). Opened PR #51 into `dev`. Merged it once tests passed. Marked the task `done`.
+- Not verified: the stub tests cover control flow only. They do not prove the real `claude` or `agy` CLI works. Case 2 relies on the agy warning flag being unset when the test host starts; it passed on both runs.
+- Next: `e2e-apply` (developer, then tester) is the next `todo` in table order. `antigravity-test-2` is owner-only and is skipped.
+
 ### Run 19 (2026-11-03)
 - Task: `link-file-paths` (developer, then tester). Developer changed only `src/webview/planPanel.ts`: non-new Files table paths are links (`a.file-link`, `data-path` escaped). The existing nonce'd script posts `{ type: "openFile", path }`. `openWorkspaceFile` rejects non-string, absolute, `..`, and backslash paths silently, and opens the file under the first workspace folder. CSP unchanged. Tester added `test/unit/fileLinks.test.ts` (21 tests) and relaxed the anchor and href assertions in `test/unit/planRenderer.test.ts` (one-script and no-inline-handler checks kept). Verdict PASS.
 - Checks: `npm run compile` passes. `npm run test:unit` passes with 214 tests in 14 files. `npm run test:ui` passes with 4. `npm test` passes: unit 214, UI 4, integration 4 (VS Code 1.107.0).
