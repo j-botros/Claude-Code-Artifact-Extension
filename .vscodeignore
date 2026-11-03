@@ -17,4 +17,6 @@ tsconfig.json
 vitest.config.*
 playwright.config.*
 .vscode-test.mjs
+out-test/**
+.vscode-test/**
 **/*.map
