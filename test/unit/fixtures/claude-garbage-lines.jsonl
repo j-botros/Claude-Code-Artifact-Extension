@@ -1,0 +1,8 @@
+Warning: something printed to stdout
+{"type":"system","subtype":"init","session_id":"s1"}
+
+{not json at all
+[1,2,3]
+"just a string"
+{"type":"result","subtype":"success","is_error":false,"result":"```json\n{\"title\":\"T\",\"overview\":{\"summary\":\"S\",\"outOfScope\":null},\"proposedChanges\":{\"language\":\"typescript\",\"code\":\"x\"},\"files\":[{\"path\":\"src/a.ts\",\"change\":\"Add a.\",\"isNew\":true}],\"implementationSteps\":[\"one\"],\"verification\":[\"check\"]}\n```"}
+trailing junk
