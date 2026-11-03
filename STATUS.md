@@ -13,6 +13,16 @@ Owned by the core agent only. Keep the latest run first. Keep only the last few 
 
 ## Run log
 
+### Run 23 (2026-11-03)
+- Task: `login-check-tighten` (developer, then tester). Developer changed `looksLikeAuthProblem` in `src/claude/claudeRunner.ts` (commit `84fc1cf`) to `/not logged in|please run \/login|invalid api key/i`, with a doc comment that lists the phrases and the excluded wording. Tester updated `test/unit/streamParser.test.ts` (commit `b3d4cc7`): the three old assertions moved to the new behaviour, a positive test for each phrase, and false-positive tests (for example "Failed to parse the login page component", "catalog in the registry"). Verdict PASS.
+- Checks: core agent re-ran `npm run test:unit` (218 passed, 14 files) and read the regex. The tester reports `npm test` passes (UI 4, integration 21, VS Code 1.107.0). Not re-run by the core agent.
+- Exact text used:
+  - `invalid api key` and `please run /login`: confirmed. Both are in `test/unit/fixtures/claude-error.jsonl` ("Invalid API key. Please run /login").
+  - `not logged in`: NOT confirmed against the real `claude` CLI. It comes from the brief wording only. No saved fixture contains it, and `claude` is not on the allow list, so it could not be run here. Owner: run `claude` logged out once and check the wording. If it differs, update the regex.
+- PR #55 into `dev`, merged with a merge commit (merged 2026-11-03 21:36 UTC). Task marked `done`.
+- Not verified: the not-logged-in path with the real CLI. The integration stubs in `e2e-plan-flows` use stub text, so they do not test the real wording.
+- Next: no `todo` task for developer or tester is left. `antigravity-test-2` is owner-only. `vitest-pin-two-weeks` is `blocked` (lock file, see run 22). The next scheduled run should write `PAUSE` and send the notification, unless the owner adds a task or unblocks `vitest-pin-two-weeks`.
+
 ### Run 22 (2026-11-03)
 - Task: `vitest-pin-two-weeks` (developer, then tester). Result: blocked at the developer step. No pin change, no tester run.
 - Why: `npm install --save-dev --save-exact vitest@5.0.5` on branch `task/vitest-pin-two-weeks` exited 1 with `npm error Cannot read properties of null (reading 'edgesOut')`. This is an npm internal error, not a clear "version not found". The npm debug log is outside the repo, so the developer could not read it. The developer did not retry with workarounds.
@@ -260,7 +270,7 @@ Owned by the core agent only. Keep the latest run first. Keep only the last few 
 - Resolved: CLAUDE.md has never had a Section 8 in its git history. The earlier note saying it was missing was wrong.
 - Vitest 5.1.0 is too new for the two-week rule. Queued as `vitest-pin-two-weeks`.
 - Audit: 9 findings remain on dev. 8 are dev-only tooling with no fix yet, and `@vscode/vsce` 4.x is a major upgrade. The high one is `serialize-javascript`, which comes from `mocha` through `@vscode/test-cli`.
-- Login check is too broad. Queued as `login-check-tighten`.
+- Login check: narrowed in `login-check-tighten` (run 23, PR #55). Owner: confirm the real CLI's not-logged-in wording. `not logged in` is not yet confirmed against the CLI.
 
 ## Blockers
 - `ui-tests` is done (run 15, PR #39). Its earlier blocker is gone.
