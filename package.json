@@ -7,7 +7,11 @@
   "version": "0.0.1",
   "main": "./out/extension.js",
   "engines": {
-    "vscode": "^1.131.0"
+    "vscode": "^1.144.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/j-botros/Claude-Code-Artifact-Extension.git"
   },
   "contributes": {
     "commands": [

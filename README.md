@@ -46,6 +46,7 @@ Available commands:
 | `npm install` | Install dependencies |
 | `npm run compile` | Build the extension |
 | `npm run test:unit` | Unit tests (plan parsing, plan HTML rendering) |
+| `npm run package` | Create a `.vsix` file for local install (writes `claude-code-artifact-<version>.vsix` in the repo root) |
 
 Planned commands (not yet available):
 
@@ -55,7 +56,6 @@ Planned commands (not yet available):
 | `npm run test:ui` | Headless UI tests of the artifact view |
 | `npm run test:integration` | Tests inside a VS Code window |
 | `npm test` | Run all of the above |
-| `npm run package` | Create a `.vsix` file for local install (script exists; not yet verified, see STATUS.md) |
 
 Plans are exchanged as JSON. Claude Code's output may include a Markdown code fence, which the extension strips before parsing.
 
