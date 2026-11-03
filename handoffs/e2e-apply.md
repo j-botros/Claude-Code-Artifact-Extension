@@ -68,4 +68,27 @@
 
 ## Testing (tester)
 
-_To be written by the tester._
+**Verdict: PASS**
+
+**File added:** `test/integration/applyFlows.test.ts` (7 cases). No changes to `src/`, `package.json`, or `.vscode-test.mjs`.
+
+**Commands run:**
+- `npm run compile`: passed.
+- `npm run test:unit`: 14 files, 214 tests passed.
+- `npm run test:integration` (VS Code 1.107.0): 21 passing, 0 failing (14 existing + 7 new).
+- `npm test`: unit 214 passed, UI 4 passed, integration 21 passed.
+
+**Cases (all pass):**
+1. Accept hunk 0, reject hunk 1: modal shown once (text, `modal: true`, button "Apply"); file equals the original with only line 2 changed; info is `a.txt: wrote 1 hunk`.
+2. Multiple files: `one.txt` fully accepted and written; `two.txt` all rejected, byte-identical; the single info message has no `two.txt` line.
+3. New file `newdir/sub/n.txt`: parent folders created, content exact.
+4. Confirmation cancelled: nothing written, no info message, the second apply prompts again (2 prompts), then "Apply" writes (3 prompts).
+5. Session ends after a write: a second apply with the same id (even after the seam reset) shows no prompt and no message and does not change the disk; `acceptHunk` with the old argument followed by apply changes nothing.
+6. Changed since review: the file keeps the on-disk edit; info contains `a.txt: skipped (changed since review)`.
+7. Confirmation remembered: a second review and apply in the same test shows no second prompt; the file ends with the second proposal.
+
+**How it works:** `sessionId` and hunk `key` values come from the CodeLens arguments of `vscode.executeCodeLensProvider` (confirmed to carry `{ sessionId, key }`). Workspaces are `out-test/apply-workspace/case-N`, with a path check before every delete; they are removed in teardown and in suiteTeardown. `showWarningMessage`, `showInformationMessage`, and `showErrorMessage` are stubbed and restored per test. The seam `resetApplyConfirmationForTests()` is called before each test and works from `out/review/hunkReview.js`.
+
+**Test-side note:** with several files, VS Code keeps only the last diff document open, so the helper builds each file's proposed URI from the newest open session id and opens it itself. This is not a bug in `src/`.
+
+**Not verified:** Real Antigravity behaviour (`antigravity-test-2`); the real modal dialog; the dirty-open-file skip path (not in the brief's required cases); the notification progress UI.
