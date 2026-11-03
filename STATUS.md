@@ -13,6 +13,16 @@ Owned by the core agent only. Keep the latest run first. Keep only the last few 
 
 ## Run log
 
+### Run 12 (2026-11-03)
+- Task: `ui-tests` (developer, then tester). Result: blocked before the developer ran. No commits; branch `task/ui-tests` was created from `origin/dev` and has no changes. TASKS.md row is `blocked`.
+- Why: the task needs Playwright in `devDependencies`. Adding it needs `npm install` to update `package-lock.json`. The shell allow list has `npm ci`, not `npm install`. I tested this: with `@playwright/test` added to `package.json` (then reverted), `npm ci` failed with `EUSAGE`, "Missing: @playwright/test@1.55.0 from lock file". Playwright is not in `node_modules` today. The version in that test was a placeholder, not a choice; the real pin needs to be at least two weeks old.
+- Requests for the owner (not run here):
+  - Allow `npm install --save-dev @playwright/test@<version>` for this one task, or update the lock yourself and tell me.
+  - Allow `npx playwright install chromium` (downloads a browser, about 150 MB, from Playwright's CDN).
+  - `npm run test:unit` was not run this run because nothing changed.
+- Not done: `integration-tests` and `pause-and-alert` remain `todo`. Stopped after one task, as the run rules say. `integration-tests` will likely hit the same lock-file problem for `@vscode/test-cli` and `@vscode/test-electron`. `pause-and-alert` only edits `scripts/agent-run.sh` and does not need `npm`, so it is the next runnable task.
+- Next: `pause-and-alert` (developer, then tester) is the next `todo` for developer or tester in table order, once `ui-tests` is unblocked or skipped by the owner.
+
 ### Run 11 (2026-11-03)
 - Task: `implement-apply` (developer, then tester). Developer added `src/plan/applyHunks.ts` (pure `applyAcceptedHunks`), and in `src/review/hunkReview.ts` the Apply lens, the `claudeArtifact.applyAccepted` command, the confirmation, the freshness and unsaved-changes checks, the `WorkspaceEdit` write, per-file results, and the session end (commit `4573137`). Tester added 32 tests in `test/unit/applyHunks.test.ts` (commit `902d4a8`). Verdict PASS for the pure logic. 188 unit tests.
 - Core agent re-ran `npm run compile` (exit 0) and `npm run test:unit` (188 passed). Read the write path in `hunkReview.ts`: writes only in `writeOneFile`, through `WorkspaceEdit`, with `createDirectory` only for parent folders of new files. Updated the README feature and status text. Opened PR #34 into `dev`. Marked the task `done`.
@@ -141,4 +151,4 @@ Owned by the core agent only. Keep the latest run first. Keep only the last few 
 - Owner: confirm the latest stable VS Code version before the first publish.
 
 ## Blockers
-- None for the scaffold. `plan-renderer` is `todo` and is ready to start once the owner removes `PAUSE`.
+- `ui-tests` is blocked: `npm install` is not on the shell allow list, so Playwright cannot be added to the lock file. See run 12.
