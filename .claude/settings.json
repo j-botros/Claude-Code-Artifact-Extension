@@ -1,0 +1,33 @@
+{
+    "permissions": {
+        "allow": [
+            "Bash(git status:*)",
+            "Bash(git diff:*)",
+            "Bash(git log:*)",
+            "Bash(git add:*)",
+            "Bash(git commit:*)",
+            "Bash(git checkout -b task/*)",
+            "Bash(git checkout task/*)",
+            "Bash(git push origin task/*)",
+            "Bash(gh pr create:*)",
+            "Bash(gh pr view:*)",
+            "Bash(gh pr merge:*)",
+            "Bash(npm install:*)",
+            "Bash(npm run:*)",
+            "Bash(npm test:*)",
+            "Bash(npx vitest:*)",
+            "Bash(npx playwright:*)"
+        ],
+        "deny": [
+            "Bash(git push --force:*)",
+            "Bash(git push origin main:*)",
+            "Bash(git push origin dev:*)",
+            "Bash(git checkout main:*)",
+            "Bash(git checkout dev:*)",
+            "Bash(git merge:*)",
+            "Bash(git rebase:*)",
+            "Bash(git reset --hard:*)",
+            "Bash(rm -rf:*)"
+        ]
+    }
+}
