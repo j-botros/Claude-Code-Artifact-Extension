@@ -23,7 +23,15 @@
 ## 3. Stack and conventions
 
 - **Languages / frameworks:** TypeScript in strict mode (`"strict": true`) for the extension host. The webview UI is plain HTML, CSS, and TypeScript/JavaScript with no UI framework; keep it readable and clean, use CSS custom properties for colors, and support light and dark themes.
-- **Plan format:** JSON, the format Claude Code outputs for plans. This is the project owner's recommended default and can change.
+- **Plan format:** JSON, the format Claude Code outputs for plans. The owner's recommended default. The plan has these fields, and the artifact view renders them in this order:
+  - `title` (string)
+  - `overview`: `summary` (two or three sentences: what changes and why) and `outOfScope` (string, or null when not needed; says what the plan deliberately does not do and why)
+  - `proposedChanges`: `language` (string) and `code` (string: the signature or interface first, with its doc comment)
+  - `files`: an array of `{ path, change, isNew }`. `path` is a relative path. `change` is one line. `isNew` is true for new files.
+  - `implementationSteps`: an ordered array of short strings, one or two lines each. Reference existing helpers by name instead of re-describing them.
+  - `verification`: an array of strings: how each change is tested, or why it isn't.
+  - The plan prompt for Claude Code must ask for exactly this shape.
+- **Implement the Design (decided):** the plan's `implementationSteps` are applied directly to the current workspace, in the local directory, without creating a branch. This is an explicit user action from the button, never automatic.
 - **Key dependencies or external services:**
   - Extension API (primary target): the VS Code extension API. Google's Antigravity docs do not document extension development, so the VS Code API is the reference. Whether Antigravity runs VS Code extensions the same way is unconfirmed (inferred).
   - Antigravity plugin system (secondary goal): `plugin.json`, `agy plugin validate --strict`, and the Antigravity Marketplace. Separate from the VS Code API. Not started until the VS Code extension works.
