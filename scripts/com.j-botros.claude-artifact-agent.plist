@@ -21,11 +21,11 @@
   <key>ProgramArguments</key>
   <array>
     <string>/bin/bash</string>
-    <string>/Users/jobo/Documents/Projects/Claude-Code-Artifact-Extension/scripts/agent-run.sh</string>
+    <string>/Users/jobo/Projects/Claude-Code-Artifact-Extension/scripts/agent-run.sh</string>
   </array>
 
   <key>WorkingDirectory</key>
-  <string>/Users/jobo/Documents/Projects/Claude-Code-Artifact-Extension</string>
+  <string>/Users/jobo/Projects/Claude-Code-Artifact-Extension</string>
 
   <key>EnvironmentVariables</key>
   <dict>
@@ -42,9 +42,9 @@
   <false/>
 
   <key>StandardOutPath</key>
-  <string>/Users/jobo/Documents/Projects/Claude-Code-Artifact-Extension/logs/launchd.out</string>
+  <string>/Users/jobo/Projects/Claude-Code-Artifact-Extension/logs/launchd.out</string>
 
   <key>StandardErrorPath</key>
-  <string>/Users/jobo/Documents/Projects/Claude-Code-Artifact-Extension/logs/launchd.err</string>
+  <string>/Users/jobo/Projects/Claude-Code-Artifact-Extension/logs/launchd.err</string>
 </dict>
 </plist>
