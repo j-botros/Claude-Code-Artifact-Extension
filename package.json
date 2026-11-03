@@ -56,9 +56,11 @@
   "scripts": {
     "compile": "tsc -p ./",
     "test:unit": "vitest run --passWithNoTests",
+    "test:ui": "npm run compile && playwright test --pass-with-no-tests",
     "package": "vsce package"
   },
   "devDependencies": {
+    "@playwright/test": "1.55.0",
     "@types/node": "22.15.21",
     "@types/vscode": "^1.107.0",
     "@vscode/vsce": "3.6.0",

@@ -47,6 +47,7 @@ Available commands:
 | `npm install` | Install dependencies |
 | `npm run compile` | Build the extension |
 | `npm run test:unit` | Unit tests (plan parsing, plan HTML rendering) |
+| `npm run test:ui` | Headless Chromium (Playwright) tests of the artifact view: rendering, themes, comments, edits. Needs `npx playwright install chromium` once. |
 | `npm run package` | Create a `.vsix` file for local install (writes `claude-code-artifact-<version>.vsix` in the repo root) |
 
 Planned commands (not yet available):
@@ -54,7 +55,6 @@ Planned commands (not yet available):
 | Command | Purpose |
 |---|---|
 | `npm run watch` | Rebuild on change |
-| `npm run test:ui` | Headless UI tests of the artifact view |
 | `npm run test:integration` | Tests inside a VS Code window |
 | `npm test` | Run all of the above |
 
