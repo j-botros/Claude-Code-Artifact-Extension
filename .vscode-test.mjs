@@ -11,7 +11,7 @@ mkdirSync(workspaceFolder, { recursive: true });
 
 /** Integration test config: runs the compiled specs in an Extension Development Host. */
 export default defineConfig({
-  files: "out-test/integration/**/*.test.js",
+  files: "out-test/test/integration/**/*.test.js",
   version: "1.107.0",
   extensionDevelopmentPath: root,
   workspaceFolder,
