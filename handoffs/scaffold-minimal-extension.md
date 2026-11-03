@@ -101,3 +101,25 @@ The write was denied by the permission system, so `.vscode/launch.json` was NOT 
 - The three commands above. `test:ui` and `test:integration` are not applicable.
 - Unit-test `parsePlanJson`: plain JSON, fenced JSON (```json), invalid JSON, wrong shape, empty string.
 - Unit-test `escapeHtml` / `renderPlanHtml` (in `src/webview/planPanel.ts`, which imports `vscode`, so it cannot be loaded by Vitest without a mock; consider that when testing).
+
+## Testing
+
+**Verdict: PASS**
+
+### Commands run
+- `npm install`: succeeded (6 audit vulnerabilities reported, not addressed).
+- `npm run compile`: exit 0, no TypeScript errors.
+- `npm run test:unit`: exit 0. 1 test file, 11 passed, 0 failed.
+- `npm run test:ui`, `npm run test:integration`: not applicable for this task (not run).
+
+### Tests added
+`test/unit/plan.test.ts` covers `parsePlanJson` (valid JSON, ```json fence, plain ``` fence, surrounding whitespace, invalid JSON returns `ok:false` without throwing, empty string, wrong shapes, sample plan round trip), the `samplePlan` structure (3 steps), and `escapeHtml` / `renderPlanHtml` (both exported; `vscode` mocked with `vi.mock('vscode', () => ({}))`). Checks include the nonce CSP and that plan text is escaped.
+
+### Failing tests
+None.
+
+### @types/vscode 1.144.0 vs engines.vscode ^1.131.0
+It did not affect anything I observed: install, compile, and unit tests all passed. It would only matter for `vsce package`, which I did not run (out of scope). The open item remains for the owner.
+
+### Notes
+`.vscode/launch.json` is absent (per the Development section); not tested.
