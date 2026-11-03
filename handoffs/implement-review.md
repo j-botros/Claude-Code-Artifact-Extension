@@ -101,3 +101,28 @@ Do not edit `src/claude/`, `src/agy/`, `test/`, `TASKS.md`, `STATUS.md`, `README
 ### Handoff rules
 - Developer: append a "## Development" section to this file. Include what changed, the commit hash, the test output summary, the list of intentionally changed assertions, and what the tester should check. Use Edit. Do not use `cat >>`, `echo >>`, or heredocs.
 - Tester: append a "## Testing" section to this file. Include the commands run, pass and fail counts, and the output of any failing test. Commit test files under `test/` and your Testing section only. Do not stage anything else. Use Edit if it is available. If Edit is not available, use Write and keep every other section unchanged.
+
+## Development
+
+Commit: see `git log -1` on `task/implement-review-2` (the commit contains the source changes and this section).
+
+### What changed
+- `src/plan/plan.ts`: `ProposedFile`, optional `Plan.proposedFiles`, exported `isSafeRelativePath`, validation in `parsePlanJson` (array, `path` string and safe, `content` string; errors name `proposedFiles[i]`). The key is added only when the input had it.
+- `src/plan/planEdits.ts`: `applyPlanEdits` copies `proposedFiles` from `current` when present.
+- `src/plan/planPrompt.ts`: one optional `proposedFiles` line in `SHAPE_RULES` (both prompts); the no-file-write rule is unchanged.
+- `src/plan/diffHunks.ts` (new, pure): `DiffHunk`, `splitHunks` (own LCS, no context lines, 4,000,000-cell cap gives one whole-file hunk). The empty string counts as zero lines on either side, so a new file is one all-added hunk and an emptied file is one all-removed hunk. A trailing newline yields a final empty line, as `split("\n")` does.
+- `src/plan/hunkDecisions.ts` (new, pure): `Decision`, `setDecision`, `summarizeDecisions`.
+- `src/review/hunkReview.ts` (new, only file importing `vscode` for this feature): `startImplementReview`, `registerHunkReview` (content provider for both schemes, CodeLens provider, `claudeArtifact.acceptHunk` / `rejectHunk`, decoration refresh on `onDidChangeVisibleTextEditors`). Reads only. Rejected hunks lose their colour; lens titles change to "Accepted" / "Rejected".
+- `src/webview/planPanel.ts`: `button.implement` in the header, CSS with `var(--...)`, script click handler posting `implementDesign`, `implementResult` reply handling, `ImplementHandler`, `PlanPanel.show(plan, onReview, onImplement)`, `implement()` on `saveChain` using `currentPlan` (last saved plan, not unsaved webview edits).
+- `src/extension.ts`: `implementPlan`, passed in both `show` calls; `registerHunkReview(context)` in `activate`.
+- `package.json`: the two commands and `commandPalette` entries with `"when": "false"`.
+
+### Tests
+- `npm run compile`: exit 0.
+- `npm run test:unit`: 9 files, 123 tests, all passed. No existing assertion broke, so there are no intentionally broken assertions (the `buildPlanPrompt` pin in `test/unit/planPrompt.test.ts` and the header tests still pass as written). The tester should still add the coverage listed in the brief.
+- I could not run grep (shell rules). By reading, `src/review/hunkReview.ts` has no `writeFile`, `createDirectory`, `delete`, `applyEdit`, or `WorkspaceEdit`; the only fs call is `readFile`. The tester should grep to confirm.
+
+### What the tester should check
+- `splitHunks` cases from the brief, especially `oldStart` after earlier hunks and the empty-string handling above.
+- `renderPlanHtml` header has one `button.implement`, no `onclick`, one nonce'd script.
+- `hunkReview.ts` is untested here (needs the VS Code host). Manual check: click the button on a plan with `proposedFiles`.

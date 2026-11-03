@@ -76,18 +76,19 @@ export function applyPlanEdits(current: Plan, input: unknown): ParseResult {
     }
     steps.push(trimmed);
   }
-  return {
-    ok: true,
-    plan: {
-      title,
-      overview: { summary, outOfScope },
-      proposedChanges: {
-        language: current.proposedChanges.language,
-        code: current.proposedChanges.code,
-      },
-      files: current.files.map((f) => ({ path: f.path, change: f.change, isNew: f.isNew })),
-      implementationSteps: steps,
-      verification: [...current.verification],
+  const plan: Plan = {
+    title,
+    overview: { summary, outOfScope },
+    proposedChanges: {
+      language: current.proposedChanges.language,
+      code: current.proposedChanges.code,
     },
+    files: current.files.map((f) => ({ path: f.path, change: f.change, isNew: f.isNew })),
+    implementationSteps: steps,
+    verification: [...current.verification],
   };
+  if (current.proposedFiles !== undefined) {
+    plan.proposedFiles = current.proposedFiles.map((f) => ({ path: f.path, content: f.content }));
+  }
+  return { ok: true, plan };
 }

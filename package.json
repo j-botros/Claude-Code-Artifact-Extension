@@ -22,8 +22,28 @@
       {
         "command": "claudeArtifact.generatePlan",
         "title": "Claude Artifact: Generate Plan from Claude Code"
+      },
+      {
+        "command": "claudeArtifact.acceptHunk",
+        "title": "Claude Artifact: Accept Hunk"
+      },
+      {
+        "command": "claudeArtifact.rejectHunk",
+        "title": "Claude Artifact: Reject Hunk"
       }
-    ]
+    ],
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "claudeArtifact.acceptHunk",
+          "when": "false"
+        },
+        {
+          "command": "claudeArtifact.rejectHunk",
+          "when": "false"
+        }
+      ]
+    }
   },
   "scripts": {
     "compile": "tsc -p ./",
