@@ -4,7 +4,7 @@ Owned by the core agent only. Keep the latest run first. Keep only the last few 
 
 ## Current state
 - Stage: early idea, with a working scaffold. `Claude Artifact: Open Sample Plan` opens a webview with a sample plan. The owner confirmed it renders in Antigravity.
-- Branches: `main` and `dev` exist on GitHub. `dev` includes PRs #1 through #6, #12, and #18.
+- Branches: `main` and `dev` exist on GitHub. `dev` includes PRs #1 through #6, #12, #18, and #23.
 - Packaging: `npm run package` produces a `.vsix` that installs in Antigravity 1.107.0. `engines.vscode` is `^1.107.0` and `@types/vscode` is pinned to `1.107.0`.
 - Compile: `npm run compile` passes. Unit tests: `npm run test:unit` passes (11 tests).
 - `.vscode/launch.json` exists.
@@ -12,6 +12,18 @@ Owned by the core agent only. Keep the latest run first. Keep only the last few 
 - Scheduler: the launchd job is NOT installed. The owner has to install it. The `PAUSE` file is in the repo root until the owner removes it.
 
 ## Run log
+
+### Run 5 (2026-11-03)
+- Task: `claude-plan-generation` (developer, then tester). Developer added `src/claude/streamParser.ts`, `src/claude/claudeRunner.ts`, `src/plan/planPrompt.ts`, and the `claudeArtifact.generatePlan` command (commit `495465a`). Tester added 22 unit tests with fixture streams (commit `e76a1b9`), verdict PASS.
+- Core agent re-ran `npm run test:unit` (60 passed). Added the handoff and README commit `cd75587`. Pushed `task/claude-plan-generation`, opened PR #23 into `dev`, and merged it (merge commit, 2026-11-03). Marked the task `done`.
+- Core agent chose `--permission-mode plan` for the `claude` run, so the plan run cannot edit files. Not in CLAUDE.md. Owner: say if you want it documented there.
+- Known issues (not fixed):
+  - `looksLikeAuthProblem` is loose. Any text with "login" or "api key" is labelled not-logged-in, so an unrelated error can show the login message. Follow-up: tighten the patterns.
+  - The spawn path in `runClaude` is not unit tested, and `claude` was not run here. Owner: run the generate command once in the Extension Development Host.
+- Process notes:
+  - The developer's commit trailer says Claude Sonnet 5.5, not the Haiku 5.5 line in the brief. Left as is.
+  - The tester could not use Edit and rewrote its handoff section with Write. The tester tools list in `.claude/agents/tester.md` still needs Edit.
+- Next: `comments-ui` (developer, then tester) is the next `todo` in table order.
 
 ### Run 4 (2026-11-03)
 - Task: `plan-renderer`. Developer rewrote `renderPlanHtml` (commit `e8de0f0`): files as a Path/Change table with a "new" badge, "No files." for an empty list, language label, CSS-variable light and dark themes. Tester added 11 tests in `test/unit/planRenderer.test.ts` (commit `a9462c9`), verdict PASS. 38 unit tests pass.
