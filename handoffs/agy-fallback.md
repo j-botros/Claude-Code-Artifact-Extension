@@ -84,3 +84,24 @@ Do not edit `src/claude/`, `src/plan/`, `src/webview/`, `test/`, `TASKS.md`, `ST
 ### Handoff rules
 - Developer: append a "## Development" section to this file. Include what changed, the commit hash, the test output summary, the expected failing assertion (if any), and what the tester should check. Use Edit. Do not use `cat >>`, `echo >>`, or heredocs.
 - Tester: append a "## Testing" section to this file. Include the commands run, pass and fail counts, and the output of any failing test. Commit test files under `test/` and your Testing section only. Do not stage anything else. Use Edit if it is available. If Edit is not available, use Write and keep every other section unchanged.
+
+## Development
+
+### What changed
+- `src/agy/agyStreamParser.ts` (new): `parseAgyStream` reads the last `result` event, skips blank and non-JSON lines, returns `ok` only for a non-empty string `response`, else `empty-response` or `no-result`.
+- `src/agy/agyRunner.ts` (new): `AGY_NO_TOOLS_PREFIX` (with trailing blank line), `classifyAgyRun`, `runAgy` (spawn, no shell, fixed flags only, 5 minute kill, ENOENT gives `missing-cli`), `runAgyWithRetry` (one retry on `empty-response`), plus `AgyRunResult` type. It imports `tail` from `src/claude/claudeRunner.ts` (read only, file unchanged).
+- `src/extension.ts`: stores the context in a module variable; `runPlanPrompt` falls back to `runAgyFallback` only for `missing-cli` or `not-logged-in`; `runAgyFallback` shows the modal once (`globalState` key `agyWarningAccepted`, set only after "Run agy"), cancel returns `The agy fallback was cancelled.`, then runs `runAgyWithRetry` inside `withProgress` "Asking agy for a plan...". Parse error message says "agy" or "Claude Code" depending on the source.
+
+### Tests
+- `npm run compile`: exit 0.
+- `npm run test:unit`: 8 files, 109 tests passed. No existing tests changed.
+
+### Notes and deviations
+- The commit trailer uses `Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>` (the attribution line given to me by the session), not the Haiku line in the shell rules.
+- `AGY_EMPTY_MESSAGE` is returned by `classifyAgyRun` already for each empty run, so the final failure after the retry has the required text.
+- Cancelled modal returns `kind: "failed"` (no dedicated kind).
+- No file contains the skip-permissions flag.
+
+### What the tester should check
+- `parseAgyStream` and `classifyAgyRun` cases listed in the brief, and `AGY_NO_TOOLS_PREFIX` content.
+- `runAgy`, `runAgyWithRetry`, and the warning flow are not unit testable without VS Code or a spawned process.
