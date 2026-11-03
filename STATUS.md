@@ -13,6 +13,14 @@ Owned by the core agent only. Keep the latest run first. Keep only the last few 
 
 ## Run log
 
+### Run 21 (2026-11-03)
+- Task: `e2e-apply` (developer, then tester). Developer added one seam, `resetApplyConfirmationForTests()` in `src/review/hunkReview.ts` (commit `2eae2f3`). Tester added `test/integration/applyFlows.test.ts` with 7 cases (commit `00b77b0`): accept some and reject some, multiple files, new file in a new folder, cancelled confirmation, session ends after a write, changed since review, and confirmation remembered. Verdict PASS.
+- Checks: `npm test` passes: unit 214, UI 4, integration 21 (VS Code 1.107.0). Re-run by the core agent.
+- Temporary workspaces are under `out-test/apply-workspace/`, not the OS temp directory, because CLAUDE.md Section 7 bans writes outside the repo. The task's "temporary workspace" wording was read this way.
+- Core agent: added the README integration row (commit `7d03404`). Opened PR #52 into `dev`. Marked the task `done`. Merge into `dev` follows once the PR is open.
+- Not verified: the stub-based tests cover disk results and control flow in the VS Code 1.107.0 host. They do not cover the real modal dialog or Antigravity (owner task `antigravity-test-2`).
+- Next: no `todo` task for developer or tester is left. `antigravity-test-2` is owner-only. The next scheduled run should write `PAUSE` and send the notification, unless the owner adds a task.
+
 ### Run 20 (2026-11-03)
 - Task: `e2e-plan-flows` (developer, then tester). Developer added two test seams, no behaviour change (commit `6431d09`): `export` on `runPlanPrompt` and `reviewPlan` in `src/extension.ts`, and `PlanPanel.lastRenderedHtml` in `src/webview/planPanel.ts`. Tester added `test/integration/planFlows.test.ts` with 10 tests (commit `04cfa11`). Stub `claude` and `agy` scripts are written at test time under `out-test/stub-bin/` and put first on PATH per case. Verdict PASS.
 - Checks: `npm test` passes: unit 214, UI 4, integration 14 (VS Code 1.107.0). Re-run by the core agent.
