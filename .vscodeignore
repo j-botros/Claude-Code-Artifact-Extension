@@ -1,0 +1,12 @@
+.vscode/**
+.claude/**
+handoffs/**
+logs/**
+scripts/**
+src/**
+test/**
+**/*.map
+tsconfig.json
+vitest.config.ts
+TASKS.md
+STATUS.md

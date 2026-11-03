@@ -1,0 +1,32 @@
+{
+  "name": "claude-code-artifact",
+  "displayName": "Claude Code Artifact",
+  "description": "Interactive Claude Code artifacts (such as implementation plans) in the IDE.",
+  "publisher": "j-botros",
+  "license": "MIT",
+  "version": "0.0.1",
+  "main": "./out/extension.js",
+  "engines": {
+    "vscode": "^1.131.0"
+  },
+  "contributes": {
+    "commands": [
+      {
+        "command": "claudeArtifact.openSamplePlan",
+        "title": "Claude Artifact: Open Sample Plan"
+      }
+    ]
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "test:unit": "vitest run --passWithNoTests",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/node": "22.15.21",
+    "@types/vscode": "1.144.0",
+    "@vscode/vsce": "3.6.0",
+    "typescript": "5.9.3",
+    "vitest": "3.2.4"
+  }
+}

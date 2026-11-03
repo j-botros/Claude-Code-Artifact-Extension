@@ -1,6 +1,6 @@
 # Claude Code Artifact Extension
 
-**Status: early idea.** No extension code exists yet. This README describes what the project will do and the decisions made so far.
+**Status: early idea.** A minimal scaffold exists: one command opens a webview with a hard-coded sample plan. Artifact creation with Claude Code is not built yet. This README describes what the project will do and the decisions made so far.
 
 An IDE extension for Google Antigravity and VS Code that lets Claude Code create interactive **artifacts** inside the editor. The first artifact type is an implementation plan: a readable design document for proposed changes that you can review, comment on, and act on.
 
@@ -39,18 +39,23 @@ The primary `claude` path runs under your Claude Code permission settings. Those
 
 The project is written in TypeScript, with plain HTML, CSS, and JavaScript for the artifact view. There is no UI framework.
 
-Planned commands (not yet available):
+Available commands:
 
 | Command | Purpose |
 |---|---|
 | `npm install` | Install dependencies |
 | `npm run compile` | Build the extension |
+| `npm run test:unit` | Unit tests (plan parsing, plan HTML rendering) |
+
+Planned commands (not yet available):
+
+| Command | Purpose |
+|---|---|
 | `npm run watch` | Rebuild on change |
-| `npm run test:unit` | Unit tests (plan parsing, comment handling) |
 | `npm run test:ui` | Headless UI tests of the artifact view |
 | `npm run test:integration` | Tests inside a VS Code window |
 | `npm test` | Run all of the above |
-| `npm run package` | Create a `.vsix` file for local install |
+| `npm run package` | Create a `.vsix` file for local install (script exists; not yet verified, see STATUS.md) |
 
 Plans are exchanged as JSON. Claude Code's output may include a Markdown code fence, which the extension strips before parsing.
 
