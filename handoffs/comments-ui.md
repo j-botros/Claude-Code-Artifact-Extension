@@ -86,3 +86,21 @@ Results: `npm run compile` exit 0. `npm run test:unit`: 57 passed, 3 failed, all
 3. "renders steps in an ol and verification in a ul": regex `/<ol>\s*<li>Step one<\/li>.../` fails because each `<li>` now contains a textarea before `</li>`.
 
 Tester should: loosen those three assertions (allow exactly one nonce'd script; check escaping of plan fields inside the plan content, not the script tag; match the new `<li>` shape), then add the coverage listed in the brief.
+
+## Testing
+
+Verdict: PASS
+
+Commands run:
+- `npm run compile`: exit 0 (strict).
+- `npm run test:unit`: 4 files, 66 tests passed, 0 failed (planRenderer.test.ts: 17 tests).
+- `npm run test:ui` and `npm run test:integration`: not applicable (scripts do not exist yet).
+
+Updated assertions in `test/unit/planRenderer.test.ts`:
+- "escapes every plan field": no raw `<script>`; exactly one `<script` and one `</script>` in the output (our own); all escaped-field checks kept. `<li>` check split to `<li>ESCAPED` (step) and `<li>ESCAPED</li>` (verification).
+- "contains exactly one nonce'd script, and no anchor, href, or inline event handler": exactly one `<script`, equal to `<script nonce="NONCE">`; `<a `, `href=`, and `on*=` still absent.
+- "renders steps in an ol and verification in a ul": step `<li>` must be text, then an empty textarea, then `</li>`; verification regex unchanged.
+
+New tests: one empty textarea per step in order with `class`, `data-step` (zero-based), `aria-label` (one-based), `rows`, `placeholder`; plan text absent from the script and `acquireVsCodeApi(` called once; script nonce equals CSP `script-src` nonce; script sits after the last section and just before `</body>`; `<b>` in a step is escaped; zero steps gives no textarea and no throw.
+
+Product bugs found: none.

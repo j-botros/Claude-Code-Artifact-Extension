@@ -61,8 +61,10 @@ describe("renderPlanHtml", () => {
       }),
       NONCE
     );
+    // No raw plan script tag; only our own nonce'd script (one open, one close) exists.
     expect(html).not.toContain("<script>");
-    expect(html).not.toContain("</script>");
+    expect(html.split("<script").length - 1).toBe(1);
+    expect(html.split("</script>").length - 1).toBe(1);
     // title (h1 and <title>), summary, outOfScope, language, code, path, change, step, verification
     expect(html.split(ESCAPED).length - 1).toBeGreaterThanOrEqual(10);
     expect(html).toContain(`<h1>${ESCAPED}</h1>`);
@@ -72,6 +74,8 @@ describe("renderPlanHtml", () => {
     expect(html).toContain(`<code>${ESCAPED}</code></pre>`);
     expect(html).toContain(`<td><code>${ESCAPED}</code>`);
     expect(html).toContain(`<td>${ESCAPED}</td>`);
+    // Step <li> holds the escaped text then a textarea; verification <li> is plain.
+    expect(html).toContain(`<li>${ESCAPED}`);
     expect(html).toContain(`<li>${ESCAPED}</li>`);
   });
 
@@ -119,9 +123,11 @@ describe("renderPlanHtml", () => {
     expect(html).toContain(`<style nonce="${NONCE}">`);
   });
 
-  it("contains no script, anchor, href, or inline event handler", () => {
+  it("contains exactly one nonce'd script, and no anchor, href, or inline event handler", () => {
     const html = renderPlanHtml(makePlan(), NONCE);
-    expect(html).not.toContain("<script");
+    // Exactly one script, and it carries the CSP nonce.
+    expect(html.split("<script").length - 1).toBe(1);
+    expect(html).toContain(`<script nonce="${NONCE}">`);
     expect(html).not.toContain("<a ");
     expect(html).not.toContain("href=");
     expect(html).not.toMatch(/\son[a-z]+\s*=/i);
@@ -143,7 +149,67 @@ describe("renderPlanHtml", () => {
 
   it("renders steps in an ol and verification in a ul", () => {
     const html = renderPlanHtml(makePlan(), NONCE);
-    expect(html).toMatch(/<ol>\s*<li>Step one<\/li>\s*<li>Step two<\/li>\s*<\/ol>/);
+    const li = (text: string): string => `<li>${text}\\s*<textarea[^>]*></textarea>\\s*</li>`;
+    expect(html).toMatch(new RegExp(`<ol>\\s*${li("Step one")}\\s*${li("Step two")}\\s*</ol>`));
     expect(html).toMatch(/<ul>\s*<li>Check one<\/li>\s*<\/ul>/);
+  });
+
+  it("renders one empty textarea per step, in order, with data-step and aria-label", () => {
+    const html = renderPlanHtml(makePlan({ implementationSteps: ["A", "B", "C"] }), NONCE);
+    const areas = html.match(/<textarea[^>]*>[\s\S]*?<\/textarea>/g) ?? [];
+    expect(areas).toHaveLength(3);
+    areas.forEach((a, i) => {
+      expect(a).toContain('class="comment"');
+      expect(a).toContain(`data-step="${i}"`);
+      expect(a).toContain(`aria-label="Comment on step ${i + 1}"`);
+      expect(a).toContain('rows="2"');
+      expect(a).toContain('placeholder="Add a comment"');
+      expect(a).toMatch(/><\/textarea>$/);
+    });
+  });
+
+  it("keeps plan text out of the script", () => {
+    const html = renderPlanHtml(
+      makePlan({ implementationSteps: ["UNIQUE_STEP_TEXT"], title: "UNIQUE_TITLE" }),
+      NONCE
+    );
+    const m = html.match(/<script nonce="[^"]*">([\s\S]*?)<\/script>/);
+    expect(m).not.toBeNull();
+    const code = m![1];
+    expect(code).toContain("acquireVsCodeApi");
+    expect(code).not.toContain("UNIQUE_STEP_TEXT");
+    expect(code).not.toContain("UNIQUE_TITLE");
+    expect(code).not.toContain("Summary text");
+    // acquireVsCodeApi is called exactly once.
+    expect(code.split("acquireVsCodeApi(").length - 1).toBe(1);
+  });
+
+  it("uses the same nonce for the script and the CSP script-src", () => {
+    const html = renderPlanHtml(makePlan(), "zzNonce9");
+    const csp = html.match(/script-src 'nonce-([^']+)'/);
+    const script = html.match(/<script nonce="([^"]+)">/);
+    expect(csp?.[1]).toBe("zzNonce9");
+    expect(script?.[1]).toBe(csp?.[1]);
+  });
+
+  it("puts the script at the end of the body", () => {
+    const html = renderPlanHtml(makePlan(), NONCE);
+    expect(html.indexOf("<script")).toBeGreaterThan(html.indexOf("<h2>Verification</h2>"));
+    expect(html).toMatch(/<\/script>\s*<\/body>/);
+  });
+
+  it("escapes step text containing markup before the textarea", () => {
+    const html = renderPlanHtml(makePlan({ implementationSteps: ["Do <b>x</b>"] }), NONCE);
+    expect(html).not.toContain("<b>");
+    expect(html).toContain("Do &lt;b&gt;x&lt;/b&gt;");
+  });
+
+  it("renders no textarea and no error for zero steps", () => {
+    let html = "";
+    expect(() => {
+      html = renderPlanHtml(makePlan({ implementationSteps: [] }), NONCE);
+    }).not.toThrow();
+    expect(html).not.toContain("<textarea");
+    expect(html).toContain("<h2>Implementation steps</h2>");
   });
 });
