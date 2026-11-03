@@ -1,12 +1,13 @@
 # Claude Code Artifact Extension
 
-**Status: early idea.** A minimal scaffold exists: one command opens a webview with a hard-coded sample plan. Artifact creation with Claude Code is not built yet. This README describes what the project will do and the decisions made so far.
+**Status: early idea.** A minimal scaffold exists. The `Claude Artifact: Open Sample Plan` command opens a webview with a hard-coded sample plan. The `Claude Artifact: Generate Plan from Claude Code` command asks your Claude Code (headless `claude` CLI) for a plan and renders it. Comments, editing, the review and implement buttons, and the `agy` fallback are not built yet. This README describes what the project will do and the decisions made so far.
 
 An IDE extension for Google Antigravity and VS Code that lets Claude Code create interactive **artifacts** inside the editor. The first artifact type is an implementation plan: a readable design document for proposed changes that you can review, comment on, and act on.
 
 ## What it does
 
 - Renders a Claude Code plan as an interactive page in the editor.
+- **Claude Artifact: Generate Plan from Claude Code:** asks for a request, runs `claude` headless in your workspace (in plan mode, so it does not edit files), and renders the plan it returns.
 - Lets you edit the artifact and add comments.
 - Adds two buttons at the top right of the artifact:
   - **Review Comments:** sends your comments back to Claude Code.

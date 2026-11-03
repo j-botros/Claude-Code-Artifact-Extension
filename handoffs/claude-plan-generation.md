@@ -82,3 +82,16 @@ Deviations: the commit trailer uses `Co-Authored-By: Claude Sonnet 5.5` (the mod
 Tester should check: `parseClaudeStream` on the four fixture cases; `classifyRun` (pure) for auth wording, stderr tail, and success; `buildPlanPrompt` key order. `looksLikeAuthProblem` is a loose regex; check it does not misclassify ordinary errors.
 
 ## Testing
+
+Commands run:
+- `npm run compile`: exit 0.
+- `npm run test:unit`: 4 files, 60 passed, 0 failed (22 new: 18 in `streamParser.test.ts`, 4 in `planPrompt.test.ts`; 38 existing still pass).
+- `npm run test:ui` and `npm run test:integration`: not applicable (do not exist yet).
+
+Added: `test/unit/streamParser.test.ts` (also covers the pure `classifyRun`, `looksLikeAuthProblem`, `tail`), `test/unit/planPrompt.test.ts`, and fixtures `claude-success.jsonl`, `claude-error.jsonl`, `claude-no-result.jsonl`, `claude-garbage-lines.jsonl` (the last holds a Markdown-fenced plan that `parsePlanJson` accepts). The runner's spawn call is not unit tested.
+
+`looksLikeAuthProblem` finding (not a failure): it correctly flags real auth wording and does not flag rate limit, ECONNRESET, JSON parse, timeout, or EACCES errors. It is loose in one direction: any text containing "login" or "api key" is labelled not-logged-in, for example "Failed to parse the login page component". Because it also scans an error result's text, a failure unrelated to auth, on a request about login code, could show the wrong message. A test documents this behaviour. Suggested tightening (optional): drop bare `log in` and `api key`, or match only stderr plus `Invalid API key`.
+
+Note: the commit trailer uses Claude Sonnet 5.5, matching the attribution reminder, not the Haiku line in the brief.
+
+Verdict: PASS
