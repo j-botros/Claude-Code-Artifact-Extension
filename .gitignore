@@ -1,2 +1,4 @@
 logs/
 PAUSE
+node_modules/
+out/
