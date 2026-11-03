@@ -26,6 +26,45 @@ function renderItems(list: string[]): string {
   return list.map((s) => `<li>${escapeHtml(s)}</li>`).join("\n");
 }
 
+/** Renders implementation steps as `<li>` items, each with an empty comment textarea. */
+function renderSteps(steps: string[]): string {
+  return steps
+    .map(
+      (s, i) =>
+        `<li>${escapeHtml(s)}<textarea class="comment" data-step="${i}" aria-label="Comment on step ${i + 1}" rows="2" placeholder="Add a comment"></textarea></li>`
+    )
+    .join("\n");
+}
+
+/** Fixed script (no plan data) that restores and saves comments via webview state. */
+const COMMENT_SCRIPT = `
+const vscode = acquireVsCodeApi();
+function readComments() {
+  const state = vscode.getState();
+  if (state && typeof state === "object" && state.comments && typeof state.comments === "object") {
+    return state.comments;
+  }
+  return {};
+}
+const comments = readComments();
+document.querySelectorAll("textarea.comment").forEach((box) => {
+  const key = box.getAttribute("data-step");
+  const saved = comments[key];
+  if (typeof saved === "string") {
+    box.value = saved;
+  }
+  box.addEventListener("input", () => {
+    const next = Object.assign({}, readComments());
+    if (box.value === "") {
+      delete next[key];
+    } else {
+      next[key] = box.value;
+    }
+    vscode.setState({ comments: next });
+  });
+});
+`;
+
 /** Renders the files section: a table, or a "No files." note when empty. */
 function renderFiles(files: Plan["files"]): string {
   if (files.length === 0) {
@@ -101,6 +140,7 @@ export function renderPlanHtml(plan: Plan, nonce: string): string {
   table { width: 100%; border-collapse: collapse; }
   th, td { border: 1px solid var(--table-border); padding: 0.4rem 0.75rem; text-align: left; vertical-align: top; overflow-wrap: anywhere; }
   th { background: var(--table-head-bg); }
+  textarea { display: block; box-sizing: border-box; width: 100%; background: var(--bg); color: var(--fg); border: 1px solid var(--border); border-radius: 4px; font: inherit; margin-top: 0.4rem; }
   .badge { background: var(--badge-bg); color: var(--badge-fg); border-radius: 999px; padding: 0 0.5rem; font-size: 0.75rem; margin-left: 0.25rem; }
 </style>
 </head>
@@ -114,12 +154,13 @@ ${langLabel}<pre><code${langClass}>${escapeHtml(plan.proposedChanges.code)}</cod
 ${renderFiles(plan.files)}
 <h2>Implementation steps</h2>
 <ol>
-${renderItems(plan.implementationSteps)}
+${renderSteps(plan.implementationSteps)}
 </ol>
 <h2>Verification</h2>
 <ul>
 ${renderItems(plan.verification)}
 </ul>
+<script nonce="${nonce}">${COMMENT_SCRIPT}</script>
 </body>
 </html>`;
 }
@@ -132,7 +173,7 @@ export class PlanPanel {
       "claudeArtifact.plan",
       plan.title,
       vscode.ViewColumn.One,
-      { enableScripts: false }
+      { enableScripts: true }
     );
     return new PlanPanel(panel, plan);
   }
