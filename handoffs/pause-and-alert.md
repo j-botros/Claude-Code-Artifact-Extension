@@ -80,3 +80,22 @@ Do not edit `src/`, `test/`, `TASKS.md`, `STATUS.md`, `README.md`, `CLAUDE.md`, 
 ### Handoff rules
 - Developer: append a "## Development" section to this file. Include what changed, the commit hash, the test output summary, the expected failing assertion (if any), and what the tester should check. Use Edit. Do not use `cat >>`, `echo >>`, or heredocs.
 - Tester: append a "## Testing" section to this file. Include the commands run, pass and fail counts, and the output of any failing test. Commit test files under `test/` and your Testing section only. Do not stage anything else. Use Edit if it is available. If Edit is not available, use Write and keep every other section unchanged.
+
+## Development
+
+### What changed (`scripts/agent-run.sh` only)
+- Added `runnable_task_id FILE` at the top of the script. It splits each row on `|` and treats a row as runnable when field 4 (Owner) contains `developer` or `tester` and field 5 (Status), trimmed, is exactly `todo`. It prints the trimmed ID of the first such row and returns 0, or prints nothing and returns 1.
+- Added the `--check-queue FILE` mode before `cd`, the lock, and any git work. It has no side effects and exits with the function's status.
+- The main path now writes `git show origin/dev:TASKS.md` to `logs/queue-<stamp>.md` (removed on exit through the EXIT trap, and before the chain `exec`). Both whole-line greps are gone; `NEXT_TASK` comes from `runnable_task_id`.
+- Empty queue: logs the specified line, writes `PAUSE` (date plus reason; logs and continues if that fails), runs the fixed-text `osascript` notification (logs if `osascript` is missing or fails), calls `notify`, and exits 0.
+- Updated the header comment. The PAUSE check order, lock, dirty-tree check, and chain are unchanged.
+
+### Tests
+Not run. I may not run `bash` or the main path. `npm run test:unit` was not run because no test touches this file yet. `bash -n` was not run; syntax was checked by reading.
+
+### What the tester should check
+- `--check-queue` on a file with a runnable row prints the ID and exits 0; with none, prints nothing and exits 1.
+- A row with Owner `owner` and Status `todo` whose description mentions "developer" does not count.
+- `--check-queue` creates no `PAUSE` file.
+- A missing file argument exits 1 (falls back to `/nonexistent`).
+- Commit hash: see the commit that contains this section (`git log -1`).
