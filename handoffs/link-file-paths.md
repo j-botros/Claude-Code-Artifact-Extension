@@ -53,4 +53,20 @@
 
 ## Testing (tester)
 
-_To be filled by the tester._
+**Verdict: PASS**
+
+**Tests written** (`test/` only; `src/` untouched):
+- New `test/unit/fileLinks.test.ts` (21 tests). Mocks `vscode` with `vi.hoisted`. `renderFiles` is not exported, so it is tested through the exported `renderPlanHtml`. `openWorkspaceFile` is exported and tested directly.
+  - Links: non-new files render `<a href="#" class="file-link" data-path="..."><code>..</code></a>`. New files render `<code>` plus the "new" badge, with no anchor and no `data-path`. A hostile path is escaped in `data-path`. A mixed list gives one link per non-new file.
+  - CSP: no `unsafe-inline` or `unsafe-eval`, one `script-src`, the nonce appears exactly twice (style-src and script-src), and there is one `<script`. The click script has `preventDefault` and posts `openFile`.
+  - `openWorkspaceFile`: opens a valid path via `Uri.joinPath(folders[0].uri, path)`. Silent rejection (no open, no information message, no error message) of number, null, undefined, object, empty string, absolute posix path, `../x`, `a/../../x`, backslash, and `C:\x`. No folder (undefined or empty list) gives an information message. A failure in `openTextDocument` or `showTextDocument` gives an error message naming the path, and the function does not throw.
+- Updated `test/unit/planRenderer.test.ts` "contains exactly one nonce'd script, and no anchor, href, or inline event handler": the anchor and href checks now expect exactly one `<a ` and one `href=` (the non-new file link for `src/old.ts`). The one-script and no-inline-handler checks are unchanged.
+- One of my own new tests failed on the first run (a wrong assertion: "file-link" also appears in the CSS and script). I fixed the test. It was not a code bug.
+
+**Commands and results:**
+- `npm run compile`: pass (no errors).
+- `npm run test:unit`: 14 files, 214 passed, 0 failed.
+- `npm run test:ui`: 4 passed, 0 failed.
+- `npm test` (unit, ui, integration): all passed. Integration: 4 passing (VS Code 1.107.0 test host).
+
+**Not verified:** The UI (Playwright) suite has no test that clicks the link. The click handler is only checked as text in unit tests. The real `openTextDocument` and `showTextDocument` are only mocked, and no integration test opens a file from the webview. The 1.107.0 VS Code test host is older than `engines.vscode`.
