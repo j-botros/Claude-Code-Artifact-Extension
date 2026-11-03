@@ -41,6 +41,27 @@ describe("renderPlanHtml review button", () => {
     expect(html).toContain(`<script nonce="${NONCE}">`);
   });
 
+  it("renders one Implement the Design button in the header after Review, with no inline handler", () => {
+    const html = renderPlanHtml(makePlan(), NONCE);
+    expect(html.split('class="implement"').length - 1).toBe(1);
+    expect(html).toContain('<button class="implement" type="button">Implement the Design</button>');
+    const header = html.match(/<header class="top">[\s\S]*?<\/header>/);
+    expect(header).not.toBeNull();
+    expect(header![0]).toContain('class="implement"');
+    expect(header![0].split('class="review"').length - 1).toBe(1);
+    expect(header![0].indexOf('class="review"')).toBeLessThan(header![0].indexOf('class="implement"'));
+    expect(html).not.toContain("onclick");
+    expect(html).not.toMatch(/\son[a-z]+\s*=/i);
+    expect(html.split("<script").length - 1).toBe(1);
+    expect(html.split(`<script nonce="${NONCE}">`).length - 1).toBe(1);
+  });
+
+  it("script posts implementDesign and handles implementResult", () => {
+    const code = scriptCode(renderPlanHtml(makePlan(), NONCE));
+    expect(code).toContain("implementDesign");
+    expect(code).toContain("implementResult");
+  });
+
   it("script posts reviewComments and handles reviewResult", () => {
     const code = scriptCode(renderPlanHtml(makePlan(), NONCE));
     expect(code).toContain("reviewComments");

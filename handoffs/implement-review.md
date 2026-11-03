@@ -126,3 +126,24 @@ Commit: see `git log -1` on `task/implement-review-2` (the commit contains the s
 - `splitHunks` cases from the brief, especially `oldStart` after earlier hunks and the empty-string handling above.
 - `renderPlanHtml` header has one `button.implement`, no `onclick`, one nonce'd script.
 - `hunkReview.ts` is untested here (needs the VS Code host). Manual check: click the button on a plan with `proposedFiles`.
+
+## Testing
+
+Verdict: PASS.
+
+### Commands run
+- `npm run compile`: exit 0 (strict).
+- `npm run test:unit`: 11 files, 156 tests, 156 passed, 0 failed (123 before; 33 added).
+- `npm run test:ui`, `npm run test:integration`: not applicable (scripts do not exist yet).
+
+### Tests added (test/unit/)
+- `diffHunks.test.ts` (new, 15 tests): `splitHunks` for identical text, one changed line, pure insert, pure delete, new file, emptied file, two separated hunks with `index` and `oldStart`, `oldStart` after an earlier insert, trailing newline, size cap (2100 x 2100 lines gives one whole-file hunk), and just under the cap. Also `setDecision` (new map, no mutation, overwrite) and `summarizeDecisions` (counts, no negative pending).
+- `proposedFiles.test.ts` (new, 16 tests): `isSafeRelativePath`; `parsePlanJson` with `proposedFiles` absent (no key), valid, empty array, non-array, missing content (index named), missing path, unsafe path (index named); `applyPlanEdits` keeps a copy of `proposedFiles`; both `buildPlanPrompt` and `buildReviewPrompt` contain the optional `proposedFiles` rule and still forbid writing files.
+- `planRendererReview.test.ts` (updated, 6 tests): added one `button.implement` in the header after `button.review`, text "Implement the Design", no `onclick` or inline handler, one nonce'd script, and the script contains `implementDesign` and `implementResult`. Existing assertions kept.
+- The `buildPlanPrompt` pin in `planPrompt.test.ts` was not broken, so it was not changed.
+
+### Grep for writes in src/review/
+`grep -nE "writeFile|createDirectory|delete|applyEdit|WorkspaceEdit"` over `src/review/`: no matches. Over all of `src/`, the only hits are `delete next[key]` in `src/webview/planPanel.ts` (JS object key, line 148) and the existing plan-save `createDirectory` and `writeFile` calls in `src/webview/planPanel.ts` (lines 388-389). Those are pre-existing plan JSON saving, not part of the hunk review. Note for the core agent: the brief's "no write anywhere in src/" wording does not match that existing save code, so the check was scoped to `src/review/` as the definition of done states.
+
+### Not tested
+`src/review/hunkReview.ts` needs the VS Code host and is not unit tested. It needs a manual check or an integration test later.
