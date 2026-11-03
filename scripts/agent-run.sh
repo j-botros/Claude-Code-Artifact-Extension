@@ -45,7 +45,9 @@ if ! git fetch origin dev >>"$LOG" 2>&1; then
 fi
 
 log "Starting core agent run. Stream: $JSONL"
-claude -p "$(cat scripts/core-prompt.md)" --output-format stream-json --verbose >"$JSONL" 2>>"$LOG"
+# acceptEdits lets file writes and edits proceed without a prompt. Shell commands are still
+# governed by the allow and deny rules in .claude/settings.json. Do not use bypassPermissions.
+claude -p "$(cat scripts/core-prompt.md)" --permission-mode acceptEdits --output-format stream-json --verbose >"$JSONL" 2>>"$LOG"
 STATUS=$?
 log "Core agent exited with status $STATUS."
 exit "$STATUS"
