@@ -188,12 +188,15 @@ describe("renderPlanHtml", () => {
     expect(html).toContain("&lt;script&gt;x&lt;/script&gt;");
   });
 
-  it("omits out-of-scope text when outOfScope is null", () => {
+  it("renders an empty out-of-scope textarea when outOfScope is null", () => {
     const plan = makePlan();
     plan.overview.outOfScope = null;
     plan.overview.summary = "SUMMARYTEXT";
     const html = renderPlanHtml(plan, "N");
     expect(html).toContain("SUMMARYTEXT");
-    expect(html).not.toContain("null");
+    // The fixed script legitimately contains the word "null", so inspect only the markup before it.
+    const markup = html.slice(0, html.indexOf("<script"));
+    expect(markup).not.toContain("null");
+    expect(markup).toMatch(/<textarea class="edit-outofscope"[^>]*><\/textarea>/);
   });
 });
