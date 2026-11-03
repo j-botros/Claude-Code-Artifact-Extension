@@ -95,3 +95,14 @@ Tests not run (the tester owns test/). `test/unit/plan.test.ts` still uses the o
 Tester should check: the coverage list in the brief; that `samplePlan` round-trips; that `renderPlanHtml` escapes `<script>` in every field, including file path and change.
 
 Commit: see git log on `task/plan-format`.
+
+## Testing
+
+Commands run:
+- `npm run compile`: exit 0, no errors.
+- `npm run test:unit`: 1 file, 27 tests passed, 0 failed.
+- `npm run test:ui`, `npm run test:integration`: not applicable (scripts do not exist yet).
+
+Coverage: full plan fields, null outOfScope, empty files, unknown fields ignored, each of six missing top-level fields, missing summary/code/isNew/outOfScope, wrong types (isNew string, step number, outOfScope number, verification not array), both fence styles, invalid JSON / empty / [] / null without throwing, samplePlan round-trip, escapeHtml, and renderPlanHtml escaping in every field with CSP and nonce.
+
+Verdict: PASS
