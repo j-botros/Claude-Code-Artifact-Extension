@@ -83,6 +83,9 @@ if ! git show origin/dev:TASKS.md | grep -E '\| todo \|' | grep -q -E 'developer
 fi
 
 log "Starting core agent run. Stream: $JSONL"
+# The first developer or tester task in table order is the one the agent will take.
+NEXT_TASK="$(git show origin/dev:TASKS.md | grep -E '\| todo \|' | grep -E 'developer|tester' | head -1 | cut -d'|' -f2 | sed 's/^ *//;s/ *$//')"
+notify "Artifact runner ${STAMP}: run started. Next task: ${NEXT_TASK:-unknown}."
 # acceptEdits lets file writes and edits proceed without a prompt. Shell commands are still
 # governed by the allow and deny rules in .claude/settings.json. Do not use bypassPermissions.
 claude -p "$(cat scripts/core-prompt.md)" --permission-mode acceptEdits --output-format stream-json --verbose >"$JSONL" 2>>"$LOG"
