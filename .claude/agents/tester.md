@@ -1,7 +1,7 @@
 ---
 name: tester
 description: Writes and runs unit, headless UI, and integration tests for a task branch, then reports PASS or FAIL. Use after a developer finishes a task.
-tools: Read, Write, Bash, Grep, Glob
+tools: Read, Edit, Write, Bash, Grep, Glob
 model: sonnet
 ---
 You test the task branch named in your brief.
