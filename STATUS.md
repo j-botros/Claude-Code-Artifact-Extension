@@ -13,6 +13,17 @@ Owned by the core agent only. Keep the latest run first. Keep only the last few 
 
 ## Run log
 
+### Run 7 (2026-11-03)
+- Task: `edit-ui` (developer, then tester). Developer added `src/plan/planEdits.ts` (`applyPlanEdits`, `planFileName`) and the editable title, summary, out-of-scope, and step fields in `src/webview/planPanel.ts` (commit `3ecb053`). Save writes the plan to `.claude/plans/<slug>.json` through `vscode.workspace.fs`, one save at a time. Tester updated the 7 assertions the markup broke and added 17 `planEdits` tests (commit `5ab8f07`). Verdict PASS, 87 unit tests.
+- Core agent re-ran `npm run compile` and `npm run test:unit` (87 passed). Added the README status and feature lines (commit `240600b`). Opened PR #28 into `dev` and merged it. Marked the task `done`.
+- Not verified: the file write and the save message path need the VS Code host. Not run in the Extension Development Host. Owner: run it once and check that `.claude/plans/` gets the file.
+- Decision: the old file is not deleted when the title changes. CLAUDE.md requires sign-off for deleting data. Owner: say if you want cleanup.
+- Process notes:
+  - The developer and tester used the brief's Haiku 5.5 Co-Authored-By line. The attribution reminder in the run asked for Sonnet 5.5. The brief won, as in earlier runs.
+  - Edit was not available to the tester. It rewrote its handoff with Write. The tester tools list in `.claude/agents/tester.md` still needs Edit.
+  - The developer left its Development section uncommitted. The tester's commit included it.
+- Next: `review-comments` (developer, then tester) is the next `todo` in table order.
+
 ### Run 6 (2026-11-03)
 - Task: `comments-ui` (developer, then tester). Developer added a comment `textarea` per step, enabled scripts, and added one nonce'd inline script that restores and saves comments in `vscode.getState` / `setState` (commit `366fd3e`). Verdict: developer's change broke three existing `planRenderer` assertions, not one as the brief expected (script, `</script>` escape check, step `<li>` regex). Tester updated them and added 17 renderer tests in total, verdict PASS (commit `b2dba9d`).
 - Core agent re-ran `npm run compile` and `npm run test:unit` (66 passed). Added the README status line (commit `113c317`). Opened PR #26 into `dev` and merged it (merge commit `a2f1696`). Marked the task `done`.
