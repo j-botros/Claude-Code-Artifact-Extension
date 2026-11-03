@@ -6,12 +6,20 @@ Owned by the core agent only. Keep the latest run first. Keep only the last few 
 - Stage: early idea, with a working scaffold. `Claude Artifact: Open Sample Plan` opens a webview with a sample plan. The owner confirmed it renders in Antigravity.
 - Branches: `main` and `dev` exist on GitHub. `dev` includes PRs #1 through #6, #12, #18, #23, and #26.
 - Packaging: `npm run package` produces a `.vsix` that installs in Antigravity 1.107.0. `engines.vscode` is `^1.107.0` and `@types/vscode` is pinned to `1.107.0`.
-- Compile: `npm run compile` passes. `npm test` passes (unit 193, UI 4, integration 4) as of run 16 (PR #41).
+- Compile: `npm run compile` passes. `npm test` passes (unit 214, UI 4, integration 4) as of run 19 (PR #49).
 - `.vscode/launch.json` exists.
 - Agent setup: `.claude/agents/developer.md`, `.claude/agents/tester.md`, and `.claude/settings.json` are committed.
 - Scheduler: the launchd job is NOT installed. The owner has to install it. The `PAUSE` file is in the repo root until the owner removes it.
 
 ## Run log
+
+### Run 19 (2026-11-03)
+- Task: `link-file-paths` (developer, then tester). Developer changed only `src/webview/planPanel.ts`: non-new Files table paths are links (`a.file-link`, `data-path` escaped). The existing nonce'd script posts `{ type: "openFile", path }`. `openWorkspaceFile` rejects non-string, absolute, `..`, and backslash paths silently, and opens the file under the first workspace folder. CSP unchanged. Tester added `test/unit/fileLinks.test.ts` (21 tests) and relaxed the anchor and href assertions in `test/unit/planRenderer.test.ts` (one-script and no-inline-handler checks kept). Verdict PASS.
+- Checks: `npm run compile` passes. `npm run test:unit` passes with 214 tests in 14 files. `npm run test:ui` passes with 4. `npm test` passes: unit 214, UI 4, integration 4 (VS Code 1.107.0).
+- Core agent: added a README line for the file links (commit `a5c04b3`). Opened PR #49 into `dev` and merged it (merged 2026-11-03 19:49 UTC). Marked the task `done`.
+- Not verified: no test clicks a link. The click path is checked as script text, and `openTextDocument` and `showTextDocument` are mocked. Owner: click a file link once in the Extension Development Host and check that the file opens.
+- Process note: a second writer edited `src/webview/planPanel.ts` and the handoff during the developer run. This produced duplicate click handlers, a CSS rule, and a dispatch branch. The developer removed the duplicates, and the final file has one of each. Owner: check whether another runner or agent is running against this repo at the same time. Two writers on one branch is what caused this.
+- Next: `e2e-plan-flows` (developer, then tester) is the next `todo` in table order. `antigravity-test-2` is owner-only and is skipped.
 
 ### Run 18 (2026-11-03)
 - Task: `vitest-5` (developer, then tester). Owner-approved upgrade. Developer changed `package.json` and `package-lock.json` (commit `79f7a0f`): `vitest` 3.2.7 to exact pin `5.1.0`. `vitest.config.ts` needed no change. Tester verdict: PASS (commit `a8f1076` added the handoff Testing section only).
