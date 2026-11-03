@@ -1,6 +1,6 @@
 # Claude Code Artifact Extension
 
-**Status: early idea.** A minimal scaffold exists. The `Claude Artifact: Open Sample Plan` command opens a webview with a hard-coded sample plan. The `Claude Artifact: Generate Plan from Claude Code` command asks your Claude Code (headless `claude` CLI) for a plan and renders it. Each implementation step has a comment box. Comments are kept in the panel's state, so they survive a reload while the panel stays open, but they are not saved to disk. The plan title, summary, out-of-scope note, and step text are editable; each save writes the plan to `.claude/plans/<title>.json` in your workspace. The **Review Comments** button sends the plan and your comments to Claude Code and shows the returned plan. If `claude` is missing or not logged in, the plan is requested through the `agy` fallback (with a one-time security warning). The **Implement the Design** button is not built yet. This README describes what the project will do and the decisions made so far.
+**Status: early idea.** A minimal scaffold exists. The `Claude Artifact: Open Sample Plan` command opens a webview with a hard-coded sample plan. The `Claude Artifact: Generate Plan from Claude Code` command asks your Claude Code (headless `claude` CLI) for a plan and renders it. Each implementation step has a comment box. Comments are kept in the panel's state, so they survive a reload while the panel stays open, but they are not saved to disk. The plan title, summary, out-of-scope note, and step text are editable; each save writes the plan to `.claude/plans/<title>.json` in your workspace. The **Review Comments** button sends the plan and your comments to Claude Code and shows the returned plan. If `claude` is missing or not logged in, the plan is requested through the `agy` fallback (with a one-time security warning). The **Implement the Design** button shows each proposed file's changes as a read-only hunk review with ✓ and ✗ lenses; it does not write files yet. This README describes what the project will do and the decisions made so far.
 
 An IDE extension for Google Antigravity and VS Code that lets Claude Code create interactive **artifacts** inside the editor. The first artifact type is an implementation plan: a readable design document for proposed changes that you can review, comment on, and act on.
 
@@ -11,7 +11,7 @@ An IDE extension for Google Antigravity and VS Code that lets Claude Code create
 - Lets you edit the plan's title, summary, out-of-scope note, and step text, and add comments. Edits are saved to `.claude/plans/` in your workspace.
 - Adds two buttons at the top right of the artifact:
   - **Review Comments:** sends the plan and your comments to Claude Code (headless, in plan mode) and shows the revised plan. Nothing is written to disk. Available now.
-  - **Implement the Design:** asks Claude Code to carry out the plan.
+  - **Implement the Design:** shows the plan's optional proposed files as a diff. Each change is green (added) or red (removed) with a ✓ and ✗ lens. Accepting or rejecting only records your choice; nothing is written to disk yet. Available now in read-only form; writing accepted changes is not built yet.
 
 ## How it works
 

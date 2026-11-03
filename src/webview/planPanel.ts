@@ -9,6 +9,11 @@ export type ReviewHandler = (
   comments: Record<number, string>
 ) => Promise<{ ok: true; plan: Plan } | { ok: false; message: string }>;
 
+/** Starts the hunk review for a plan's proposed files. Must not write files. */
+export type ImplementHandler = (
+  plan: Plan
+) => Promise<{ ok: true; message: string } | { ok: false; message: string }>;
+
 /** Escapes text so it is safe to place inside HTML. */
 export function escapeHtml(text: string): string {
   return text
@@ -106,8 +111,19 @@ reviewBtn.addEventListener("click", () => {
   statusEl.textContent = "Asking Claude Code to review...";
   vscode.postMessage({ type: "reviewComments", title: edits.title, summary: edits.summary, outOfScope: edits.outOfScope, steps: edits.steps, comments: readComments() });
 });
+const implementBtn = document.querySelector("button.implement");
+implementBtn.addEventListener("click", () => {
+  implementBtn.disabled = true;
+  statusEl.textContent = "Preparing the review...";
+  vscode.postMessage({ type: "implementDesign" });
+});
 window.addEventListener("message", (event) => {
   const msg = event.data;
+  if (msg && msg.type === "implementResult") {
+    implementBtn.disabled = false;
+    statusEl.textContent = typeof msg.message === "string" ? msg.message : "";
+    return;
+  }
   if (msg && msg.type === "reviewResult") {
     reviewBtn.disabled = false;
     statusEl.textContent = typeof msg.message === "string" ? msg.message : "";
@@ -219,13 +235,14 @@ export function renderPlanHtml(plan: Plan, nonce: string, options?: { resetState
   header.top { display: flex; align-items: center; gap: 0.75rem; }
   header.top h1 { flex: 1; margin: 0.67rem 0; }
   button.review { background: var(--badge-bg); color: var(--badge-fg); border: 0; border-radius: 4px; padding: 0.4rem 0.9rem; font: inherit; cursor: pointer; white-space: nowrap; }
-  button.review:disabled { opacity: 0.6; cursor: default; }
+  button.implement { background: var(--card); color: var(--fg); border: 1px solid var(--border); border-radius: 4px; padding: 0.4rem 0.9rem; font: inherit; cursor: pointer; white-space: nowrap; }
+  button.review:disabled, button.implement:disabled { opacity: 0.6; cursor: default; }
   .status { color: var(--muted); font-size: 0.85rem; min-height: 1.2em; margin: 0.25rem 0 0.75rem; }
   .badge { background: var(--badge-bg); color: var(--badge-fg); border-radius: 999px; padding: 0 0.5rem; font-size: 0.75rem; margin-left: 0.25rem; }
 </style>
 </head>
 <body>
-<header class="top"><h1><input type="text" class="edit-title" aria-label="Edit title" value="${escapeHtml(plan.title)}"></h1><button class="review" type="button">Review Comments</button></header>
+<header class="top"><h1><input type="text" class="edit-title" aria-label="Edit title" value="${escapeHtml(plan.title)}"></h1><button class="review" type="button">Review Comments</button><button class="implement" type="button">Implement the Design</button></header>
 <p class="status" role="status"></p>
 <textarea class="edit-summary" aria-label="Edit summary" rows="3">${escapeHtml(plan.overview.summary)}</textarea>
 ${outOfScope}
@@ -248,15 +265,18 @@ ${renderItems(plan.verification)}
 
 /** Hosts a webview panel that shows a plan. */
 export class PlanPanel {
-  /** Opens a new panel showing the given plan; `onReview` handles Review Comments clicks. */
-  static show(plan: Plan, onReview: ReviewHandler): PlanPanel {
+  /**
+   * Opens a new panel showing the given plan; `onReview` handles Review Comments clicks
+   * and `onImplement` handles Implement the Design clicks.
+   */
+  static show(plan: Plan, onReview: ReviewHandler, onImplement: ImplementHandler): PlanPanel {
     const panel = vscode.window.createWebviewPanel(
       "claudeArtifact.plan",
       plan.title,
       vscode.ViewColumn.One,
       { enableScripts: true }
     );
-    return new PlanPanel(panel, plan, onReview);
+    return new PlanPanel(panel, plan, onReview, onImplement);
   }
 
   /** The plan as last saved (or as first shown). */
@@ -269,7 +289,8 @@ export class PlanPanel {
   private constructor(
     private readonly panel: vscode.WebviewPanel,
     plan: Plan,
-    private readonly onReview: ReviewHandler
+    private readonly onReview: ReviewHandler,
+    private readonly onImplement: ImplementHandler
   ) {
     this.currentPlan = plan;
     this.panel.webview.html = renderPlanHtml(plan, makeNonce());
@@ -282,8 +303,27 @@ export class PlanPanel {
         this.saveChain = this.saveChain.then(() => this.save(msg));
       } else if (type === "reviewComments") {
         this.saveChain = this.saveChain.then(() => this.review(msg));
+      } else if (type === "implementDesign") {
+        this.saveChain = this.saveChain.then(() => this.implement());
       }
     });
+  }
+
+  /**
+   * Starts the hunk review for the current plan (the last saved plan, not unsaved
+   * webview edits) and replies with the outcome. Never throws.
+   */
+  private async implement(): Promise<void> {
+    let ok = false;
+    let message: string;
+    try {
+      const result = await this.onImplement(this.currentPlan);
+      ok = result.ok;
+      message = result.message;
+    } catch (err) {
+      message = `Implement failed: ${err instanceof Error ? err.message : String(err)}`;
+    }
+    void this.panel.webview.postMessage({ type: "implementResult", ok, message });
   }
 
   /** Posts a review result to the webview. */

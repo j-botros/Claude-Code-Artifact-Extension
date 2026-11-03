@@ -5,6 +5,12 @@ export interface PlanFile {
   isNew: boolean;
 }
 
+/** A file the plan proposes: a relative path and the full new content. */
+export interface ProposedFile {
+  path: string;
+  content: string;
+}
+
 /** An implementation plan in the shape defined by CLAUDE.md, Section 3. */
 export interface Plan {
   title: string;
@@ -19,6 +25,21 @@ export interface Plan {
   files: PlanFile[];
   implementationSteps: string[];
   verification: string[];
+  proposedFiles?: ProposedFile[];
+}
+
+/**
+ * Returns true when the path is a safe relative path inside the workspace:
+ * not empty, no leading slash, no drive prefix, no backslash, no ".." segment.
+ */
+export function isSafeRelativePath(path: string): boolean {
+  if (path === "" || path.startsWith("/") || path.startsWith("\\")) {
+    return false;
+  }
+  if (/^[a-zA-Z]:/.test(path) || path.includes("\\")) {
+    return false;
+  }
+  return !path.split("/").includes("..");
 }
 
 /** Result of parsing plan JSON: either a plan or an error message. */
@@ -123,7 +144,37 @@ function validatePlan(v: unknown): string | null {
       return `files[${i}].isNew must be a boolean`;
     }
   }
-  return checkStringArray(v.implementationSteps, "implementationSteps") ?? checkStringArray(v.verification, "verification");
+  return (
+    checkStringArray(v.implementationSteps, "implementationSteps") ??
+    checkStringArray(v.verification, "verification") ??
+    checkProposedFiles(v.proposedFiles)
+  );
+}
+
+/** Validates the optional proposedFiles field; returns an error naming the bad item, or null. */
+function checkProposedFiles(value: unknown): string | null {
+  if (value === undefined) {
+    return null;
+  }
+  if (!Array.isArray(value)) {
+    return "proposedFiles must be an array";
+  }
+  for (let i = 0; i < value.length; i++) {
+    const f: unknown = value[i];
+    if (!isObject(f)) {
+      return `proposedFiles[${i}] must be an object`;
+    }
+    if (typeof f.path !== "string") {
+      return `proposedFiles[${i}].path must be a string`;
+    }
+    if (!isSafeRelativePath(f.path)) {
+      return `proposedFiles[${i}].path must be a safe relative path`;
+    }
+    if (typeof f.content !== "string") {
+      return `proposedFiles[${i}].content must be a string`;
+    }
+  }
+  return null;
 }
 
 /** Parses plan JSON text (optionally fenced) into a plan. Never throws. */
@@ -139,15 +190,16 @@ export function parsePlanJson(text: string): ParseResult {
     return { ok: false, error };
   }
   const v = data as Plan;
-  return {
-    ok: true,
-    plan: {
-      title: v.title,
-      overview: { summary: v.overview.summary, outOfScope: v.overview.outOfScope },
-      proposedChanges: { language: v.proposedChanges.language, code: v.proposedChanges.code },
-      files: v.files.map((f) => ({ path: f.path, change: f.change, isNew: f.isNew })),
-      implementationSteps: [...v.implementationSteps],
-      verification: [...v.verification],
-    },
+  const plan: Plan = {
+    title: v.title,
+    overview: { summary: v.overview.summary, outOfScope: v.overview.outOfScope },
+    proposedChanges: { language: v.proposedChanges.language, code: v.proposedChanges.code },
+    files: v.files.map((f) => ({ path: f.path, change: f.change, isNew: f.isNew })),
+    implementationSteps: [...v.implementationSteps],
+    verification: [...v.verification],
   };
+  if (v.proposedFiles !== undefined) {
+    plan.proposedFiles = v.proposedFiles.map((f) => ({ path: f.path, content: f.content }));
+  }
+  return { ok: true, plan };
 }

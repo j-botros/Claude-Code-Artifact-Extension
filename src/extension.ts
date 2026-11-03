@@ -3,6 +3,7 @@ import { AgyRunResult, runAgyWithRetry } from "./agy/agyRunner";
 import { RunResult, runClaude } from "./claude/claudeRunner";
 import { Plan, parsePlanJson, samplePlan } from "./plan/plan";
 import { buildPlanPrompt, buildReviewPrompt } from "./plan/planPrompt";
+import { registerHunkReview, startImplementReview } from "./review/hunkReview";
 import { PlanPanel } from "./webview/planPanel";
 
 /** Extension context, stored in activate so the agy warning flag can use globalState. */
@@ -70,6 +71,15 @@ async function reviewPlan(
   );
 }
 
+/** Starts the hunk review for the plan's proposed files in the first workspace folder. Writes nothing. */
+async function implementPlan(plan: Plan): Promise<{ ok: true; message: string } | { ok: false; message: string }> {
+  const folder = vscode.workspace.workspaceFolders?.[0];
+  if (folder === undefined) {
+    return { ok: false, message: "Open a folder first." };
+  }
+  return startImplementReview(plan, folder.uri);
+}
+
 /** Asks for a request, runs Claude Code headless, and shows the resulting plan. */
 async function generatePlan(): Promise<void> {
   const request = await vscode.window.showInputBox({
@@ -92,15 +102,16 @@ async function generatePlan(): Promise<void> {
     void vscode.window.showErrorMessage(result.message);
     return;
   }
-  PlanPanel.show(result.plan, reviewPlan);
+  PlanPanel.show(result.plan, reviewPlan, implementPlan);
 }
 
 /** Called by VS Code when the extension activates; registers the commands. */
 export function activate(context: vscode.ExtensionContext): void {
   extensionContext = context;
+  registerHunkReview(context);
   context.subscriptions.push(
     vscode.commands.registerCommand("claudeArtifact.openSamplePlan", () => {
-      PlanPanel.show(samplePlan, reviewPlan);
+      PlanPanel.show(samplePlan, reviewPlan, implementPlan);
     }),
     vscode.commands.registerCommand("claudeArtifact.generatePlan", generatePlan)
   );

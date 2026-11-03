@@ -9,7 +9,8 @@ The object has exactly these keys, in this order:
 - "proposedChanges": an object with "language" (string) and "code" (string: the signature or interface first, with its doc comment)
 - "files": an array of objects { "path": string (relative path), "change": string (one line), "isNew": boolean (true for new files) }
 - "implementationSteps": an ordered array of short strings, one or two lines each; reference existing helpers by name instead of re-describing them
-- "verification": an array of strings: how each change is tested, or why it is not`;
+- "verification": an array of strings: how each change is tested, or why it is not
+- "proposedFiles" (optional; include it only when the plan proposes file contents): an array of objects { "path": string (relative path inside the workspace), "content": string (the full new file) }. You still never write files; the user reviews these proposals in the editor.`;
 
 /** Replaces `<` with its JSON escape so text can never contain a closing tag such as `</plan>`. */
 function escapeAngle(text: string): string {
