@@ -105,3 +105,22 @@ Do not edit `src/claude/`, `src/plan/`, `src/webview/`, `test/`, `TASKS.md`, `ST
 ### What the tester should check
 - `parseAgyStream` and `classifyAgyRun` cases listed in the brief, and `AGY_NO_TOOLS_PREFIX` content.
 - `runAgy`, `runAgyWithRetry`, and the warning flow are not unit testable without VS Code or a spawned process.
+
+## Testing
+
+### Commands run
+- `npm run compile`: exit 0 (strict).
+- `npm run test:unit`: 9 files, 123 tests passed, 0 failed (109 existing plus 14 new).
+- `npm run test:ui` and `npm run test:integration`: not applicable (do not exist yet).
+
+### Tests added
+`test/unit/agyRunner.test.ts` (14 tests, inline fixture streams, real `agy` never called):
+- `parseAgyStream` (9): success stream; empty response; whitespace-only response; missing or non-string response; no result event; empty output; blank and non-JSON lines skipped; `denied_actions` with non-empty response is ok; last `result` event wins.
+- `classifyAgyRun` (4): success; empty response gives `empty-response`; no result gives `failed` with exit code and stderr tail; null exit code gives `failed`.
+- `AGY_NO_TOOLS_PREFIX` (1): non-empty and contains "Do not use any tools".
+
+### Not unit tested
+`runAgy`, `runAgyWithRetry`, and the warning modal flow in `src/extension.ts` need a spawned process or a VS Code host, so they are not covered here.
+
+### Verdict
+PASS. No bugs found in `src/`.
