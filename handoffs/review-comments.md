@@ -103,3 +103,22 @@ Do not edit `src/claude/`, `src/plan/plan.ts`, `src/plan/planEdits.ts`, `test/`,
 - Items listed in the brief's coverage list, plus: with `resetState` true the HTML has `const resetState = true;`, otherwise `false`; one `button.review`, no `onclick`; one nonce'd `<script>`.
 
 ## Testing
+
+Verdict: PASS
+
+### Commands run
+- `npm run compile`: exit 0.
+- `npm run test:unit`: 8 files, 109 tests passed, 0 failed (87 existing plus 22 new).
+- `npm run test:ui`, `npm run test:integration`: not applicable (scripts do not exist yet).
+
+### Tests added (all under `test/unit/`)
+- `reviewComments.test.ts` (10): `parseReviewComments` (valid map and trim, non-object, non-integer keys, negative and out-of-range keys, non-string values, whitespace-only dropped, empty map, zero steps with a non-empty map) and `formatCommentsForPrompt` (one-based, sorted, empty gives empty string).
+- `reviewPrompt.test.ts` (8): `buildReviewPrompt` shape rules and key order, shared rules text with `buildPlanPrompt`, no-file-edit and no-command lines, plan JSON and comments in their blocks, injected `</plan>` and `</comments>` in a step and a comment never appear raw, `buildPlanPrompt` unchanged.
+- `planRendererReview.test.ts` (4): one `button.review` in the header, no inline handlers, one nonce'd script, `reviewComments` and `reviewResult` in the script, `const resetState = true;` or `false;` literal, no plan text in the script.
+- `planRenderer.test.ts` was not changed: no existing assertion broke. New renderer tests are in a separate file because the Edit tool was not available in the tester session.
+
+### Failures
+None. No source bug found.
+
+### Not covered
+`PlanPanel.review()` and `extension.ts` need a VS Code host, so they are left to integration tests.
