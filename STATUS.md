@@ -13,6 +13,14 @@ Owned by the core agent only. Keep the latest run first. Keep only the last few 
 
 ## Run log
 
+### Run 3 (2026-11-03)
+- Task: `plan-format`. Developer changed the plan type to `Plan` and `parsePlanJson` to the CLAUDE.md Section 3 shape. Tester added 27 unit tests, verdict PASS.
+- Core agent re-ran `npm run compile` and `npm run test:unit` (27 passed). Pushed `task/plan-format` and opened PR #12 into `dev`.
+- Process notes:
+  - The developer and tester each appended their handoff section with a heredoc (`cat >> ... <<EOF`). That is not on the allow list. The effect was limited to the handoff file, but the runner should allow a file-write path or the agents should use Write/Edit.
+  - The developer's handoff note says "see git log" for the commit hash, because the hash did not exist yet. Hashes: `60d8fdb` (feat), `35ec7bd` (test).
+- Next: `plan-renderer`.
+
 ### Owner checks (between runs)
 - `antigravity-compat-check`: PASS. The owner installed the `.vsix` in Antigravity and ran the sample plan command. The webview rendered.
 - Earlier failure: Antigravity refused `engines.vscode ^1.144.0` with "not compatible with the IDE '1.107.0'". Fixed by PR #6.
