@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import { applyAcceptedHunks } from "../plan/applyHunks";
 import { DiffHunk, splitHunks } from "../plan/diffHunks";
 import { Decision, setDecision, summarizeDecisions } from "../plan/hunkDecisions";
 import { Plan, isSafeRelativePath } from "../plan/plan";
@@ -27,6 +28,8 @@ interface ReviewFile {
 /** One review session: the files and the in-memory accept/reject decisions. */
 interface ReviewSession {
   id: number;
+  /** The workspace folder the paths are relative to. */
+  folder: vscode.Uri;
   files: Map<string, ReviewFile>;
   decisions: Map<string, Decision>;
   total: number;
@@ -185,7 +188,7 @@ export async function startImplementReview(plan: Plan, folder: vscode.Uri): Prom
     if (files.size === 0) {
       return { ok: false, message: "The proposed files match the current files. No changes to review." };
     }
-    session = { id, files, decisions: new Map(), total };
+    session = { id, folder, files, decisions: new Map(), total };
     lensChanged.fire();
     for (const file of files.values()) {
       await vscode.commands.executeCommand(
@@ -227,6 +230,14 @@ class HunkLensProvider implements vscode.CodeLensProvider {
       return [];
     }
     const lenses: vscode.CodeLens[] = [];
+    const accepted = summarizeDecisions(session.total, session.decisions).accepted;
+    lenses.push(
+      new vscode.CodeLens(new vscode.Range(0, 0, 0, 0), {
+        title: `▶ Apply accepted (${accepted})`,
+        command: "claudeArtifact.applyAccepted",
+        arguments: [{ sessionId: session.id }],
+      })
+    );
     for (const hunk of file.hunks) {
       const line = Math.min(file.newStarts[hunk.index], Math.max(0, document.lineCount - 1));
       const range = new vscode.Range(line, 0, line, 0);
@@ -264,6 +275,139 @@ function decide(value: Decision, arg: unknown): void {
   void vscode.window.setStatusBarMessage(summaryMessage(), 10000);
 }
 
+/** True once the user has clicked Apply in the write confirmation during this extension session. */
+let confirmedThisSession = false;
+
+/** True while an apply run is in progress, so a second click cannot start a second run. */
+let applying = false;
+
+/** The outcome for one file after an apply run. */
+interface FileResult {
+  path: string;
+  status: "written" | "skipped" | "failed";
+  /** One-line detail for the summary message. */
+  detail: string;
+}
+
+/** Counts the accepted hunks of one reviewed file. */
+function acceptedCount(s: ReviewSession, file: ReviewFile): number {
+  return file.hunks.filter((h) => s.decisions.get(hunkKey(file.path, h.index)) === "accept").length;
+}
+
+/**
+ * Writes one file's accepted hunks through a WorkspaceEdit, after the path, freshness, and
+ * unsaved-changes checks. Returns the per-file result. Never throws.
+ */
+async function writeOneFile(s: ReviewSession, file: ReviewFile): Promise<FileResult> {
+  const path = file.path;
+  try {
+    if (!isSafeRelativePath(path)) {
+      return { path, status: "skipped", detail: "unsafe path" };
+    }
+    const uri = vscode.Uri.joinPath(s.folder, ...path.split("/").filter((seg) => seg !== "" && seg !== "."));
+    const root = s.folder.toString().replace(/\/$/, "") + "/";
+    if (!uri.toString().startsWith(root)) {
+      return { path, status: "skipped", detail: "path is outside the workspace folder" };
+    }
+    const isNew = file.leftUri.scheme === ORIGINAL_SCHEME;
+    const open = vscode.workspace.textDocuments.find((d) => d.uri.toString() === uri.toString());
+    if (open !== undefined && open.isDirty) {
+      return { path, status: "skipped", detail: "has unsaved changes" };
+    }
+    const current = await readOriginal(uri);
+    if (isNew ? current !== null : current !== file.originalText) {
+      return { path, status: "skipped", detail: "changed since review" };
+    }
+    const result = applyAcceptedHunks(file.originalText, file.hunks, s.decisions, path);
+    if (result.applied === 0) {
+      return { path, status: "skipped", detail: "no accepted hunks" };
+    }
+    const edit = new vscode.WorkspaceEdit();
+    if (isNew) {
+      const parts = path.split("/").filter((seg) => seg !== "" && seg !== ".");
+      if (parts.length > 1) {
+        await vscode.workspace.fs.createDirectory(vscode.Uri.joinPath(s.folder, ...parts.slice(0, -1)));
+      }
+      edit.createFile(uri, { ignoreIfExists: false });
+      edit.insert(uri, new vscode.Position(0, 0), result.text);
+    } else {
+      const doc = await vscode.workspace.openTextDocument(uri);
+      const lines = file.originalText.split("\n");
+      const full = doc.validateRange(new vscode.Range(0, 0, lines.length - 1, lines[lines.length - 1].length));
+      edit.replace(uri, full, result.text);
+    }
+    if (!(await vscode.workspace.applyEdit(edit))) {
+      return { path, status: "failed", detail: "VS Code did not apply the edit" };
+    }
+    const saved = await vscode.workspace.openTextDocument(uri);
+    await saved.save();
+    return { path, status: "written", detail: `wrote ${result.applied} hunk${result.applied === 1 ? "" : "s"}` };
+  } catch (err) {
+    return { path, status: "failed", detail: err instanceof Error ? err.message.split("\n")[0] : String(err) };
+  }
+}
+
+/**
+ * Handles the Apply lens: confirms once per extension session, then writes only the accepted
+ * hunks, one file at a time, and reports per-file results. Never throws.
+ */
+async function applyAccepted(arg: unknown): Promise<void> {
+  try {
+    const current = session;
+    if (current === undefined || applying || typeof arg !== "object" || arg === null) {
+      return;
+    }
+    if ((arg as { sessionId?: unknown }).sessionId !== current.id) {
+      return;
+    }
+    const targets = [...current.files.values()].filter((f) => acceptedCount(current, f) > 0);
+    if (targets.length === 0) {
+      void vscode.window.showInformationMessage("No hunks accepted. Nothing to write.");
+      return;
+    }
+    if (!confirmedThisSession) {
+      const list = targets.map((f) => `${f.path}: ${acceptedCount(current, f)} hunk(s)`).join("\n");
+      const choice = await vscode.window.showWarningMessage(
+        "Write the accepted hunks to these files in your workspace?",
+        { modal: true, detail: list },
+        "Apply"
+      );
+      if (choice !== "Apply") {
+        return;
+      }
+      confirmedThisSession = true;
+    }
+    if (session !== current) {
+      return;
+    }
+    applying = true;
+    const results: FileResult[] = [];
+    try {
+      await vscode.window.withProgress(
+        { location: vscode.ProgressLocation.Notification, title: "Applying accepted hunks", cancellable: false },
+        async (progress) => {
+          for (const file of targets) {
+            progress.report({ message: file.path });
+            results.push(await writeOneFile(current, file));
+          }
+        }
+      );
+    } finally {
+      applying = false;
+    }
+    const lines = results.map((r) => (r.status === "written" ? `${r.path}: ${r.detail}` : `${r.path}: ${r.status} (${r.detail})`));
+    void vscode.window.showInformationMessage(lines.join("\n"));
+    if (results.some((r) => r.status === "written") && session === current) {
+      session = undefined;
+      lensChanged.fire();
+      refreshDecorations();
+    }
+  } catch (err) {
+    applying = false;
+    void vscode.window.showErrorMessage(`Could not apply: ${err instanceof Error ? err.message : String(err)}`);
+  }
+}
+
 /**
  * Registers the virtual document provider, the CodeLens provider, the accept and reject
  * commands, and the decoration refresh listener. Everything is added to context.subscriptions.
@@ -279,6 +423,7 @@ export function registerHunkReview(context: vscode.ExtensionContext): void {
     ),
     vscode.commands.registerCommand("claudeArtifact.acceptHunk", (arg: unknown) => decide("accept", arg)),
     vscode.commands.registerCommand("claudeArtifact.rejectHunk", (arg: unknown) => decide("reject", arg)),
+    vscode.commands.registerCommand("claudeArtifact.applyAccepted", (arg: unknown) => applyAccepted(arg)),
     vscode.window.onDidChangeVisibleTextEditors(() => refreshDecorations()),
     lensChanged,
     {

@@ -30,6 +30,10 @@
       {
         "command": "claudeArtifact.rejectHunk",
         "title": "Claude Artifact: Reject Hunk"
+      },
+      {
+        "command": "claudeArtifact.applyAccepted",
+        "title": "Claude Artifact: Apply Accepted Hunks"
       }
     ],
     "menus": {
@@ -40,6 +44,10 @@
         },
         {
           "command": "claudeArtifact.rejectHunk",
+          "when": "false"
+        },
+        {
+          "command": "claudeArtifact.applyAccepted",
           "when": "false"
         }
       ]
