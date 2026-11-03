@@ -13,6 +13,15 @@ Owned by the core agent only. Keep the latest run first. Keep only the last few 
 
 ## Run log
 
+### Run 18 (2026-11-03)
+- Task: `vitest-5` (developer, then tester). Owner-approved upgrade. Developer changed `package.json` and `package-lock.json` (commit `79f7a0f`): `vitest` 3.2.7 to exact pin `5.1.0`. `vitest.config.ts` needed no change. Tester verdict: PASS (commit `a8f1076` added the handoff Testing section only).
+- Checks: `npm run compile` passes. `npm run test:unit` passes with 193 tests in 13 files. `npm test` passes: unit 193, UI 4, integration 4.
+- `npm audit` count: before 12 (2 critical, 1 high, 8 moderate, 1 low). After 9 (0 critical, 1 high, 7 moderate, 1 low). `tinypool` (critical) and `@vitest/mocker` (moderate) are cleared. The remaining 9 come through `mocha`, `@vscode/test-cli`, `@vscode/vsce`, and `c8` (dev-only tooling), and have no fix available.
+- Core agent: opened PR #47 into `dev`, merged it once the tests passed (merged 2026-11-03 19:45 UTC). Marked the task `done`. README needs no change: it does not mention the Vitest version.
+- Not verified: the release age of vitest 5.1.0. `npm view` is not on the allow list. Owner: confirm it is at least two weeks old.
+- Known, not fixed: Vitest prints a non-fatal warning that `vitest.config.ts` uses ESM syntax in a file loaded as CommonJS. Fixing it needs a `.mjs` config or `"type": "module"`. Out of scope for this task.
+- Next: `link-file-paths` (developer, then tester) is the next `todo` in table order. `antigravity-test-2` is owner-only and is skipped. Then `e2e-plan-flows` and `e2e-apply`.
+
 ### Run 17 (2026-11-03)
 - Task: `npm-audit-patch` (developer, then tester). Developer changed only `package.json` and `package-lock.json` (commit `d46dca8`): `vitest` 3.2.4 to 3.2.7 and `@playwright/test` 1.55.0 to 1.64.1, both exact pins. No `overrides` added, because npm reports no fix for the rest. Audit went from 14 to 12 (2 critical, 1 high, 8 moderate, 1 low). Both playwright high findings are fixed.
 - Tester verdict: PASS. Compile passes. Unit 193, UI 4, integration 4. Only the two files changed in the code commit. Chromium was already installed.
