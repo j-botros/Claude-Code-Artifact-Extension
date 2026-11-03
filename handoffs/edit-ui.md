@@ -97,3 +97,23 @@ Results: `npm run compile` exits 0. `npm run test:unit`: 7 failures, all expecte
 Tester should check: the above assertions, new `planEdits` tests, and that the host save/message code (not unit-testable) matches decisions 4 to 6. Not done: no write/message tests (needs VS Code host).
 
 ## Testing
+
+Verdict: PASS
+
+Commands run:
+- `npm run compile`: exit 0 (strict tsc, no errors).
+- `npm run test:unit`: 5 files, 87 tests, 87 passed, 0 failed.
+- `npm run test:ui` and `npm run test:integration`: not applicable (scripts do not exist yet).
+
+Test files: planEdits 17, plan 27, planRenderer 21, streamParser 18, planPrompt 4.
+
+Changes under `test/unit/`:
+- New `planEdits.test.ts` (17 tests). `planFileName`: punctuation, unicode, and path-like input (`../../etc/passwd`) become dashes; empty and symbol-only titles give `plan.json`; the 80-character cap with no trailing dash; deterministic output. `applyPlanEdits`: valid merge leaves `files`, `proposedChanges`, and `verification` equal; trimming; an empty out-of-scope becomes `null`; an empty title, summary, or step is rejected with the field named; wrong step counts; non-string and missing fields; non-object input; no mutation of the plan or the input.
+- `planRenderer.test.ts`: updated the 6 broken assertions for the new markup (section order, escaping, out-of-scope, steps in `ol`, comment textareas selected by `class="comment"`, zero steps). Added tests for: each editable field has an `aria-label` (7 fields for a 2-step plan); one `textarea.step-text` per step with escaped text, `data-step`, and `aria-label`; the script references `savePlan` and `saveResult`, uses `textContent`, never uses `innerHTML`, and calls `acquireVsCodeApi(` once; summary and out-of-scope text stay out of the script.
+- `plan.test.ts`: renamed and fixed `omits out-of-scope text when outOfScope is null` (now `renders an empty out-of-scope textarea when outOfScope is null`).
+
+Why the `plan.test.ts` test failed (the developer was unsure): the old assertion `expect(html).not.toContain("null")` searched the whole HTML. The new fixed script contains the word `null` (`let lastSent = null;`), so it matched. This is a test problem, not a bug in `src/`. The new test inspects only the markup before `<script`, checks that it contains no `null`, and checks that the out-of-scope textarea is empty.
+
+Not tested (as the brief says): the file write and the `savePlan` message handling in `PlanPanel` need the VS Code host. A read of `src/webview/planPanel.ts` found the code matches decisions 4 to 6 (writes through `vscode.workspace.fs`, creates `.claude/plans/` first, the "Open a folder to save edits." error, a promise save chain, `currentPlan` updated only after the write, and `saveResult` replies). This was a read, not a test.
+
+Note: the Edit tool was not available in this session, so the test files and this section were written with Write.
