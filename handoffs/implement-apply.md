@@ -101,4 +101,16 @@ Do not edit `src/claude/`, `src/agy/`, `src/webview/`, `test/`, `TASKS.md`, `STA
 
 ## Testing
 
-_Not started._
+### Commands run
+- `npm run compile`: exit 0 (strict).
+- `npm run test:unit`: 12 files, 188 tests passed, 0 failed (156 existing plus 32 new).
+- `npm run test:ui` and `npm run test:integration`: not applicable (do not exist yet).
+
+### Tests added
+`test/unit/applyHunks.test.ts` (32 tests): none accepted gives original; all accepted gives proposed; partial accept keeps other hunks' original lines; reject and pending not applied; pure insert; pure delete; new file (empty original); empty new file stays empty unaccepted; delete whole content; keys of another path ignored; overlapping, out-of-order, and past-the-end hunks throw; inputs not mutated; round trip over 9 original/proposed pairs (accept all gives proposed, accept none gives original).
+
+### Not verified
+`src/review/hunkReview.ts` needs the VS Code host and is untested here. Needs a manual check in the Extension Development Host: modal confirmation (cancel then retry), freshness skip, dirty-document skip, new file in a nested folder, undo per file, session end after write.
+
+### Verdict
+PASS (for the pure logic). No bugs found in `applyAcceptedHunks`.
