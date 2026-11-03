@@ -30,8 +30,19 @@ notify() {
   if [ -z "${DISCORD_WEBHOOK_URL:-}" ]; then
     return 0
   fi
+  # If DISCORD_USER_ID is set, the message starts with a mention of that user, and only that user
+  # may be pinged. Without it, no one is pinged.
+  local mention=""
+  if [ -n "${DISCORD_USER_ID:-}" ]; then
+    mention="<@${DISCORD_USER_ID}> "
+  fi
   local body
-  body=$(printf '%s' "$1" | python3 -c 'import json,sys; print(json.dumps({"content": sys.stdin.read()}))') || return 0
+  body=$(printf '%s%s' "$mention" "$1" | python3 -c '
+import json, os, sys
+uid = os.environ.get("DISCORD_USER_ID", "")
+payload = {"content": sys.stdin.read(), "allowed_mentions": {"users": [uid] if uid else []}}
+print(json.dumps(payload))
+') || return 0
   curl -fsS -m 15 -H 'Content-Type: application/json' -d "$body" "$DISCORD_WEBHOOK_URL" >/dev/null 2>&1 \
     || log "Discord notification failed."
 }
