@@ -57,12 +57,17 @@
     "compile": "tsc -p ./",
     "test:unit": "vitest run --passWithNoTests",
     "test:ui": "npm run compile && playwright test --pass-with-no-tests",
+    "test:integration": "npm run compile && tsc -p tsconfig.test.json && vscode-test",
+    "test": "npm run test:unit && npm run test:ui && npm run test:integration",
     "package": "vsce package"
   },
   "devDependencies": {
     "@playwright/test": "1.55.0",
+    "@types/mocha": "10.0.10",
     "@types/node": "22.15.21",
     "@types/vscode": "^1.107.0",
+    "@vscode/test-cli": "0.0.15",
+    "@vscode/test-electron": "3.1.0",
     "@vscode/vsce": "3.6.0",
     "typescript": "5.9.3",
     "vitest": "3.2.4"

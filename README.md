@@ -48,15 +48,15 @@ Available commands:
 | `npm run compile` | Build the extension |
 | `npm run test:unit` | Unit tests (plan parsing, plan HTML rendering) |
 | `npm run test:ui` | Headless Chromium (Playwright) tests of the artifact view: rendering, themes, comments, edits. Needs `npx playwright install chromium` once. |
+| `npm run test:integration` | Tests inside a VS Code window (downloads VS Code 1.107.0 on first run). Covers activation, the sample-plan command and webview, and the diff review lenses. |
 | `npm run package` | Create a `.vsix` file for local install (writes `claude-code-artifact-<version>.vsix` in the repo root) |
+| `npm test` | Run unit, UI, then integration tests |
 
 Planned commands (not yet available):
 
 | Command | Purpose |
 |---|---|
 | `npm run watch` | Rebuild on change |
-| `npm run test:integration` | Tests inside a VS Code window |
-| `npm test` | Run all of the above |
 
 Plans are exchanged as JSON. Claude Code's output may include a Markdown code fence, which the extension strips before parsing.
 
