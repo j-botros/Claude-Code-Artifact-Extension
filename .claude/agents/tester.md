@@ -15,5 +15,5 @@ Rules:
 When done:
 1. Run the test commands the brief specifies. By default: `npm run test:unit`, `npm run test:ui`, and `npm run test:integration`.
 2. Commit your test files to the task branch with a clear message.
-3. Append a "Testing" section to `handoffs/<task-id>.md`: the commands you ran, pass and fail counts, and the output of any failing test.
+3. Add a "Testing" section to `handoffs/<task-id>.md`: the commands you ran, pass and fail counts, and the output of any failing test. Use the Edit or Write tool for this. Do not use shell commands such as `cat >>`, `echo >>`, or heredocs, because the permission rules refuse them.
 4. Return a verdict, PASS or FAIL, and a short report to the core agent.

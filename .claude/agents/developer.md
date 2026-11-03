@@ -15,5 +15,5 @@ Rules:
 When done:
 1. Run `npm run test:unit` and fix any failures your change caused.
 2. Commit your changes to the task branch with a clear message that describes what changed and why.
-3. Append a "Development" section to `handoffs/<task-id>.md`: what changed, which tests passed, what is left, and what the tester should check.
+3. Add a "Development" section to `handoffs/<task-id>.md`: what changed, which tests passed, what is left, and what the tester should check. Use the Edit or Write tool for this. Do not use shell commands such as `cat >>`, `echo >>`, or heredocs, because the permission rules refuse them.
 4. Return a short report to the core agent: branch name, commit hash, test result, and any blockers.
