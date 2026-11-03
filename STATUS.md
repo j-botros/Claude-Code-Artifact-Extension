@@ -13,6 +13,18 @@ Owned by the core agent only. Keep the latest run first. Keep only the last few 
 
 ## Run log
 
+### Run 22 (2026-11-03)
+- Task: `vitest-pin-two-weeks` (developer, then tester). Result: blocked at the developer step. No pin change, no tester run.
+- Why: `npm install --save-dev --save-exact vitest@5.0.5` on branch `task/vitest-pin-two-weeks` exited 1 with `npm error Cannot read properties of null (reading 'edgesOut')`. This is an npm internal error, not a clear "version not found". The npm debug log is outside the repo, so the developer could not read it. The developer did not retry with workarounds.
+- Not verified: whether `vitest@5.0.5` resolves at all. `npm view` is not on the allow list. The 2026-10-15 publish date is the core agent's earlier check, not confirmed here.
+- Requests for the owner (not run here; each needs sign-off because it changes the lock file for the whole tree):
+  - Allow deleting `node_modules` and `package-lock.json` and regenerating them with `npm install`. The lock file is then rebuilt from scratch.
+  - Or allow `npm install --save-dev --save-exact vitest@5.0.5 --legacy-peer-deps`.
+  - Or confirm a different 5.x pin that is at least two weeks old.
+- Process notes:
+  - The developer's commit (`3ab06af`, handoff only) uses the Claude Sonnet 5.5 trailer from the attribution reminder, not the Haiku 5.5 line in the brief. Left as is.
+- Next: no `todo` task is runnable before `login-check-tighten`. The next run should pick `login-check-tighten` (developer, then tester) unless the owner decides on `vitest-pin-two-weeks` first.
+
 ### Run 21 (2026-11-03)
 - Task: `e2e-apply` (developer, then tester). Developer added one seam, `resetApplyConfirmationForTests()` in `src/review/hunkReview.ts` (commit `2eae2f3`). Tester added `test/integration/applyFlows.test.ts` with 7 cases (commit `00b77b0`): accept some and reject some, multiple files, new file in a new folder, cancelled confirmation, session ends after a write, changed since review, and confirmation remembered. Verdict PASS.
 - Checks: `npm test` passes: unit 214, UI 4, integration 21 (VS Code 1.107.0). Re-run by the core agent.
