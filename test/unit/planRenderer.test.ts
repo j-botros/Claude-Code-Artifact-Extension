@@ -138,8 +138,10 @@ describe("renderPlanHtml", () => {
     // Exactly one script, and it carries the CSP nonce.
     expect(html.split("<script").length - 1).toBe(1);
     expect(html).toContain(`<script nonce="${NONCE}">`);
-    expect(html).not.toContain("<a ");
-    expect(html).not.toContain("href=");
+    // The only anchors are the non-new file links (one here: src/old.ts), each with href="#".
+    expect(html.split("<a ").length - 1).toBe(1);
+    expect(html.split("href=").length - 1).toBe(1);
+    expect(html).toContain('<a href="#" class="file-link" data-path="src/old.ts">');
     expect(html).not.toMatch(/\son[a-z]+\s*=/i);
   });
 
