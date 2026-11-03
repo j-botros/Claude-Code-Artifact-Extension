@@ -13,6 +13,15 @@ Owned by the core agent only. Keep the latest run first. Keep only the last few 
 
 ## Run log
 
+### Run 13 (2026-11-03)
+- Task: `integration-tests` (developer, then tester). Result: blocked before the developer ran. No commits; branch `task/integration-tests` was created from `origin/dev` and has no changes. TASKS.md row is `blocked`.
+- Why: the task needs `@vscode/test-cli` and `@vscode/test-electron` in `devDependencies`. Neither is in `package.json`, so adding them needs `npm install` to update `package-lock.json`. `npm install` is not on the shell allow list. This is the same lock-file blocker as `ui-tests` (run 12). `npx vscode-test` (which downloads VS Code) is also not on the allow list.
+- Requests for the owner (not run here):
+  - Allow `npm install --save-dev @vscode/test-cli @vscode/test-electron` for this task, or update the lock yourself and tell me.
+  - Allow the VS Code download that `vscode-test` does on first run (roughly 100 MB or more, from Microsoft's CDN).
+- Not done: `ui-tests` stays `blocked`. `pause-and-alert` is still `todo` and is the next runnable task. It edits only `scripts/agent-run.sh` and needs no `npm` install. Stopped after one task, as the run rules say.
+- Note for the next run: the runner picks the first `todo` row, so `integration-tests` will be skipped while it is `blocked`. The next run should pick `pause-and-alert` on its own.
+
 ### Run 12 (2026-11-03)
 - Task: `ui-tests` (developer, then tester). Result: blocked before the developer ran. No commits; branch `task/ui-tests` was created from `origin/dev` and has no changes. TASKS.md row is `blocked`.
 - Why: the task needs Playwright in `devDependencies`. Adding it needs `npm install` to update `package-lock.json`. The shell allow list has `npm ci`, not `npm install`. I tested this: with `@playwright/test` added to `package.json` (then reverted), `npm ci` failed with `EUSAGE`, "Missing: @playwright/test@1.55.0 from lock file". Playwright is not in `node_modules` today. The version in that test was a placeholder, not a choice; the real pin needs to be at least two weeks old.
@@ -152,3 +161,4 @@ Owned by the core agent only. Keep the latest run first. Keep only the last few 
 
 ## Blockers
 - `ui-tests` is blocked: `npm install` is not on the shell allow list, so Playwright cannot be added to the lock file. See run 12.
+- `integration-tests` is blocked for the same reason: `@vscode/test-cli` and `@vscode/test-electron` need `npm install`, and `npx vscode-test` is not on the allow list. See run 13.
