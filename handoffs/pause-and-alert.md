@@ -99,3 +99,24 @@ Not run. I may not run `bash` or the main path. `npm run test:unit` was not run 
 - `--check-queue` creates no `PAUSE` file.
 - A missing file argument exits 1 (falls back to `/nonexistent`).
 - Commit hash: see the commit that contains this section (`git log -1`).
+
+## Testing
+
+### Commands run
+- `npm run test:unit`: 13 files, 193 tests passed, 0 failed (5 new tests in `test/unit/agentRunQueue.test.ts`).
+- `npm run compile`: succeeded, no errors.
+- `npm run test:ui` and `npm run test:integration`: not applicable (scripts do not exist, tasks blocked).
+
+### New tests (`test/unit/agentRunQueue.test.ts`)
+Each spawns `bash scripts/agent-run.sh --check-queue <fixture>` from the repo root. Fixtures: `test/unit/fixtures/no-todo-TASKS.md`, `one-todo-TASKS.md`, `owner-todo-TASKS.md`.
+- No runnable row (blocked developer row, done owner row mentioning "developer, then tester"): exit 1, empty stdout.
+- One todo row with Owner `developer, then tester`: exit 0, prints `next-feature` (the first runnable row, not the later one).
+- Owner `owner`, Status `todo`, description mentions developer and tester: exit 1, empty stdout.
+- Missing file: exit 1, empty stdout.
+- No `PAUSE` file is created (no PAUSE existed when the tests ran, so the assertion ran).
+
+### Not unit tested
+The osascript notification and PAUSE-creation branch of the main path were not unit tested (the main path runs git and starts the agent). They were checked by reading `scripts/agent-run.sh`: fixed-text AppleScript, PAUSE write failure is logged, exit 0.
+
+### Verdict
+PASS. No bugs found in the script.
