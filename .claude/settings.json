@@ -18,7 +18,8 @@
             "Bash(npm view:*)",
             "Bash(npm run package:*)",
             "Bash(npx vitest:*)",
-            "Bash(npx playwright:*)"
+            "Bash(npx playwright:*)",
+            "Bash(npm install:*)"
         ],
         "deny": [
             "Bash(git push --force:*)",
