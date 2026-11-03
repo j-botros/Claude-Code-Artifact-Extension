@@ -1,6 +1,13 @@
 import * as vscode from "vscode";
 import { Plan } from "../plan/plan";
 import { applyPlanEdits, planFileName } from "../plan/planEdits";
+import { parseReviewComments } from "../plan/reviewComments";
+
+/** Asks Claude Code to revise a plan given per-step comments. */
+export type ReviewHandler = (
+  plan: Plan,
+  comments: Record<number, string>
+) => Promise<{ ok: true; plan: Plan } | { ok: false; message: string }>;
 
 /** Escapes text so it is safe to place inside HTML. */
 export function escapeHtml(text: string): string {
@@ -37,7 +44,7 @@ function renderSteps(steps: string[]): string {
     .join("\n");
 }
 
-/** Fixed script (no plan data): comments and edits via webview state, and saving edits to the host. */
+/** Fixed script (no plan data): comments and edits via webview state, saving edits, and review requests. */
 const COMMENT_SCRIPT = `
 const vscode = acquireVsCodeApi();
 function readState() {
@@ -64,6 +71,9 @@ function readEdits() {
     steps: stepBoxes.map((b) => b.value),
   };
 }
+if (resetState) {
+  vscode.setState({});
+}
 const saved = readState().edits;
 if (saved && typeof saved === "object") {
   if (typeof saved.title === "string") { titleBox.value = saved.title; }
@@ -89,8 +99,20 @@ titleBox.addEventListener("keydown", (event) => {
     sendEdits();
   }
 });
+const reviewBtn = document.querySelector("button.review");
+reviewBtn.addEventListener("click", () => {
+  const edits = readEdits();
+  reviewBtn.disabled = true;
+  statusEl.textContent = "Asking Claude Code to review...";
+  vscode.postMessage({ type: "reviewComments", title: edits.title, summary: edits.summary, outOfScope: edits.outOfScope, steps: edits.steps, comments: readComments() });
+});
 window.addEventListener("message", (event) => {
   const msg = event.data;
+  if (msg && msg.type === "reviewResult") {
+    reviewBtn.disabled = false;
+    statusEl.textContent = typeof msg.message === "string" ? msg.message : "";
+    return;
+  }
   if (!msg || msg.type !== "saveResult") { return; }
   statusEl.textContent = typeof msg.message === "string" ? msg.message : "";
   if (msg.ok === true && lastSent) {
@@ -135,8 +157,12 @@ ${rows}
 </table>`;
 }
 
-/** Builds the full HTML document for a plan. Plan text is always escaped. */
-export function renderPlanHtml(plan: Plan, nonce: string): string {
+/**
+ * Builds the full HTML document for a plan. Plan text is always escaped.
+ * With `resetState` true, the script clears saved comments and edits first.
+ */
+export function renderPlanHtml(plan: Plan, nonce: string, options?: { resetState: boolean }): string {
+  const resetLine = `const resetState = ${options?.resetState === true ? "true" : "false"};\n`;
   const outOfScope = `<h2>Out of scope</h2>\n<textarea class="edit-outofscope" aria-label="Edit out of scope" rows="2" placeholder="Nothing excluded">${escapeHtml(plan.overview.outOfScope ?? "")}</textarea>`;
   const language = plan.proposedChanges.language;
   const langClass = /^[a-zA-Z0-9+#-]*$/.test(language) && language !== ""
@@ -190,12 +216,16 @@ export function renderPlanHtml(plan: Plan, nonce: string): string {
   th { background: var(--table-head-bg); }
   textarea { display: block; box-sizing: border-box; width: 100%; background: var(--bg); color: var(--fg); border: 1px solid var(--border); border-radius: 4px; font: inherit; margin-top: 0.4rem; }
   input.edit-title { display: block; box-sizing: border-box; width: 100%; background: var(--bg); color: var(--fg); border: 1px solid var(--border); border-radius: 4px; font: inherit; font-size: 1.5rem; font-weight: bold; padding: 0.25rem 0.5rem; }
+  header.top { display: flex; align-items: center; gap: 0.75rem; }
+  header.top h1 { flex: 1; margin: 0.67rem 0; }
+  button.review { background: var(--badge-bg); color: var(--badge-fg); border: 0; border-radius: 4px; padding: 0.4rem 0.9rem; font: inherit; cursor: pointer; white-space: nowrap; }
+  button.review:disabled { opacity: 0.6; cursor: default; }
   .status { color: var(--muted); font-size: 0.85rem; min-height: 1.2em; margin: 0.25rem 0 0.75rem; }
   .badge { background: var(--badge-bg); color: var(--badge-fg); border-radius: 999px; padding: 0 0.5rem; font-size: 0.75rem; margin-left: 0.25rem; }
 </style>
 </head>
 <body>
-<h1><input type="text" class="edit-title" aria-label="Edit title" value="${escapeHtml(plan.title)}"></h1>
+<header class="top"><h1><input type="text" class="edit-title" aria-label="Edit title" value="${escapeHtml(plan.title)}"></h1><button class="review" type="button">Review Comments</button></header>
 <p class="status" role="status"></p>
 <textarea class="edit-summary" aria-label="Edit summary" rows="3">${escapeHtml(plan.overview.summary)}</textarea>
 ${outOfScope}
@@ -211,22 +241,22 @@ ${renderSteps(plan.implementationSteps)}
 <ul>
 ${renderItems(plan.verification)}
 </ul>
-<script nonce="${nonce}">${COMMENT_SCRIPT}</script>
+<script nonce="${nonce}">${resetLine}${COMMENT_SCRIPT}</script>
 </body>
 </html>`;
 }
 
 /** Hosts a webview panel that shows a plan. */
 export class PlanPanel {
-  /** Opens a new panel showing the given plan. */
-  static show(plan: Plan): PlanPanel {
+  /** Opens a new panel showing the given plan; `onReview` handles Review Comments clicks. */
+  static show(plan: Plan, onReview: ReviewHandler): PlanPanel {
     const panel = vscode.window.createWebviewPanel(
       "claudeArtifact.plan",
       plan.title,
       vscode.ViewColumn.One,
       { enableScripts: true }
     );
-    return new PlanPanel(panel, plan);
+    return new PlanPanel(panel, plan, onReview);
   }
 
   /** The plan as last saved (or as first shown). */
@@ -236,15 +266,63 @@ export class PlanPanel {
   private saveChain: Promise<void> = Promise.resolve();
 
   /** Sets the panel's HTML from the plan and listens for save messages. */
-  private constructor(private readonly panel: vscode.WebviewPanel, plan: Plan) {
+  private constructor(
+    private readonly panel: vscode.WebviewPanel,
+    plan: Plan,
+    private readonly onReview: ReviewHandler
+  ) {
     this.currentPlan = plan;
     this.panel.webview.html = renderPlanHtml(plan, makeNonce());
     this.panel.webview.onDidReceiveMessage((msg: unknown) => {
-      if (typeof msg !== "object" || msg === null || (msg as { type?: unknown }).type !== "savePlan") {
+      if (typeof msg !== "object" || msg === null) {
         return;
       }
-      this.saveChain = this.saveChain.then(() => this.save(msg));
+      const type = (msg as { type?: unknown }).type;
+      if (type === "savePlan") {
+        this.saveChain = this.saveChain.then(() => this.save(msg));
+      } else if (type === "reviewComments") {
+        this.saveChain = this.saveChain.then(() => this.review(msg));
+      }
     });
+  }
+
+  /** Posts a review result to the webview. */
+  private replyReview(message: string): void {
+    void this.panel.webview.postMessage({ type: "reviewResult", ok: false, message });
+  }
+
+  /**
+   * Validates the edits and comments, asks Claude Code to revise the plan, and on
+   * success re-renders the panel with the returned plan. Never throws.
+   */
+  private async review(input: unknown): Promise<void> {
+    try {
+      const edited = applyPlanEdits(this.currentPlan, input);
+      if (!edited.ok) {
+        this.replyReview(edited.error);
+        return;
+      }
+      const rawComments = (input as { comments?: unknown }).comments;
+      const parsed = parseReviewComments(rawComments, this.currentPlan.implementationSteps.length);
+      if (!parsed.ok) {
+        this.replyReview(parsed.error);
+        return;
+      }
+      if (Object.keys(parsed.comments).length === 0) {
+        this.replyReview("Add a comment on a step first.");
+        return;
+      }
+      const result = await this.onReview(edited.plan, parsed.comments);
+      if (!result.ok) {
+        this.replyReview(result.message);
+        return;
+      }
+      this.currentPlan = result.plan;
+      this.panel.title = result.plan.title;
+      this.panel.webview.html = renderPlanHtml(result.plan, makeNonce(), { resetState: true });
+    } catch (err) {
+      this.replyReview(`Review failed: ${err instanceof Error ? err.message : String(err)}`);
+    }
   }
 
   /** Posts a save result to the webview. */
