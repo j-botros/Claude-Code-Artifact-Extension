@@ -1,12 +1,20 @@
+# Files that should not ship inside the .vsix. Users only need the compiled extension.
 .vscode/**
 .claude/**
-handoffs/**
-logs/**
-scripts/**
+.github/**
 src/**
 test/**
-**/*.map
-tsconfig.json
-vitest.config.ts
+scripts/**
+handoffs/**
+logs/**
+node_modules/**
+CLAUDE.md
 TASKS.md
 STATUS.md
+PAUSE
+*.vsix
+tsconfig.json
+vitest.config.*
+playwright.config.*
+.vscode-test.mjs
+**/*.map
