@@ -68,6 +68,15 @@ export const samplePlan: Plan = {
     "Compile and run the sample command.",
   ],
   verification: ["Unit test greet with a normal name and an empty string."],
+  // Lets the Implement the Design flow be tried by hand. Applying writes this new file under the
+  // workspace root, so a throwaway workspace is safest.
+  proposedFiles: [
+    {
+      path: "sample-artifact/greet.ts",
+      content:
+        'export function greet(name: string): string {\n  if (name === "") {\n    return "Hello, stranger.";\n  }\n  return `Hello, ${name}.`;\n}\n',
+    },
+  ],
 };
 
 /** Removes one optional Markdown code fence (```json ... ```) around the text. */
