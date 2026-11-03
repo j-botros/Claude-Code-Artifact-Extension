@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { SamplePlan } from "../plan/plan";
+import { Plan } from "../plan/plan";
 
 /** Escapes text so it is safe to place inside HTML. */
 export function escapeHtml(text: string): string {
@@ -22,11 +22,17 @@ function makeNonce(): string {
 }
 
 /** Builds the full HTML document for a plan. Plan text is always escaped. */
-export function renderPlanHtml(plan: SamplePlan, nonce: string): string {
-  const steps = plan.steps
+export function renderPlanHtml(plan: Plan, nonce: string): string {
+  const items = (list: string[]): string =>
+    list.map((s) => `<li>${escapeHtml(s)}</li>`).join("\n");
+  const outOfScope =
+    plan.overview.outOfScope === null
+      ? ""
+      : `<h2>Out of scope</h2>\n<p>${escapeHtml(plan.overview.outOfScope)}</p>`;
+  const files = plan.files
     .map(
-      (s) =>
-        `<li><h2>${escapeHtml(s.title)}</h2><p>${escapeHtml(s.detail)}</p></li>`
+      (f) =>
+        `<li><code>${escapeHtml(f.path)}</code>${f.isNew ? " (new)" : ""}: ${escapeHtml(f.change)}</li>`
     )
     .join("\n");
   return `<!DOCTYPE html>
@@ -62,10 +68,22 @@ export function renderPlanHtml(plan: SamplePlan, nonce: string): string {
 </head>
 <body>
 <h1>${escapeHtml(plan.title)}</h1>
-<p class="summary">${escapeHtml(plan.summary)}</p>
+<p class="summary">${escapeHtml(plan.overview.summary)}</p>
+${outOfScope}
+<h2>Proposed changes</h2>
+<pre><code>${escapeHtml(plan.proposedChanges.code)}</code></pre>
+<h2>Files</h2>
+<ul>
+${files}
+</ul>
+<h2>Implementation steps</h2>
 <ol>
-${steps}
+${items(plan.implementationSteps)}
 </ol>
+<h2>Verification</h2>
+<ul>
+${items(plan.verification)}
+</ul>
 </body>
 </html>`;
 }
@@ -73,7 +91,7 @@ ${steps}
 /** Hosts a webview panel that shows a plan. */
 export class PlanPanel {
   /** Opens a new panel showing the given plan. */
-  static show(plan: SamplePlan): PlanPanel {
+  static show(plan: Plan): PlanPanel {
     const panel = vscode.window.createWebviewPanel(
       "claudeArtifact.plan",
       plan.title,
@@ -84,7 +102,7 @@ export class PlanPanel {
   }
 
   /** Sets the panel's HTML from the plan. */
-  private constructor(private readonly panel: vscode.WebviewPanel, plan: SamplePlan) {
+  private constructor(private readonly panel: vscode.WebviewPanel, plan: Plan) {
     this.panel.webview.html = renderPlanHtml(plan, makeNonce());
   }
 }
