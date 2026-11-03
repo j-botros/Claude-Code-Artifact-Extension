@@ -56,7 +56,15 @@
 
 ## Development (developer)
 
-_To be written by the developer._
+**What changed:** In `src/review/hunkReview.ts` I added the exported seam `resetApplyConfirmationForTests(): void`, placed right after the `confirmedThisSession` declaration. It sets `confirmedThisSession = false` and nothing else. Its doc comment says integration tests read it and the extension does not use it. No behaviour change.
+
+**Results:**
+- `npm run compile`: passed (no errors).
+- `npm run test:unit`: passed, 14 files, 214 tests.
+
+**Unsure:** Nothing. The seam does not touch `applying` or `session`, as the brief asked.
+
+**Tester should check:** the seam is reachable from `out/review/hunkReview.js` via `require`, and that calling it makes the next `claudeArtifact.applyAccepted` show the modal again.
 
 ## Testing (tester)
 

@@ -278,6 +278,14 @@ function decide(value: Decision, arg: unknown): void {
 /** True once the user has clicked Apply in the write confirmation during this extension session. */
 let confirmedThisSession = false;
 
+/**
+ * Clears the remembered write confirmation so the next apply prompts again.
+ * Read by integration tests; the extension does not use it.
+ */
+export function resetApplyConfirmationForTests(): void {
+  confirmedThisSession = false;
+}
+
 /** True while an apply run is in progress, so a second click cannot start a second run. */
 let applying = false;
 
