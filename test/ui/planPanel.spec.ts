@@ -359,7 +359,7 @@ test.describe("plan webview", () => {
     await expect(plus).toHaveCSS("opacity", "1");
     // The plus is blue (the accent colour) and sits right of the content.
     const color = await plus.evaluate((el) => getComputedStyle(el).backgroundColor);
-    expect(color).toBe("rgb(9, 105, 218)");
+    expect(color).toBe("rgb(42, 100, 184)"); // Playwright's default scheme is light
     await plus.click();
     await expect(b.locator("textarea.comment-field")).toBeFocused();
     await expect(b.getByRole("button", { name: "Cancel", exact: true })).toBeVisible();
@@ -611,12 +611,15 @@ test.describe("plan webview", () => {
         return { bg: cs.backgroundColor, color: cs.color, border: cs.borderTopColor };
       });
       const body = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
-      expect(pop.bg, scheme).toBe(body);
+      // The popover uses the --popover colour, which differs from the page background.
+      const popover = scheme === "light" ? "rgb(247, 247, 247)" : "rgb(35, 35, 35)";
+      expect(pop.bg, scheme).toBe(popover);
+      expect(pop.bg, scheme).not.toBe(body);
       expect(pop.color, scheme).not.toBe(pop.bg);
       await page.keyboard.press("Escape");
       await page.locator("button.kebab").click();
       const menuBg = await page.locator(".menu").evaluate((el) => getComputedStyle(el).backgroundColor);
-      expect(menuBg, scheme).toBe(body);
+      expect(menuBg, scheme).toBe(popover);
       await page.keyboard.press("Escape");
       const review = await page.locator("button.review").evaluate((el) => getComputedStyle(el).backgroundColor);
       expect(review, scheme).not.toBe("rgba(0, 0, 0, 0)");
@@ -669,7 +672,7 @@ test.describe("plan webview", () => {
     const darkPage = await browser.newPage();
     const dark = await themeValues(darkPage, "dark", "dark");
     expect(light.bg).toBe("#ffffff");
-    expect(dark.bg).toBe("#1e1e1e");
+    expect(dark.bg).toBe("#1f1f1f");
     expect(light.bg).not.toBe(dark.bg);
     expect(light.fg).not.toBe(dark.fg);
     expect(light.card).not.toBe(dark.card);
@@ -733,7 +736,7 @@ test.describe("plan webview", () => {
       });
       // The comment icon is drawn in the accent colour (the marker's text colour), not a background.
       expect(colors.markerColor, scheme).not.toBe(colors.body);
-      expect(colors.markerColor, scheme).toBe(scheme === "light" ? "rgb(9, 105, 218)" : "rgb(88, 166, 255)");
+      expect(colors.markerColor, scheme).toBe(scheme === "light" ? "rgb(42, 100, 184)" : "rgb(51, 118, 206)");
       expect(colors.text, scheme).not.toBe(colors.body);
       await page.close();
     }
