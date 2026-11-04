@@ -6,12 +6,26 @@ Owned by the core agent only. Keep the latest run first. Keep only the last few 
 - Stage: early idea, with a working scaffold. `Claude Artifact: Open Sample Plan` opens a webview with a sample plan. The owner confirmed it renders in Antigravity.
 - Branches: `main` and `dev` exist on GitHub. `dev` includes PRs #1 through #6, #12, #18, #23, and #26.
 - Packaging: `npm run package` produces a `.vsix` that installs in Antigravity 1.107.0. `engines.vscode` is `^1.107.0` and `@types/vscode` is pinned to `1.107.0`. Latest stable VS Code is 1.144.0 (published 2026-10-28, checked 2026-11-03).
-- Compile: `npm run compile` passes. `npm test` passes (unit 341, UI 100, integration 33) as of run 33 (PR #79).
+- Compile: `npm run compile` passes. `npm test` passes (unit 368, UI 117, integration 33) as of run 35 (PR #85).
 - `.vscode/launch.json` exists.
 - Agent setup: `.claude/agents/developer.md`, `.claude/agents/tester.md`, and `.claude/settings.json` are committed.
 - Scheduler (as of 2026-11-03): the launchd job `com.j-botros.claude-artifact-agent` is installed and loaded. It runs back to back, up to 12 runs per chain, and writes `PAUSE` when the queue is empty.
 
 ## Run log
+
+### Run 35 (2026-11-04)
+- Task: `comment-every-line` (developer, then tester, then two developer fix rounds and a tester pass). Branch `task/comment-every-line`, which an interrupted earlier run had started. Its brief (`c2c1067`), developer commit (`7c04346`), and tester WIP commit (`9ad5b2f`) were already there. This run picked up from there.
+- Interrupted-run pickup: the Testing section was empty and the tester's tests had never been run. The core agent ran compile, unit, UI, and integration on the branch to see where it stood. UI: 113 passed, 2 failed.
+- Round 1 (developer): CSS fix in `src/webview/planPanel.ts` (`c5f84b5`). The margin slot z-index went to 7, and an open editor's block to 8. This fixed the two failures. UI 115 passed.
+- Tester (`d3b9b11`): verdict FAIL. One new test, `editing a step to fewer lines drops the comment on the removed line`, failed. The third sentence of a short step was still under the next block's margin.
+- Round 2 (developer, last allowed round): `layoutSlots` now grows a short block's `min-height` so every pushed slot stays inside it (`0692543`). Its handoff notes say the minimum-height approach was chosen over clamping, because clamping would stack slots.
+- Core agent, final run on the branch: `npm test` passed. Unit 368 (22 files), UI 117, integration 33 (VS Code 1.107.0). The tester's Testing section still shows the round-2 FAIL. The final verdict is this run.
+- README (`fe85fd6`): every line of the plan is commentable. Changed the status paragraph and the feature line that said "any block or any single line of code". PR #85 into `dev`.
+- Not verified: headless Chromium and the stub integration host only. Owner: open a plan in Antigravity, hover a line of a wrapped overview sentence, a file row, and a step, and check the margin bubbles and the spacing of short blocks.
+- Process notes:
+  - The tester's first verdict in this task was FAIL, and the developer needed two fix rounds to clear it. The tester's Testing section still shows the round-2 FAIL, not the final pass.
+  - Open decision for the owner: the minimum-height approach makes short multi-sentence blocks taller so each sentence's comment button has room. The owner may want a different layout.
+- Next: no `todo` task for developer or tester is left. `antigravity-test-2` is owner-only. `vitest-pin-two-weeks` is `blocked` (lock file, run 22). The next scheduled run should write `PAUSE` unless the owner adds a task or unblocks `vitest-pin-two-weeks`.
 
 ### Run 34 (2026-11-04)
 - Task: `remove-code-line-hover` (developer, then tester). Branch `task/remove-code-line-hover`. Brief commit is on the branch, developer commit `4b64190`, tester commit `0d5bedc`. PR #82 into `dev`, merged 2026-11-04 17:27 UTC. TASKS.md row set to `done`.
