@@ -73,4 +73,25 @@ The tester needs to update these. Everything else passes.
 
 ## Testing (tester)
 
-_Pending._
+**Verdict: PASS** (round 1). No bug found in `src/`.
+
+**Commands run (each on its own).**
+- `npm run compile`: passes.
+- `npm run test:unit`: 15 files, 246 passed, 0 failed.
+- `npm run test:ui`: 35 passed, 0 failed (Playwright, headless Chromium, 1 worker).
+- `npm run test:integration`: 28 passed, 0 failed (VS Code 1.107.0 Extension Development Host).
+
+**Test changes (test/ only).**
+- Updated the 6 failing unit tests to the new markup: aria-label `Add inline comment on ...` (plus the `title="Add inline comment"` tooltip), the `Review &bull; N` button with comment icon and chevron, the hidden "Submit comment" popover, the three kebab `data-action` items, the `message: messageBox.value` post, and `actionResult`. The old "no innerHTML in the script" check became "exactly one innerHTML write, and it is `innerHTML = COMMENT_ICON`", so it still fails if plan or comment text is ever written as HTML.
+- New `test/unit/planMarkdown.test.ts` (`countComments`, `planToMarkdown` including a fence longer than the longest backtick run, no files, null outOfScope, proposedFiles excluded; `planMarkdownFileName`; `buildReviewPrompt` with and without a message, including angle-bracket escaping).
+- `test/ui/planPanel.spec.ts`: old comment tests moved to "Add Comment" / "Edit Comment" / "Save Comment". 16 new tests cover: "+" hover, tooltip, blue colour, popover with Cancel and Add Comment; Cancel and Escape adding nothing; comment card text, Delete, Edit Comment, and the count in "Review • N"; empty comment not counted; Review popover (focus on message box, Submit, collapsible list); Submit posting `reviewComments` with `message`, status text, and re-enable on `reviewResult`; Submit with no message and with no comments; kebab posting `copyMarkdown`, `copyPath`, `exportArtifact` with the current edits, and `actionResult` shown in the status line; Escape, outside click, inside click, and one-popover-at-a-time; light and dark themes for the popovers; a full walk-through that fails on any console error or CSP violation (none seen).
+- New `test/integration/kebabActions.test.ts`: calls the panel's private `runAction` (the webview cannot be driven from the test host) for Copy (real clipboard with a sentinel, restored after), Copy with unsaved edits, Copy Path before any save (copies nothing, says "Not saved yet"), Export Artifact (writes `.claude/plans/<slug>.md` in the workspace, content equals `planToMarkdown`, overwrite works), and an invalid edits message (reported, not thrown).
+
+**Brief items.**
+1. "+" with tooltip and popover: verified in headless Chromium. The tooltip is the native `title` attribute; a real browser tooltip bubble was not rendered or checked.
+2. Comment marker, card, Delete, Edit Comment: verified in headless Chromium.
+3. "Review • N", Submit comment popover, message in the `reviewComments` post: verified in headless Chromium. The host side of `message` into `buildReviewPrompt` is covered by unit tests, but the end-to-end path (webview to Claude Code) was not run.
+4. Kebab Copy / Copy Path / Export Artifact: webview posts verified in Chromium. Host side verified in the Extension Development Host through `runAction` (real clipboard and real file write). Copy Path after a real save was not tested (it needs a save through the webview message path).
+5. Implement the Design, themes, CSP, narrow width (400px, no horizontal scroll with a comment card): verified in headless Chromium. The Review and kebab popovers at narrow width were not checked.
+
+**Not verified.** Rendering inside a real VS Code webview (only the HTML in Chromium and the host in the Extension Development Host were exercised); Antigravity; popover position at narrow widths.
