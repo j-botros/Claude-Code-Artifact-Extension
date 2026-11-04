@@ -45,8 +45,8 @@ function editKeys(html: string): string[] {
 describe("renderPlanHtml", () => {
   it("renders blocks in the order title, overview, code, files, steps, verification", () => {
     const html = renderPlanHtml(makePlan(), NONCE);
+    // The title lives in the sticky bar, so it is not a commentable block.
     expect(blockIds(html)).toEqual([
-      "title",
       "overview",
       "code",
       "file:0",
@@ -98,7 +98,8 @@ describe("renderPlanHtml", () => {
     }
     // Each block has its own margin cell and bubble holder.
     expect(html.split('<div class="bubbles"></div>').length - 1).toBe(ids.length);
-    expect(html).toContain('aria-label="Add inline comment on title"');
+    expect(html).not.toContain('aria-label="Add inline comment on title"');
+    expect(html).not.toContain('data-block="title"');
     expect(html).toContain('aria-label="Add inline comment on step 2"');
     expect(html).toContain('aria-label="Add inline comment on verification 1"');
     expect(html).toContain('aria-label="Add inline comment on file src/old.ts"');
@@ -120,18 +121,58 @@ describe("renderPlanHtml", () => {
     expect(html.split("<script").length - 1).toBe(1);
     expect(html.split("</script>").length - 1).toBe(1);
     expect(html).toContain(`<title>${ESCAPED}</title>`);
-    expect(html).toContain(`<h1 class="editable" data-edit="title" data-label="title" tabindex="0" title="Click to edit">${ESCAPED}</h1>`);
-    expect(html).toContain(`data-edit="summary" data-label="summary" tabindex="0" title="Click to edit">${ESCAPED}</div>`);
+    expect(html).toContain(`<h1 class="editable" data-edit="title" data-label="title" tabindex="0">${ESCAPED}</h1>`);
+    expect(html).toContain(`data-edit="summary" data-label="summary" tabindex="0">${ESCAPED}</div>`);
+    expect(html).not.toContain('title="Click to edit"');
     expect(html).toContain(`data-placeholder="Nothing excluded">${ESCAPED}</div>`);
-    expect(html).toContain(`<div class="lang-label">${ESCAPED}</div>`);
+    expect(html).toContain(`<span class="lang-label">${ESCAPED}</span>`);
     expect(html).toContain(`<code>${ESCAPED}</code></pre>`);
     expect(html).toContain(`<code>${ESCAPED}</code> <span class="badge">new</span>`);
     expect(html).toContain(`<div class="file-change">${ESCAPED}</div>`);
     expect(html).toContain(`<div class="verification-item">${ESCAPED}</div>`);
-    expect(html).toContain(`tabindex="0" title="Click to edit">${ESCAPED}</div></div>`);
+    expect(html).toContain(`tabindex="0">${ESCAPED}</div></div>`);
     // The hostile path in aria-label and data-label attributes is escaped too.
     expect(html).toContain(`aria-label="Add inline comment on file ${ESCAPED}"`);
     expect(html).not.toContain('aria-label="Add inline comment on file <');
+  });
+
+  it("renders a callout for a marker, keeps the marker in data-marker, and escapes the body", () => {
+    const html = renderPlanHtml(
+      makePlan({
+        overview: { summary: "NOTE: <b>x</b>", outOfScope: null },
+        implementationSteps: ["WARNING: careful", "NOTE:", "note: lower", "Mid NOTE: text"],
+        verification: ["TIP: check it"],
+      }),
+      NONCE
+    );
+    expect(html).toContain('<div class="callout note"><div class="callout-label">NOTE</div>');
+    expect(html).toContain('data-marker="NOTE: "');
+    expect(html).toContain("&lt;b&gt;x&lt;/b&gt;");
+    expect(html).toContain('<div class="callout warning"><div class="callout-label">WARNING</div>');
+    expect(html).toContain('data-marker="NOTE:"');
+    expect(html).toContain('<div class="callout tip"><div class="callout-label">TIP</div><div class="verification-item">check it</div>');
+    // Lowercase and mid-text markers stay plain text.
+    expect(html).toContain(">note: lower</div>");
+    expect(html).toContain(">Mid NOTE: text</div>");
+    expect(html.split('class="callout-label"').length - 1).toBe(4);
+  });
+
+  it("emits a copy button, a short code label, and section rules between sections only", () => {
+    const html = renderPlanHtml(makePlan(), NONCE);
+    expect(html.split('class="copy-code"').length - 1).toBe(1);
+    expect(html).toContain('<span class="lang-label">ts</span>');
+    expect(html.split('<hr class="section-rule">').length - 1).toBe(4);
+    expect(html.indexOf("<hr")).toBeGreaterThan(html.indexOf("<h2>Overview</h2>"));
+    expect(html.lastIndexOf("<hr")).toBeLessThan(html.indexOf("<h2>Verification</h2>"));
+  });
+
+  it("orders the sticky bar as title, kebab, Review, Implement, with the title editable", () => {
+    const html = renderPlanHtml(makePlan(), NONCE);
+    const bar = html.slice(html.indexOf('<header class="top">'), html.indexOf("</header>"));
+    const order = ['data-edit="title"', 'class="kebab"', 'class="review"', 'class="implement"'].map((s) => bar.indexOf(s));
+    expect(order.every((i) => i >= 0)).toBe(true);
+    expect([...order].sort((a, b) => a - b)).toEqual(order);
+    expect(html).toContain("position: sticky; top: 0");
   });
 
   it("escapes attribute-breaking characters in file paths", () => {
@@ -205,7 +246,9 @@ describe("renderPlanHtml", () => {
       "--code-comment: #8693a2;",
       "--code-keyword: #8ae0f6;",
       "--code-string: #bbec56;",
-      "--content-width: 800px;",
+      "--content-width: 77vw;",
+      "--review: #3376ce;",
+      "--implement: #3fa34d;",
       "--margin-width: 40px;",
     ]) {
       expect(html).toContain(v);

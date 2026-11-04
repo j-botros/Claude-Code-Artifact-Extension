@@ -94,4 +94,23 @@ Do not edit `test/`, `TASKS.md`, `STATUS.md`, or `README.md`. If you need a file
 
 ## Testing (tester)
 
-_(to be filled by the tester)_
+**Verdict: PASS.**
+
+**Commands (each run on its own).**
+- `npm run compile`: passes, no errors.
+- `npm run test:unit`: 16 files, 265 passed, 0 failed. (Before my edits: the four failures the developer listed, plus a fifth the developer did not list, see below.)
+- `npm run test:ui`: 64 passed, 0 failed (3 workers, headless Chromium). My first run of the new layout spec had 1 failure in my own test (I asserted the tooltip `content` was empty before hover; the real CSS keeps `content` and toggles `opacity`). I fixed the test, not `src/`.
+- `npm run test:integration`: 29 passing, 0 failing (VS Code 1.107.0).
+
+**Changes in test/.**
+- `test/unit/planRenderer.test.ts`: block order no longer has `title`; the comment-button test now asserts there is no `title` block or title "+" label; the escaping test drops the native `title="Click to edit"` and asserts it is absent; palette test expects `--content-width: 77vw`, `--review: #3376ce`, `--implement: #3fa34d`. Fifth failure the brief did not list: the escaping test expected `<div class="lang-label">`, which is now `<span class="lang-label">`; updated. Added renderer tests for callout markup (`data-marker`, escaping, lowercase and mid-text are plain), copy button and `ts` label, 4 section rules between sections only, and sticky bar order.
+- `test/unit/callouts.test.ts` (new): each of the five markers, case sensitivity, non-start markers, colon required, empty body, prefix plus body round trip, `codeLabel` map (typescript to ts, javascript to js, the other documented languages), case and trim, unknown labels kept, prototype names (`constructor`) not treated as known.
+- `test/ui/layout.spec.ts` (new): sticky bar stays at top after scrolling, order title/kebab/Review/Implement, title still click-to-edit, no title "+", Review popover heading is the first `h2`; Review `#3376ce` with and without comments; Implement `#3fa34d` with `#1f1f1f` text and contrast >= 4.5; "+" is 24px; four section rules between sections, none after the last; callouts for all five markers in dark and light (bar colour, label colour, label text, marker removed, body in normal text colour); marker-only is an empty callout; lowercase is plain; summary and verification callouts; editing a callout keeps the marker in the saved `savePlan` text and after a reload; comment on a callout; `ts`, `js`, unknown label kept; one copy button that posts exactly `{type:"copyCode"}`; "Click to edit" CSS-only tooltip (no `title` attribute, opacity 0 then 1 on hover); below 900px the tooltip is `display:none` and `.doc` is full width; light theme colours; no CSP violations, no `[style]` attributes, no `unsafe-inline`, in both themes.
+- `test/ui/planPanel.spec.ts` and `test/ui/antigravityStyle.spec.ts`: moved comments off the removed `title` block to `overview`; heading sizes 25.2 / 19.6 / 16.1px; Review and Implement colours; 77% centred column at 1600px (replaces the 800px check); light-theme Review is blue without comments.
+- `test/integration/kebabActions.test.ts`: new test that `copyCode` writes the stored `proposedChanges.code` to the real clipboard and replies "Copied the code." (checks the developer's claim that the host copies its own stored code).
+
+**Developer's reported deviations: checked.** All confirmed as described: title in the bar with no "+" and no `title` id; Implement dark text on green (dark theme) and white on `#2b7d37` (light); marker kept in saved text and "NOTE:" alone is an empty callout; copy sends no text; tooltip hidden and column 100% below 900px; "Submit comment" is the first `h2`.
+
+**Observations (not failures).** The page has one code block, so "a copy button per code block" is checked as one. The callout kind cannot change by editing (by design).
+
+**Headless Chromium only.** All UI checks ran in headless Chromium against the built HTML with a stubbed `acquireVsCodeApi`. Not checked in a real VS Code or Antigravity webview: real CSP enforcement by the webview host, the sticky bar inside the webview scroll container, and the actual clipboard write from a button click (the host write is covered by the integration test, the click-to-message path by Playwright). The sticky bar and tooltip placement were checked by computed style and bounding boxes, not by eye.

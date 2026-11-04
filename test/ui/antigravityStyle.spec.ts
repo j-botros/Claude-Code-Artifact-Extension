@@ -56,9 +56,9 @@ async function css(page: Page, selector: string, prop: string): Promise<string> 
   return page.locator(selector).first().evaluate((el, p) => getComputedStyle(el).getPropertyValue(p), prop);
 }
 
-/** Adds a comment on the title block through the "+" button. */
+/** Adds a comment on the overview block through the "+" button (the title has no "+"). */
 async function addTitleComment(page: Page): Promise<void> {
-  const b = page.locator(".block[data-block='title']");
+  const b = page.locator(".block[data-block='overview']");
   await b.hover();
   await b.locator("button.add-comment").click();
   await b.locator("textarea.comment-field").fill("note");
@@ -77,7 +77,9 @@ test.describe("Antigravity style (dark default)", () => {
     expect(await css(page, "body", "color")).toBe("rgb(213, 213, 213)");
     expect(await css(page, "body", "font-size")).toBe("14px");
     expect(await css(page, "body", "line-height")).toBe("21px");
-    expect(await css(page, "h1", "font-size")).toBe("21px");
+    expect(await css(page, "h1", "font-size")).toBe("25.2px"); // 1.8 x 14px
+    expect(await css(page, "h2", "font-size")).toBe("19.6px"); // 1.4 x 14px
+    expect(await css(page, "h3", "font-size")).toBe("16.1px"); // 1.15 x 14px
     expect(await css(page, "body", "font-family")).toContain("SF Pro Text"); // Chromium rewrites BlinkMacSystemFont to its system-ui alias
     expect(await css(page, "pre code", "font-size")).toBe("13px");
     expect(await css(page, "pre code", "font-family")).toContain("Menlo");
@@ -86,9 +88,9 @@ test.describe("Antigravity style (dark default)", () => {
   // Secondary button, popover/card, code block, and border colours.
   test("secondary button, popover, card, border colours", async ({ page }) => {
     await openPlan(page, "ag-surfaces");
-    // Review has no comments yet, so it uses the secondary background.
-    expect(await css(page, "button.review", "background-color")).toBe("rgb(52, 52, 52)");
-    expect(await css(page, "button.implement", "background-color")).toBe("rgb(52, 52, 52)");
+    // Review is always blue and Implement is green; neither uses the secondary background.
+    expect(await css(page, "button.review", "background-color")).toBe("rgb(51, 118, 206)");
+    expect(await css(page, "button.implement", "background-color")).toBe("rgb(63, 163, 77)");
     expect(await css(page, "pre", "background-color")).toBe("rgb(35, 35, 35)");
     expect(await css(page, "pre", "border-top-color")).toBe("rgb(41, 41, 41)");
     expect(await css(page, ".block.card > .body", "background-color")).toBe("rgb(35, 35, 35)");
@@ -105,9 +107,9 @@ test.describe("Antigravity style (dark default)", () => {
   test("accent blue on plus, Review with comments, Add Comment, Submit", async ({ page }) => {
     const accent = "rgb(51, 118, 206)";
     await openPlan(page, "ag-accent");
-    const b = page.locator(".block[data-block='title']");
+    const b = page.locator(".block[data-block='overview']");
     await b.hover();
-    expect(await css(page, ".block[data-block='title'] button.add-comment", "background-color")).toBe(accent);
+    expect(await css(page, ".block[data-block='overview'] button.add-comment", "background-color")).toBe(accent);
     await b.locator("button.add-comment").click();
     const addBtn = b.getByRole("button", { name: "Add Comment", exact: true });
     expect(await addBtn.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe(accent);
@@ -155,7 +157,9 @@ test.describe("Antigravity style (other)", () => {
     expect(await css(page, "body", "background-color")).toBe("rgb(255, 255, 255)");
     expect(await css(page, "h1", "color")).toBe("rgb(31, 31, 31)");
     expect(await css(page, "body", "color")).toBe("rgb(43, 43, 43)");
-    expect(await css(page, "button.review", "background-color")).toBe("rgb(236, 236, 236)");
+    expect(await css(page, "button.review", "background-color")).toBe("rgb(42, 100, 184)");
+    expect(await css(page, "button.implement", "background-color")).toBe("rgb(43, 125, 55)");
+    expect(await css(page, "button.implement", "color")).toBe("rgb(255, 255, 255)");
     expect(await css(page, "pre", "background-color")).toBe("rgb(243, 243, 243)");
     await addTitleComment(page);
     expect(await css(page, "button.review", "background-color")).toBe("rgb(42, 100, 184)");
@@ -173,13 +177,14 @@ test.describe("Antigravity style (other)", () => {
     expect(overflow).toBeLessThanOrEqual(0);
   });
 
-  // Desktop width: 24px side padding, content no wider than 800px plus the 40px margin, no scroll.
-  test("desktop width keeps the column within 800px and no horizontal scroll", async ({ page }) => {
+  // Desktop width: 24px side padding, the column is 77% of the window and centred, no scroll.
+  test("desktop width gives a centred 77% column and no horizontal scroll", async ({ page }) => {
     await page.setViewportSize({ width: 1600, height: 900 });
     await openPlan(page, "ag-desktop");
     expect(await css(page, "body", "padding-left")).toBe("24px");
-    const box = await page.locator(".block[data-block='title']").boundingBox();
-    expect(box!.width).toBeLessThanOrEqual(840);
+    const box = await page.locator(".doc").boundingBox();
+    expect(box!.width).toBeCloseTo(1232, 0);
+    expect(box!.x).toBeCloseTo((1600 - box!.width) / 2, 0);
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth
     );
