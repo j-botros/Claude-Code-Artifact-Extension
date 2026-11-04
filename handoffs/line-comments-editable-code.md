@@ -43,7 +43,34 @@ Do not edit `test/`, `README.md`, `TASKS.md`, `STATUS.md`, or `handoffs/` except
 **Not in scope.** `openQuestions` (a later task). No change to the plan format in CLAUDE.md.
 
 ## Development
-(developer writes here)
+Commit: `aaebfbd` on `task/line-comments-editable-code`.
+
+**Files changed (src/ only).**
+- `src/plan/codeLines.ts` (new): `splitCodeLines`, `codeLineCount`, `codeLineId`, `codeLineLabel`, `codeLineIndex`, `splitTokensByLine`, `dropOutOfRangeLineComments`.
+- `src/plan/reviewComments.ts`: `blockIdsForPlan` adds `code:<i>` right after `code`; regex accepts `code:<i>`; `blockLabel("code:2")` is `Code line 3` (plain `code` stays `Code`).
+- `src/plan/planEdits.ts`: optional `code`. Absent keeps the current code. Not a string gives "code must be a string". Blank gives "code must not be empty". Stored with `trimEnd()` (so trailing blank lines go too); inner text exact; `language` kept.
+- `src/webview/planPanel.ts`: rendering, script, CSS, host messages (below). `codeTokens.ts` unchanged.
+
+**Ids and labels.** Line id `code:<i>`, 0-based. Label `Code line <i+1>`, used for `data-label`, the aria label, the Review popover and the prompt. A trailing newline adds no line; empty code is one empty line.
+
+**Split and raw code.** `splitCodeLines` is the one split, used by `blockIdsForPlan` and the renderer. Tokens are cut per line by `splitTokensByLine`, so a block comment keeps its colour on each line. `renderCodeLines` (exported) renders one `.block.code-line` per line (own margin and plus) inside `div.editable.code-lines[data-edit="code"]`, which is nested in the outer `code` block (its whole-block comment button and the copy button stay). The raw code is in `data-raw` on that div, and the script keeps it in `rawCode`; the edit uses `rawCode`, never the DOM text.
+
+**Editing.** Click (or Enter on the wrapper) opens a 12-row monospace textarea. Enter inserts a newline; Ctrl/Cmd+Enter or blur commits; Escape cancels. Blank is rejected with "This field cannot be empty." Clicks inside a `.margin` do not start an edit. `readEdits()` now includes `code`; `savePlan`, `reviewComments` and the kebab actions send it. Reload restores `code` from `getState().edits`.
+
+**Re-render after an edit or reload.** The webview posts `renderCode {code}`; the host replies `codeRendered {code, lines}` where `lines` is `codeLineSegments(...)` data (kind plus parts with a mention flag). The webview builds the line blocks by cloning a template line and using `textContent` only, so the existing "only one innerHTML (the comment icon)" unit guard still holds. The reply is ignored if `code` no longer equals `rawCode`. Until it arrives the old lines show.
+
+**Out-of-range line comments.** On a code commit the webview drops `code:<i>` with `i >= new line count` from `getState().comments` (its own small JS copy of the count) and sets the status to "Dropped N line comment(s) that no longer match a line." That text is also appended to the "Saved to ..." message when the save result arrives. The host also runs `dropOutOfRangeLineComments` in `review()` before `parseReviewComments`, as a safety net for a message that raced the edit (it does not report). Other invalid ids still fail.
+
+**Deviations.**
+- `renderHighlighted` was removed (replaced by per-line rendering). Existing tests did not import it.
+- Outer-block hover/focus CSS and `wireBlock` now use `:scope > .margin` so a nested line's button is not matched by the outer block.
+- The code `pre` is now one `<pre>` per line (class `.code-line pre`), inside a bordered `.code-lines` div. The wrapped phone layout puts each line's plus in an absolutely positioned margin.
+
+**Unit tests.** `npm run compile` is clean. `npm run test:unit`: 294 pass, 5 fail, all from the intended change (leave for the tester):
+- `planRenderer.test.ts`: block order list now includes `code:0..`; "only title, summary, outOfScope and steps editable" and "no step blocks for zero steps" now also see the `code` edit key.
+- `reviewComments.test.ts`: both `blockIdsForPlan` lists now include `code:<i>`.
+
+**Not verified.** `npm run test:ui` and `npm test` were not run (shell permission was denied for test:ui). The webview script, the phone layout and the light theme were not checked in a browser, and the Playwright tests for line comments and code editing are not written. Existing UI tests that query `pre` or `.block` counts may need updating.
 
 ## Testing
 (tester writes here)
