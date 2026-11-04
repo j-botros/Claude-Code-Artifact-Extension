@@ -175,16 +175,17 @@ describe("renderPlanHtml", () => {
     expect(html).toContain("position: sticky; top: 0");
   });
 
-  it("sets the Antigravity sizes: content padding, bar padding, 30px buttons, 12px plus", () => {
+  it("sets the Antigravity sizes: content padding, bar padding, 26px buttons, 20px plus", () => {
     const html = renderPlanHtml(makePlan(), NONCE);
     expect(html).toContain("--content-pad: max(9vw, 16px);");
     expect(html).toContain("--bar-pad: 1.4vw;");
     expect(html).toContain(".content { padding-inline: var(--content-pad); }");
     expect(html).toContain(":root { --content-pad: 16px; }");
     expect(html).not.toContain("--content-width");
-    expect(html).toMatch(/button\.review \{[^}]*border-radius: 4px; height: 30px; padding: 0 12px;[^}]*font-size: 13px;/);
-    expect(html).toMatch(/button\.implement \{[^}]*border-radius: 4px; height: 30px; padding: 0 12px;[^}]*font-size: 13px;/);
-    expect(html).toMatch(/button\.add-comment \{[^}]*width: 24px; height: 24px;[^}]*font: bold 12px\/1/);
+    expect(html).toMatch(/button\.review \{[^}]*border-radius: 4px; height: 26px; padding: 0 10px;[^}]*font-size: 12px;/);
+    expect(html).toMatch(/button\.implement \{[^}]*border-radius: 4px; height: 26px; padding: 0 10px;[^}]*font-size: 12px;/);
+    expect(html).toMatch(/button\.add-comment \{[^}]*width: 20px; height: 20px;[^}]*font: bold 10px\/1/);
+    expect(html).toContain("header.top h1 { margin: 0; line-height: 1.25; font-size: 1.26em; }");
     // The content wrapper comes after the header and holds the plan sections.
     expect(html.indexOf('<div class="content">')).toBeGreaterThan(html.indexOf("</header>"));
   });

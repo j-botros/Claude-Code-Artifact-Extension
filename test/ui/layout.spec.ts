@@ -199,14 +199,14 @@ test.describe("buttons and sizes (dark)", () => {
     expect(ratio).toBeGreaterThanOrEqual(4.5);
   });
 
-  // The "+" button is 24px square.
-  test("the plus button is 24px square", async ({ page }) => {
+  // The "+" button is 20px square.
+  test("the plus button is 20px square", async ({ page }) => {
     await openPlan(page, "lay-plus");
     const b = page.locator(".block[data-block='step:0']");
     await b.hover();
     const box = await b.locator("button.add-comment").boundingBox();
-    expect(box!.width).toBeCloseTo(24, 0);
-    expect(box!.height).toBeCloseTo(24, 0);
+    expect(box!.width).toBeCloseTo(20, 0);
+    expect(box!.height).toBeCloseTo(20, 0);
     await expect(b.locator("button.add-comment")).toHaveAttribute("title", "Add inline comment");
   });
 
@@ -435,15 +435,15 @@ test.describe("Antigravity sizes at 2000px", () => {
     expect(bar!.width).toBeCloseTo(2000, 0);
   });
 
-  // Review and Implement are 30px high with 12px padding, 13px font, and a 4px radius.
+  // Review and Implement are 26px high with 10px padding, 12px font, and a 4px radius.
   for (const sel of ["button.review", "button.implement"]) {
-    test(`${sel} is 30px high, 12px padding, 13px font, 4px radius`, async ({ page }) => {
+    test(`${sel} is 26px high, 10px padding, 12px font, 4px radius`, async ({ page }) => {
       await openPlan(page, `sz-${sel.split(".")[1]}`);
       const box = await page.locator(sel).boundingBox();
-      expect(box!.height).toBeCloseTo(30, 0);
-      expect(await css(page, sel, "padding-left")).toBe("12px");
-      expect(await css(page, sel, "padding-right")).toBe("12px");
-      expect(await css(page, sel, "font-size")).toBe("13px");
+      expect(box!.height).toBeCloseTo(26, 0);
+      expect(await css(page, sel, "padding-left")).toBe("10px");
+      expect(await css(page, sel, "padding-right")).toBe("10px");
+      expect(await css(page, sel, "font-size")).toBe("12px");
       expect(await css(page, sel, "border-radius")).toBe("4px");
     });
   }
@@ -461,15 +461,47 @@ test.describe("Antigravity sizes at 2000px", () => {
     expect(kebab!.y + kebab!.height / 2).toBeCloseTo(impl!.y + impl!.height / 2, 0);
   });
 
-  // The "+" button is 24px square and its glyph is 12px.
-  test("the plus button is 24px square with a 12px glyph", async ({ page }) => {
+  // The "+" button is 20px square, its glyph is 10px, and the glyph is centred within 1px.
+  test("the plus button is 20px square with a centred 10px glyph", async ({ page }) => {
     await openPlan(page, "sz-plus");
     const b = page.locator(".block[data-block='step:0']");
     await b.hover();
     const box = await b.locator("button.add-comment").boundingBox();
-    expect(box!.width).toBeCloseTo(24, 0);
-    expect(box!.height).toBeCloseTo(24, 0);
-    expect(await css(page, "button.add-comment", "font-size")).toBe("12px");
+    expect(box!.width).toBeCloseTo(20, 0);
+    expect(box!.height).toBeCloseTo(20, 0);
+    expect(await css(page, "button.add-comment", "font-size")).toBe("10px");
+    const glyph = await b.locator("button.add-comment .plus-glyph").boundingBox();
+    expect(glyph!.width).toBeCloseTo(10, 0);
+    expect(glyph!.height).toBeCloseTo(10, 0);
+    expect(Math.abs(glyph!.x + glyph!.width / 2 - (box!.x + box!.width / 2))).toBeLessThanOrEqual(1);
+    expect(Math.abs(glyph!.y + glyph!.height / 2 - (box!.y + box!.height / 2))).toBeLessThanOrEqual(1);
+    const svg = await b.locator("button.add-comment svg").boundingBox();
+    expect(svg!.width).toBeCloseTo(10, 0);
+    expect(Math.abs(svg!.x + svg!.width / 2 - (box!.x + box!.width / 2))).toBeLessThanOrEqual(1);
+    expect(Math.abs(svg!.y + svg!.height / 2 - (box!.y + box!.height / 2))).toBeLessThanOrEqual(1);
+  });
+
+  // Code in a ts block is coloured with the token palette (dark theme).
+  test("token colours in a code block match the palette", async ({ page }) => {
+    await openPlan(page, "sz-tokens");
+    const colour = (cls: string): Promise<string> => css(page, `pre code .tok-${cls}`, "color");
+    expect(await colour("comment")).toBe("rgb(134, 147, 162)"); // #8693a2
+    expect(await colour("keyword")).toBe("rgb(138, 224, 246)"); // #8ae0f6
+    expect(await colour("string")).toBe("rgb(187, 236, 86)"); // #bbec56
+    expect(await colour("type")).toBe("rgb(78, 201, 176)"); // #4ec9b0
+    expect(await colour("function")).toBe("rgb(220, 220, 170)"); // #dcdcaa
+    expect(await colour("control")).toBe("rgb(197, 134, 192)"); // #c586c0
+  });
+
+  // The longer sample makes the page scroll, and the sticky bar stays at the top.
+  test("the sample page scrolls and the sticky bar stays at the top", async ({ page }) => {
+    await page.setViewportSize({ width: 1200, height: 700 });
+    await openPlan(page, "sz-scroll");
+    expect(await page.evaluate(() => document.documentElement.scrollHeight)).toBeGreaterThan(700);
+    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+    expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(300);
+    expect((await page.locator("header.top").boundingBox())!.y).toBeCloseTo(0, 0);
+    await expect(page.locator("button.review")).toBeInViewport();
   });
 
   // The bar stays at the top after scrolling, at the new width.

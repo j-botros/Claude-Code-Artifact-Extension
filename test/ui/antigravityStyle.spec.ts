@@ -77,7 +77,9 @@ test.describe("Antigravity style (dark default)", () => {
     expect(await css(page, "body", "color")).toBe("rgb(213, 213, 213)");
     expect(await css(page, "body", "font-size")).toBe("14px");
     expect(await css(page, "body", "line-height")).toBe("21px");
-    expect(await css(page, "h1", "font-size")).toBe("25.2px"); // 1.8 x 14px
+    // The bar title is 0.9 x the section heading (h2) size: 0.9 x 19.6 = 17.64px.
+    const h2 = parseFloat(await css(page, "h2", "font-size"));
+    expect(parseFloat(await css(page, "header.top h1", "font-size"))).toBeCloseTo(0.9 * h2, 1);
     expect(await css(page, "h2", "font-size")).toBe("19.6px"); // 1.4 x 14px
     expect(await css(page, "h3", "font-size")).toBe("16.1px"); // 1.15 x 14px
     expect(await css(page, "body", "font-family")).toContain("SF Pro Text"); // Chromium rewrites BlinkMacSystemFont to its system-ui alias
