@@ -13,6 +13,15 @@ Owned by the core agent only. Keep the latest run first. Keep only the last few 
 
 ## Run log
 
+### Run 30 (2026-11-04)
+- Task: `inline-diff-review` (developer, then tester). Branch `task/inline-diff-review-2`, because `task/inline-diff-review` is a stale merged branch at the queue commit `443ead4`. Brief commit `f3ed529`.
+- Developer (commits `d18c2d6`, `fd0d824`): `src/review/hunkReview.ts` no longer calls `vscode.diff`. Each file opens as a read-only inline document with the real file's name, using the `claude-artifact-inline` scheme. The pure mapping is in `src/plan/inlineReview.ts`. Accept and Reject rebuild the text for one hunk. Apply and its confirmation are unchanged.
+- Tester (commit `fa23a5f`): 12 unit tests in `test/unit/inlineReview.test.ts`, and updated integration tests for the inline tab, no diff call, decisions, and new file. Verdict PASS.
+- Core agent: `npm test` on the branch, exit 0: unit 284 (18 files), UI 75, integration 33 (VS Code 1.107.0). README line changed from "diff" to inline (commit `c3ffeb7`). PR #74 into `dev`, merged with a merge commit at 2026-11-04 16:36 UTC. Task marked `done`.
+- Design choice for the owner to check: CLAUDE.md says "open the real file, not a diff editor". Added lines cannot be shown inside the real file without changing its text on disk or in its buffer, so the review opens a read-only inline document with the real file's name and language. The real file is never opened for editing. If you want the real file itself, say so and we will decide how to show the added lines.
+- Not verified: no real VS Code or Antigravity window was checked. Owner: open a plan with `proposedFiles` in Antigravity, check the green and red colours, the Accept and Reject lenses, and that nothing is written until Apply accepted.
+- Next: no `todo` task for developer or tester is left. `antigravity-test-2` is owner-only. `vitest-pin-two-weeks` is `blocked` (lock file, run 22). The next scheduled run should write `PAUSE` unless the owner adds a task or unblocks `vitest-pin-two-weeks`.
+
 ### Run 29 (2026-11-04)
 - Task: `match-antigravity-polish` (developer, then tester). Branch `task/match-antigravity-polish`. Brief commit `b5698ea` (queued earlier).
 - Developer: changes in `src/webview/planPanel.ts`, a new pure tokeniser `src/plan/codeTokens.ts`, and a longer sample in `src/plan/plan.ts`. The developer's `git add` and `git commit` were denied, so the core agent staged and committed its files as `85ffadd`. The developer's report was accurate about the files.
