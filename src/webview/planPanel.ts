@@ -1118,7 +1118,8 @@ export function renderPlanHtml(plan: Plan, nonce: string, options?: { resetState
   .bubble .actions button.primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
   .bubble .actions button { background: var(--btn-secondary); color: var(--fg); border: 1px solid var(--border); border-radius: 4px; padding: 0.15rem 0.6rem; font: inherit; font-size: 0.85rem; cursor: pointer; }
   .comment-field { display: block; width: 100%; background: var(--bg); color: var(--fg); border: 1px solid var(--border); border-radius: 4px; font: inherit; margin-bottom: 0.4rem; }
-  @media (hover: none), (max-width: 899px) {
+  /* Touch screens have no hover, so the buttons stay visible there. A narrow pane does not. */
+  @media (hover: none) {
     button.add-comment { opacity: 1; }
   }
   @media (max-width: 899px) {

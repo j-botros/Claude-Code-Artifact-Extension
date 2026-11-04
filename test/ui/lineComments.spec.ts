@@ -109,6 +109,17 @@ test.describe("every line is commentable", () => {
     await expect(page.locator(`.slot[data-line="step:1#1"]`)).toHaveCount(0);
   });
 
+  // With the plan pane narrow (as when the chat panel is open beside it), the + buttons stay hidden until hover.
+  test("narrow pane keeps the + buttons hidden until hover", async ({ page }) => {
+    await page.setViewportSize({ width: 600, height: 800 });
+    await openPlan(page, "lc-narrow-hidden");
+    await page.mouse.move(0, 0);
+    await expect(page.locator('.slot[data-line="overview#1"] button.add-comment')).toHaveCSS("opacity", "0");
+    await expect(page.locator('.slot[data-line="step:0#1"] button.add-comment')).toHaveCSS("opacity", "0");
+    await page.locator('.slot[data-line="step:0#1"]').hover();
+    await expect(page.locator('.slot[data-line="step:0#1"] button.add-comment')).toHaveCSS("opacity", "1");
+  });
+
   // A comment on the second sentence of the overview shows as a bubble in the margin and is keyed per line.
   test("comment on a wrapped overview line shows a bubble in the margin", async ({ page }) => {
     await page.setViewportSize({ width: 1000, height: 800 });
