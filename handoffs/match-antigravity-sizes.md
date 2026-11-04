@@ -58,4 +58,22 @@ Do not edit `test/`, `TASKS.md`, `STATUS.md`, `README.md`, or `CLAUDE.md`. If yo
 
 ## Development (developer)
 
+All changes are in `src/webview/planPanel.ts` (CSS and markup). No `src/plan/` helper added.
+
+**Values set** (all px values assume the screenshots are 2x, so 1 CSS px = 2 screenshot px; the 2x scale is ASSUMED):
+- Content side padding: `--content-pad: max(9vw, 16px)`, 16px on phones (max-width 899px). Measured (185/2000 and 1735/2000).
+- Top bar padding-inline: `--bar-pad: 1.4vw`. Measured (28 screenshot px = 14 CSS px). Bar is still `position: sticky; top: 0`.
+- Review and Implement buttons: height 30px, padding `0 12px`, font-size 13px, border-radius 4px. Measured.
+- Kebab button: 30px square. ASSUMED (not in the brief; matched to the button height so the bar lines up).
+- Margin "+" button: 24px square (unchanged), font `bold 12px/1`, so the plus glyph is 12px. Measured. The "+" is a text glyph, not an SVG, so the 12px is the font size.
+- Top bar order: title, Review, Implement, kebab (markup moved; kebab menu popover stays right-aligned to its wrapper).
+
+**What sets the column width now:** the `.content` rule (`padding-inline: var(--content-pad)`). `.doc` is full width (`width: 100%`); the old `--content-width: 77vw` and `--side-padding` variables are removed and `body` has no side padding. The header stays outside `.content` so the bar spans the full width with its own 1.4vw padding. Markup change: a new `<div class="content">` wraps everything after the header.
+
+**Tests:** `npm run compile` passes. `npm run test:unit`: 2 expected failures in `test/unit/planRenderer.test.ts` for the tester to update:
+- "orders the sticky bar as title, kebab, Review, Implement..." (order is now title, Review, Implement, kebab).
+- "uses the dark Antigravity palette by default and a light variant" expects `--content-width: 77vw;` (now `--content-pad: max(9vw, 16px);`).
+
+**Deviation:** none from the brief (the 30px kebab is the only addition).
+
 ## Testing (tester)
