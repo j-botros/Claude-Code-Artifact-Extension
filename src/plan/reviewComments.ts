@@ -1,8 +1,9 @@
+import { codeLineId, codeLineLabel, splitCodeLines } from "./codeLines";
 import { Plan } from "./plan";
 
 /**
  * The result of checking review comments from the webview. Keys are block ids:
- * `title`, `overview`, `code`, `file:<i>`, `step:<i>`, or `verification:<i>`.
+ * `title`, `overview`, `code`, `code:<i>` (one code line), `file:<i>`, `step:<i>`, or `verification:<i>`.
  */
 export type ReviewCommentsResult =
   | { ok: true; comments: Record<string, string> }
@@ -11,6 +12,7 @@ export type ReviewCommentsResult =
 /** The block ids that exist for a plan, in document order. */
 export function blockIdsForPlan(plan: Plan): string[] {
   const ids = ["title", "overview", "code"];
+  splitCodeLines(plan.proposedChanges.code).forEach((_l, i) => ids.push(codeLineId(i)));
   plan.files.forEach((_f, i) => ids.push(`file:${i}`));
   plan.implementationSteps.forEach((_s, i) => ids.push(`step:${i}`));
   plan.verification.forEach((_v, i) => ids.push(`verification:${i}`));
@@ -29,7 +31,7 @@ export function parseReviewComments(input: unknown, plan: Plan): ReviewCommentsR
   const valid = new Set(blockIdsForPlan(plan));
   const comments: Record<string, string> = {};
   for (const [key, value] of Object.entries(input as Record<string, unknown>)) {
-    if (!/^(title|overview|code|(file|step|verification):(0|[1-9][0-9]*))$/.test(key)) {
+    if (!/^(title|overview|code|(code|file|step|verification):(0|[1-9][0-9]*))$/.test(key)) {
       return { ok: false, error: `comment key "${key}" is not a block id` };
     }
     if (!valid.has(key)) {
@@ -56,7 +58,7 @@ export function blockLabel(id: string, plan: Plan): string {
     case "overview":
       return "Overview";
     case "code":
-      return "Code";
+      return rest === undefined ? "Code" : codeLineLabel(index);
     case "file":
       return `File ${plan.files[index]?.path ?? String(index + 1)}`;
     case "step":

@@ -94,7 +94,9 @@ test.describe("Antigravity style (dark default)", () => {
     expect(await css(page, "button.review", "background-color")).toBe("rgb(51, 118, 206)");
     expect(await css(page, "button.implement", "background-color")).toBe("rgb(63, 163, 77)");
     expect(await css(page, "pre", "background-color")).toBe("rgba(0, 0, 0, 0)"); // code block has no gray background now
-    expect(await css(page, "pre", "border-top-color")).toBe("rgb(41, 41, 41)");
+    // The border now wraps the whole code block (one pre per line has none).
+    expect(await css(page, ".code-lines", "border-top-color")).toBe("rgb(41, 41, 41)");
+    expect(await css(page, "pre", "border-top-width")).toBe("0px");
     expect(await css(page, ".block.card > .body", "background-color")).toBe("rgb(35, 35, 35)");
     expect(await css(page, ".block.card > .body", "border-top-color")).toBe("rgb(41, 41, 41)");
     await page.locator("button.review").click();

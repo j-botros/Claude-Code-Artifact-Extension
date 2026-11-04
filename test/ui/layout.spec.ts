@@ -320,13 +320,13 @@ test.describe("code block", () => {
   test("label shows ts and there is one copy button", async ({ page }) => {
     await openPlan(page, "lay-code-ts");
     await expect(page.locator(".code-wrap .lang-label")).toHaveText("ts");
-    await expect(page.locator("button.copy-code")).toHaveCount(await page.locator("pre").count());
+    await expect(page.locator("button.copy-code")).toHaveCount(await page.locator(".code-lines").count());
     await expect(page.locator("button.copy-code")).toHaveCount(1);
     await expect(page.locator("button.copy-code")).toBeVisible();
     // The label is on the left and the button on the right of the same block.
     const label = await page.locator(".lang-label").boundingBox();
     const copy = await page.locator("button.copy-code").boundingBox();
-    const pre = await page.locator("pre").boundingBox();
+    const pre = await page.locator(".code-lines").boundingBox();
     expect(label!.x).toBeLessThan(copy!.x);
     expect(copy!.x + copy!.width).toBeLessThanOrEqual(pre!.x + pre!.width);
     expect(copy!.y).toBeGreaterThanOrEqual(pre!.y);

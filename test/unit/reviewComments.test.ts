@@ -29,6 +29,7 @@ describe("blockIdsForPlan", () => {
       "title",
       "overview",
       "code",
+      "code:0",
       "file:0",
       "file:1",
       "step:0",
@@ -42,7 +43,7 @@ describe("blockIdsForPlan", () => {
   it("lists only the fixed blocks for an empty plan", () => {
     expect(
       blockIdsForPlan(makePlan({ files: [], implementationSteps: [], verification: [] }))
-    ).toEqual(["title", "overview", "code"]);
+    ).toEqual(["title", "overview", "code", "code:0"]);
   });
 });
 
