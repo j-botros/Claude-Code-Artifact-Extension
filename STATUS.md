@@ -13,6 +13,22 @@ Owned by the core agent only. Keep the latest run first. Keep only the last few 
 
 ## Run log
 
+### Run 29 (2026-11-04)
+- Task: `match-antigravity-polish` (developer, then tester). Branch `task/match-antigravity-polish`. Brief commit `b5698ea` (queued earlier).
+- Developer: changes in `src/webview/planPanel.ts`, a new pure tokeniser `src/plan/codeTokens.ts`, and a longer sample in `src/plan/plan.ts`. The developer's `git add` and `git commit` were denied, so the core agent staged and committed its files as `85ffadd`. The developer's report was accurate about the files.
+- Tester: added `test/unit/codeTokens.test.ts`, updated the sample-count and size assertions, and updated Playwright tests for the new sizes, the plus centring, and token colours. Commit `a013f0c`. Verdict PASS.
+- Core agent re-ran `npm test` on the branch, exit 0: unit 272 (17 files), UI 75, integration 29 (VS Code 1.107.0). Added one README sentence on the code colours (commit `5407b84`). PR #71 into `dev`, merged with a merge commit.
+- Choices (not in CLAUDE.md):
+  - Title is 1.26em, which is 0.9 times the 1.4em section headings.
+  - Syntax colours measured from screenshots: comments, keywords, strings. Chosen by the core agent: types, functions, control keywords, numbers, properties, operators. Light-theme token colours are the core agent's choice and are not asserted by tests.
+  - Only `ts`, `tsx`, `js`, `jsx` blocks are coloured. Other languages stay plain.
+  - With two proposed files, the second diff replaces the first in the preview tab. Only one diff tab is open at a time. Not changed; the owner can say if both should stay open.
+- Not verified: headless Chromium and the stub integration host only. Not checked in a real VS Code or Antigravity webview. Owner: open the sample plan and compare the sizes, colours, and plus centring with the screenshots.
+- Process notes:
+  - The PR body has no "Generated with Claude Code" line. `gh pr edit` needs approval, so the body could not be changed after creation.
+  - The core agent did the developer's commit because `git add` was denied to the subagent. The runner's permission setup for the developer may need checking.
+- Next: no `todo` task for developer or tester is left. `antigravity-test-2` is owner-only. `vitest-pin-two-weeks` is `blocked` (lock file, run 22). The next scheduled run should write `PAUSE` unless the owner adds a task or unblocks `vitest-pin-two-weeks`.
+
 ### Run 28 (2026-11-03)
 - Task: `match-antigravity-sizes` (developer, then tester). Branch `task/match-antigravity-sizes`. Brief commit `0db5b49`.
 - Developer (commit `fd68dd0`): content padding `max(9vw, 16px)` in place of the 77vw column; top bar padding 1.4vw; order title, Review, Implement, kebab; Review and Implement 30px high, 12px padding, 13px font, 4px radius; "+" 24px with a 12px glyph. The kebab button is 30px square, which the brief did not specify.
