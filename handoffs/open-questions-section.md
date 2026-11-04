@@ -42,4 +42,27 @@ Do not edit `test/`, `README.md`, `TASKS.md`, `STATUS.md`, `CLAUDE.md`, or `hand
 
 ## Development
 
+**Commit:** 062a7a2 on `task/open-questions-section`.
+
+**Files changed:** `src/plan/plan.ts`, `src/plan/planPrompt.ts`, `src/plan/planEdits.ts`, `src/plan/reviewComments.ts`, `src/webview/planPanel.ts`.
+
+**What changed.**
+- `Plan.openQuestions?: string[]`. `parsePlanJson` rejects a non-array, a non-string item, or a blank item (`openQuestions[i] must not be blank`). Absent stays absent; `[]` is kept as `[]` and renders no section.
+- Prompt: `SHAPE_RULES` adds an optional `openQuestions` bullet after `proposedFiles` (that wording is unchanged). The review prompt keeps `openQuestions` unless a comment answers it, and says comments on questions start with `Open question <n>`. The original "Title, Overview, Code, File <path>, Step <n>, or Verification <n>" phrase is untouched so the existing test still matches.
+- `applyPlanEdits`: optional `questions` array. Rules as for `steps`: must be an array, length equal to the current question count (0 when none), strings, trimmed, blank rejected (`questions[i] must not be empty`). When `questions` is omitted the current questions are kept. Current `openQuestions` is carried into the result (copied) only when the plan had the field.
+- Ids and labels: block id `question:<i>` (0-based), label `Open question <i+1>` (in `blockLabel` and in the webview `data-label`). `blockIdsForPlan` lists them after the verification ids, and `parseReviewComments` accepts `question:<i>` only when in range.
+- Webview: `Open Questions` h2 with a section rule, rendered after Verification, only when non-empty. Each question is a numbered card like a step (click-to-edit via `data-edit="question:<i>"`, Enter or blur saves, Escape cancels, blank gives "This field cannot be empty."), with its own margin plus and bubble. Callout markers work in questions. `savePlan`, `reviewComments` and the kebab actions send `questions`. Saved webview state restores edited questions.
+- Out-of-range rule: new pure helper `dropOutOfRangeQuestionComments(comments, count)` in `reviewComments.ts`. The host `review()` applies it against the edited plan before `parseReviewComments`; if any are dropped, the count is appended to the review status message ("Dropped N question comment(s) that no longer match a question."). Because `applyPlanEdits` fixes the question count, a save cannot remove questions; this rule is the safety net for stale comment keys.
+
+**Test results.** `npm run compile` clean. `npm run test:unit`: 20 files, 319 tests pass (after keeping the original review-prompt label phrase). Not run: `test:ui`, `npm test`.
+
+**Not changed:** `planMarkdown.ts` (Copy and Export as Markdown do not include open questions, as it was outside the listed scope). The core agent may want to add it.
+
+**Tester should check.**
+- Parse: with the field, without it, `[]`, non-array, non-string item, blank item.
+- `applyPlanEdits`: questions edit applied and trimmed, wrong length, blank, non-string, omitted keeps current, plan without the field stays without it.
+- `blockIdsForPlan`, `blockLabel` (`Open question 1`), `parseReviewComments` accept and out-of-range reject, `formatCommentsForPrompt` order (questions after verification), `dropOutOfRangeQuestionComments`.
+- Playwright: no `Open Questions` heading when the field is missing or `[]`; heading present and last (after Verification) when present; `[data-block="question:0"]` exists with margin plus; click-to-edit saves via `savePlan` including `questions`; blank rejected.
+- Light and dark themes and phone layout (the cards reuse the step styles).
+
 ## Testing
