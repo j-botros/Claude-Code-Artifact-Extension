@@ -48,3 +48,13 @@ Do not edit `test/`, `TASKS.md`, `STATUS.md`, `README.md`, `CLAUDE.md`, or `pack
 **Left for the tester.** Playwright check that a hovered and an unhovered `.code-line` are both transparent, and that `.file-mention` keeps `--mention-bg`.
 
 ## Testing (tester)
+
+**Added.** `test/ui/codeLineHover.spec.ts` (4 tests, dark and light). It checks that every `.code-line` and its `.body` are `rgba(0, 0, 0, 0)` at rest and while hovered (first and last line, with another line hovered), and that `.file-path code.file-mention` keeps `rgb(40, 40, 40)` (#282828 dark) or `rgb(243, 243, 243)` (#f3f3f3 light), also while hovered. No existing test asserted the removed rule.
+
+**Commands and results.**
+- `npm run compile`: passed.
+- `npm run test:unit`: 21 files, 341 tests passed, 0 failed.
+- `npm run test:ui`: 104 passed, 0 failed (includes the 4 new tests).
+- `npm run test:integration`: 33 passing, 0 failing.
+
+**Verdict: PASS.**
