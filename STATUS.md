@@ -6,12 +6,31 @@ Owned by the core agent only. Keep the latest run first. Keep only the last few 
 - Stage: early idea, with a working scaffold. `Claude Artifact: Open Sample Plan` opens a webview with a sample plan. The owner confirmed it renders in Antigravity.
 - Branches: `main` and `dev` exist on GitHub. `dev` includes PRs #1 through #6, #12, #18, #23, and #26.
 - Packaging: `npm run package` produces a `.vsix` that installs in Antigravity 1.107.0. `engines.vscode` is `^1.107.0` and `@types/vscode` is pinned to `1.107.0`. Latest stable VS Code is 1.144.0 (published 2026-10-28, checked 2026-11-03).
-- Compile: `npm run compile` passes. `npm test` passes (unit 368, UI 117, integration 33) as of run 35 (PR #85).
+- Compile: `npm run compile` passes. `npm test` passes (unit 368, UI 127, integration 33) as of run 36 (PR #88).
 - `.vscode/launch.json` exists.
 - Agent setup: `.claude/agents/developer.md`, `.claude/agents/tester.md`, and `.claude/settings.json` are committed.
 - Scheduler (as of 2026-11-03): the launchd job `com.j-botros.claude-artifact-agent` is installed and loaded. It runs back to back, up to 12 runs per chain, and writes `PAUSE` when the queue is empty.
 
 ## Run log
+
+### Run 37 (2026-11-04)
+- Owner asked to remove `PAUSE` and start the run. `PAUSE` (empty file, written by run 36's scheduler) was removed.
+- Queue check: no `todo` row for developer or tester. The only `todo` is `antigravity-test-2` (owner-only). `vitest-pin-two-weeks` is still `blocked`. No developer or tester task was run.
+- PR #88 (`task/code-block-vscode-background` into `dev`) is still `CONFLICTING`. `origin/dev` is 2 commits ahead (`e0aeee8`, PR #87). A read-only `git merge-tree` shows the only conflict is `TASKS.md`.
+- The core agent tried `git merge origin/dev` on its own task branch, as CLAUDE.md section 6a allows. The Bash permission was denied, so the merge did not happen. Owner: allow `git merge` on `task/code-block-vscode-background`, or resolve TASKS.md on that branch yourself, or merge PR #88 in GitHub's web UI.
+- Next: nothing to run until the owner adds a developer or tester task, or unblocks PR #88. The scheduler will write `PAUSE` again when the queue is empty.
+
+### Run 36 (2026-11-04)
+- Task: `code-block-vscode-background` (developer, then tester). Branch `task/code-block-vscode-background` already existed from an interrupted run (brief `cdc6c25`, developer fix `b1418e5`). This run picked it up at the tester step.
+- Developer (`b1418e5`): `pre code` and `.code-line` set to transparent background, zero padding, and zero radius in `src/webview/planPanel.ts`. The cause comes from the owner's TASKS.md note. The VS Code install was not read (outside the repo).
+- Tester (`0009ada`, committed by the core agent): the tester's git commands were denied, so its files were staged and committed here. Added `test/ui/codeBlockBackground.spec.ts` (5 tests, dark and light) with a fixture of the base rules, and the handoff Testing section. Verdict PASS.
+- Core agent: `npm test` on the branch, exit 0. Unit 368 (22 files), UI 127, integration 33 (VS Code 1.107.0). README needs no change. PR #88 into `dev` is open but NOT merged: GitHub reports it `CONFLICTING` with `dev` (TASKS.md, where dev added rows for `design-plan-command` and `plan-folder-watcher`). TASKS.md row set to `done`, with the PR open.
+- Not verified: headless Chromium and the stub integration host only. The fixture copies the owner's note, not the real VS Code stylesheet. The tester's "fails without the fix" check was a guard test on the rendered CSS, not a run of the pre-fix file. Owner: open a plan in Antigravity and check that code lines have no box.
+- Process notes:
+  - The brief branch is 2 commits behind `origin/dev` (queue commits `1a392f5` and `e0aeee8`). `git merge` is not on the allow list, so the branch was not merged with `dev`.
+  - The tester's `git show`, `git diff`, and `git add` were denied, while the core agent's `git add` and `git commit` worked.
+- Request for the owner (not run here): allow `git merge origin/dev` on `task/code-block-vscode-background` (or merge PR #88 yourself). The conflict is only the TASKS.md table, and the core agent resolves it on its own task branch. Until then PR #88 stays open, not merged, and `dev` does not have this fix.
+- Next: `design-plan-command` (developer, then tester) is the next `todo` in table order, then `plan-folder-watcher`. Both are on `origin/dev` only. The next run must first merge `origin/dev` into its branch, which may need the same permission.
 
 ### Run 35 (2026-11-04)
 - Task: `comment-every-line` (developer, then tester, then two developer fix rounds and a tester pass). Branch `task/comment-every-line`, which an interrupted earlier run had started. Its brief (`c2c1067`), developer commit (`7c04346`), and tester WIP commit (`9ad5b2f`) were already there. This run picked up from there.

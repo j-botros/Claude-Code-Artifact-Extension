@@ -1071,7 +1071,8 @@ export function renderPlanHtml(plan: Plan, nonce: string, options?: { resetState
   .file-change { flex: 1 1 14rem; color: var(--muted); }
   a.file-link { color: var(--link); }
   code { font-family: var(--font-code); font-size: 13px; color: var(--inline-code); overflow-wrap: anywhere; }
-  pre code { color: var(--fg); }
+  pre code { color: var(--fg); background: transparent; padding: 0; border-radius: 0; }
+  .code-line, .code-line > .body { background: transparent; border-radius: 0; }
   pre code .tok-comment { color: var(--code-comment); }
   pre code .tok-keyword { color: var(--code-keyword); }
   pre code .tok-string { color: var(--code-string); }
