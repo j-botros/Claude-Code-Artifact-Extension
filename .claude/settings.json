@@ -20,14 +20,15 @@
             "Bash(npx vitest:*)",
             "Bash(npx playwright:*)",
             "Bash(npm install:*)",
-            "Bash(npm audit:*)"
+            "Bash(npm audit:*)",
+            "Bash(git switch)",
+            "Bash(git checkout)"
         ],
         "deny": [
             "Bash(git push --force:*)",
             "Bash(git push origin main:*)",
             "Bash(git push origin dev:*)",
             "Bash(git checkout main:*)",
-            "Bash(git checkout dev:*)",
             "Bash(git merge:*)",
             "Bash(git rebase:*)",
             "Bash(git reset --hard:*)",
