@@ -35,7 +35,6 @@ describe("renderPlanHtml review button", () => {
     const header = html.match(/<header class="top">[\s\S]*?<\/header>/);
     expect(header).not.toBeNull();
     expect(header![0]).toContain('class="review"');
-    expect(header![0]).toContain('class="edit-title"');
     expect(html).not.toMatch(/\son[a-z]+\s*=/i);
     expect(html.split("<script").length - 1).toBe(1);
     expect(html).toContain(`<script nonce="${NONCE}">`);

@@ -231,7 +231,7 @@ suite("Plan flows with stub claude and agy", () => {
   test("reviewPlan with claude succeeding returns the revised plan", async () => {
     const revised = makePlan("Revised by claude");
     usePath("review-ok", (d) => writeStub(d, "claude", { stdout: claudeOk(revised) }));
-    const result = await extensionModule.reviewPlan(makePlan("Original"), { 0: "note" });
+    const result = await extensionModule.reviewPlan(makePlan("Original"), { "step:0": "note" });
     assert.ok(result.ok, result.ok ? "" : result.message);
     assert.strictEqual(result.plan.title, "Revised by claude");
   });
