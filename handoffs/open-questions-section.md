@@ -66,3 +66,24 @@ Do not edit `test/`, `README.md`, `TASKS.md`, `STATUS.md`, `CLAUDE.md`, or `hand
 - Light and dark themes and phone layout (the cards reuse the step styles).
 
 ## Testing
+
+**Verdict: PASS.** Test commit: b4feb3a on `task/open-questions-section`. No change to `src/`, and no existing test needed changing.
+
+**Commands and results** (run in this order).
+- `npm run compile`: clean.
+- `npm run test:unit`: 21 files, 341 tests passed, 0 failed (319 before, 22 added).
+- `npm run test:ui`: 100 passed, 0 failed (94 before, 6 added).
+- `npm test`: unit 341 passed, UI 100 passed, integration 33 passing (VS Code 1.107.0), 0 failed.
+
+**Tests added.**
+- `test/unit/openQuestions.test.ts` (22 tests): parse with the field, without it, with `[]`; rejection of non-array, non-string items and blank items; `question:<i>` ids placed after verification, none without the field or with `[]`; label `Open question <i+1>`; `parseReviewComments` accepts in-range, rejects out-of-range, `question:01` and `question:-1`; `formatCommentsForPrompt` order; `dropOutOfRangeQuestionComments` (partial, count 0, none, input not mutated); `applyPlanEdits` questions (valid and trimmed, current not mutated, blank, wrong length, non-array, non-string, omitted keeps current, plan without the field stays without it, `[]` accepted); `renderPlanHtml` omits the section without the field or with `[]` and renders it after Verification with `question:<i>` blocks and `data-edit`.
+- `test/ui/openQuestions.spec.ts` (6 tests): section absent when the field is missing and when `[]`; shown last (after Verification, last `h2`, last block is the last question) with editable text; a question takes a comment (key `question:1`, label "Add inline comment on Open question 2", Review count); click-to-edit posts `savePlan` with `questions`, and Escape reverts; a blank question shows "This field cannot be empty." and posts no save.
+
+**Notes.** One of my own tests failed at first because my page stub did not persist `setState`/`getState`, so no bubble rendered (it also failed for a step). I fixed the stub to use sessionStorage like `planPanel.spec.ts`. This was a test bug, not a source bug.
+
+**Not verified.**
+- The host `review()` path that appends "Dropped N question comment(s)..." to the status message (it needs the extension host and a stub CLI; only the pure helper is tested).
+- Saving to `.claude/plans/<slug>.json` and reload with questions in a real workspace (the integration suite has no open-questions case).
+- Light theme, dark theme, and phone layout of the question cards (they reuse the step styles; no new visual assertions).
+- `planMarkdown.ts` (Copy and Export as Markdown) does not include open questions, as the developer noted. Not tested, since it is outside the brief.
+- The plan prompt wording for `openQuestions` (no new assertion in `planPrompt.test.ts`).
