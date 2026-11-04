@@ -6,7 +6,7 @@ An IDE extension for Google Antigravity and VS Code that lets Claude Code create
 
 ## What it does
 
-- Renders a Claude Code plan as an interactive document in the editor, styled after the Antigravity Implementation Plan view: dark theme by default, with a light variant. Margin comments on any block. In the Files table, each existing file's path is a link that opens the file in the editor. New files are not linked.
+- Renders a Claude Code plan as an interactive document in the editor, styled after the Antigravity Implementation Plan view: dark theme by default, with a light variant. Margin comments on any block. In the Files table, each existing file's path is a link that opens the file in the editor. New files are not linked. Any file path mentioned in the plan has a subtle background, and code blocks and Files rows have none.
 - Layout: a sticky top bar (title, Review, Implement the Design, ⋯ menu) stays visible while you scroll. Text that starts with `NOTE:`, `TIP:`, `IMPORTANT:`, `WARNING:`, or `CAUTION:` shows as a coloured callout. Code blocks show a short language label (`ts`, `js`, …) and a copy button, and `ts`/`js` code uses IDE-style colours. Available now.
 - **Claude Artifact: Generate Plan from Claude Code:** asks for a request, runs `claude` headless in your workspace (in plan mode, so it does not edit files), and renders the plan it returns.
 - Lets you edit the plan's title, summary, out-of-scope note, and step text (click the text), and add comments to any block. Edits are saved to `.claude/plans/` in your workspace.

@@ -93,7 +93,7 @@ test.describe("Antigravity style (dark default)", () => {
     // Review is always blue and Implement is green; neither uses the secondary background.
     expect(await css(page, "button.review", "background-color")).toBe("rgb(51, 118, 206)");
     expect(await css(page, "button.implement", "background-color")).toBe("rgb(63, 163, 77)");
-    expect(await css(page, "pre", "background-color")).toBe("rgb(35, 35, 35)");
+    expect(await css(page, "pre", "background-color")).toBe("rgba(0, 0, 0, 0)"); // code block has no gray background now
     expect(await css(page, "pre", "border-top-color")).toBe("rgb(41, 41, 41)");
     expect(await css(page, ".block.card > .body", "background-color")).toBe("rgb(35, 35, 35)");
     expect(await css(page, ".block.card > .body", "border-top-color")).toBe("rgb(41, 41, 41)");
@@ -162,7 +162,7 @@ test.describe("Antigravity style (other)", () => {
     expect(await css(page, "button.review", "background-color")).toBe("rgb(42, 100, 184)");
     expect(await css(page, "button.implement", "background-color")).toBe("rgb(43, 125, 55)");
     expect(await css(page, "button.implement", "color")).toBe("rgb(255, 255, 255)");
-    expect(await css(page, "pre", "background-color")).toBe("rgb(243, 243, 243)");
+    expect(await css(page, "pre", "background-color")).toBe("rgba(0, 0, 0, 0)");
     await addTitleComment(page);
     expect(await css(page, "button.review", "background-color")).toBe("rgb(42, 100, 184)");
   });

@@ -13,6 +13,16 @@ Owned by the core agent only. Keep the latest run first. Keep only the last few 
 
 ## Run log
 
+### Run 31 (2026-11-04)
+- Task: `highlight-file-mentions` (developer, then tester). Branch `task/highlight-file-mentions`. Brief commit `a732ac0`.
+- Developer (commit `ddded21`): the gray came from two whole-block backgrounds, not per-line rules: `.block.card > .body` (used by the Files rows) and `pre`. Files rows now use a `file-block` class with no background, and `pre` is transparent. Mention rule in `src/plan/fileMentions.ts` (`splitFileMentions`): text equal to a `files[].path`, or a relative path with a known extension. The Files path cell gets the background; the row does not. Colours: `--mention-bg` `#282828` dark, `#f3f3f3` light.
+- Tester (commits `bad0d48`, `39104a8`): 15 unit tests for `splitFileMentions`, 8 Playwright tests in `test/ui/fileMentions.spec.ts`, and updates to old assertions in `fileLinks.test.ts`, `planRenderer.test.ts`, and `antigravityStyle.spec.ts` (the `pre` background is now transparent). Verdict PASS.
+- Core agent: re-ran `npm test` on the branch, exit 0: unit 299 (19 files), UI 83, integration 33 (VS Code 1.107.0). The `EntryNotFound` line in the integration log is VS Code's local-history write in an apply test, and the run still passes. README line added (commit `1a3d459`). PR #77 into `dev`. Task marked `done`.
+- Choices (not in CLAUDE.md): the Files path cell gets the background, but the row does not. This resolves the brief's "no row highlight" against "any mention, including the Files table". The colours are the developer's choice.
+- Known limit (not fixed): after a field is edited, its mentions lose the highlight until the panel is rebuilt. The saved text is unaffected. Not tested.
+- Not verified: headless Chromium and the stub integration host only. Owner: open a plan in Antigravity and check the mention background against the screenshots, in both themes.
+- Next: `line-comments-editable-code` (developer, then tester) is the next `todo` in table order.
+
 ### Run 30 (2026-11-04)
 - Task: `inline-diff-review` (developer, then tester). Branch `task/inline-diff-review-2`, because `task/inline-diff-review` is a stale merged branch at the queue commit `443ead4`. Brief commit `f3ed529`.
 - Developer (commits `d18c2d6`, `fd0d824`): `src/review/hunkReview.ts` no longer calls `vscode.diff`. Each file opens as a read-only inline document with the real file's name, using the `claude-artifact-inline` scheme. The pure mapping is in `src/plan/inlineReview.ts`. Accept and Reject rebuild the text for one hunk. Apply and its confirmation are unchanged.

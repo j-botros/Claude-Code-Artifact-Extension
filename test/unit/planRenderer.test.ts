@@ -122,15 +122,17 @@ describe("renderPlanHtml", () => {
     expect(html.split("</script>").length - 1).toBe(1);
     expect(html).toContain(`<title>${ESCAPED}</title>`);
     expect(html).toContain(`<h1 class="editable" data-edit="title" data-label="title" tabindex="0">${ESCAPED}</h1>`);
-    expect(html).toContain(`data-edit="summary" data-label="summary" tabindex="0">${ESCAPED}</div>`);
+    // The hostile string is also a files[].path, so each text mention is wrapped in a span, still escaped.
+    const M = `<span class="file-mention">${ESCAPED}</span>`;
+    expect(html).toContain(`data-edit="summary" data-label="summary" tabindex="0">${M}</div>`);
     expect(html).not.toContain('title="Click to edit"');
-    expect(html).toContain(`data-placeholder="Nothing excluded">${ESCAPED}</div>`);
+    expect(html).toContain(`data-placeholder="Nothing excluded">${M}</div>`);
     expect(html).toContain(`<span class="lang-label">${ESCAPED}</span>`);
-    expect(html).toContain(`<code>${ESCAPED}</code></pre>`);
-    expect(html).toContain(`<code>${ESCAPED}</code> <span class="badge">new</span>`);
-    expect(html).toContain(`<div class="file-change">${ESCAPED}</div>`);
-    expect(html).toContain(`<div class="verification-item">${ESCAPED}</div>`);
-    expect(html).toContain(`tabindex="0">${ESCAPED}</div></div>`);
+    expect(html).toContain(`<code>${M}</code></pre>`);
+    expect(html).toContain(`<code class="file-mention">${ESCAPED}</code> <span class="badge">new</span>`);
+    expect(html).toContain(`<div class="file-change">${M}</div>`);
+    expect(html).toContain(`<div class="verification-item">${M}</div>`);
+    expect(html).toContain(`tabindex="0">${M}</div></div>`);
     // The hostile path in aria-label and data-label attributes is escaped too.
     expect(html).toContain(`aria-label="Add inline comment on file ${ESCAPED}"`);
     expect(html).not.toContain('aria-label="Add inline comment on file <');

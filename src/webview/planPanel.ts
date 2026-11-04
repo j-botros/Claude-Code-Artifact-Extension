@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 import { codeLabel, splitCallout } from "../plan/callouts";
 import { highlightsLanguage, tokenizeCode } from "../plan/codeTokens";
+import { splitFileMentions } from "../plan/fileMentions";
 import { Plan, isSafeRelativePath } from "../plan/plan";
 import { applyPlanEdits, planFileName } from "../plan/planEdits";
 import { planMarkdownFileName, planToMarkdown } from "../plan/planMarkdown";
@@ -28,10 +29,21 @@ export function escapeHtml(text: string): string {
     .replace(/'/g, "&#39;");
 }
 
-/** Renders code as escaped HTML, wrapping each coloured token in a `tok-<kind>` span. */
-function renderHighlighted(code: string): string {
+/** Escapes text and wraps each file-path mention in a `file-mention` span. */
+function escapeWithMentions(text: string, known: readonly string[]): string {
+  return splitFileMentions(text, known)
+    .map((s) => (s.mention ? `<span class="file-mention">${escapeHtml(s.text)}</span>` : escapeHtml(s.text)))
+    .join("");
+}
+
+/** Renders code as escaped HTML, wrapping each coloured token in a `tok-<kind>` span and file mentions in `file-mention` spans. */
+function renderHighlighted(code: string, known: readonly string[] = []): string {
   return tokenizeCode(code)
-    .map((t) => (t.kind === "plain" ? escapeHtml(t.text) : `<span class="tok-${t.kind}">${escapeHtml(t.text)}</span>`))
+    .map((t) =>
+      t.kind === "plain"
+        ? escapeWithMentions(t.text, known)
+        : `<span class="tok-${t.kind}">${escapeWithMentions(t.text, known)}</span>`
+    )
     .join("");
 }
 
@@ -71,9 +83,10 @@ function renderBlock(id: string, label: string, body: string, extraClass = ""): 
 }
 
 /** Renders text that turns into a field when clicked. `key` names the edited plan field. */
-function renderEditable(tag: string, key: string, label: string, text: string, placeholder = ""): string {
+function renderEditable(tag: string, key: string, label: string, text: string, placeholder = "", known: readonly string[] | null = null): string {
   const ph = placeholder === "" ? "" : ` data-placeholder="${escapeHtml(placeholder)}"`;
-  return `<${tag} class="editable" data-edit="${escapeHtml(key)}" data-label="${escapeHtml(label)}" tabindex="0"${ph}>${escapeHtml(text)}</${tag}>`;
+  const inner = known === null ? escapeHtml(text) : escapeWithMentions(text, known);
+  return `<${tag} class="editable" data-edit="${escapeHtml(key)}" data-label="${escapeHtml(label)}" tabindex="0"${ph}>${inner}</${tag}>`;
 }
 
 /**
@@ -82,22 +95,22 @@ function renderEditable(tag: string, key: string, label: string, text: string, p
  * then holds only the body and keeps the removed prefix in `data-marker`, so the script can
  * put it back when saving.
  */
-function renderTextBlock(key: string, label: string, text: string, placeholder = ""): string {
+function renderTextBlock(key: string, label: string, text: string, placeholder = "", known: readonly string[] = []): string {
   const callout = splitCallout(text);
   if (callout === null) {
-    return renderEditable("div", key, label, text, placeholder);
+    return renderEditable("div", key, label, text, placeholder, known);
   }
   const ph = placeholder === "" ? "" : ` data-placeholder="${escapeHtml(placeholder)}"`;
-  return `<div class="callout ${callout.kind}"><div class="callout-label">${callout.marker}</div><div class="editable" data-edit="${escapeHtml(key)}" data-label="${escapeHtml(label)}" data-marker="${escapeHtml(callout.prefix)}" tabindex="0"${ph}>${escapeHtml(callout.body)}</div></div>`;
+  return `<div class="callout ${callout.kind}"><div class="callout-label">${callout.marker}</div><div class="editable" data-edit="${escapeHtml(key)}" data-label="${escapeHtml(label)}" data-marker="${escapeHtml(callout.prefix)}" tabindex="0"${ph}>${escapeWithMentions(callout.body, known)}</div></div>`;
 }
 
-/** Renders read-only text, as a callout when it starts with a callout marker. */
-function renderPlainText(className: string, text: string): string {
+/** Renders read-only text, as a callout when it starts with a callout marker. File mentions get a background. */
+function renderPlainText(className: string, text: string, known: readonly string[] = []): string {
   const callout = splitCallout(text);
   if (callout === null) {
-    return `<div class="${className}">${escapeHtml(text)}</div>`;
+    return `<div class="${className}">${escapeWithMentions(text, known)}</div>`;
   }
-  return `<div class="callout ${callout.kind}"><div class="callout-label">${callout.marker}</div><div class="${className}">${escapeHtml(callout.body)}</div></div>`;
+  return `<div class="callout ${callout.kind}"><div class="callout-label">${callout.marker}</div><div class="${className}">${escapeWithMentions(callout.body, known)}</div></div>`;
 }
 
 /** Fixed script (no plan data): click-to-edit, margin comments, saving edits, and review requests. */
@@ -440,33 +453,33 @@ window.addEventListener("message", (event) => {
 `;
 
 /** Renders the files section: one commentable row per file, or a "No files." note when empty. */
-function renderFiles(files: Plan["files"]): string {
+function renderFiles(files: Plan["files"], known: readonly string[]): string {
   if (files.length === 0) {
     return "<p>No files.</p>";
   }
   return files
     .map((f, i) => {
       const path = f.isNew
-        ? `<code>${escapeHtml(f.path)}</code> <span class="badge">new</span>`
-        : `<a href="#" class="file-link" data-path="${escapeHtml(f.path)}"><code>${escapeHtml(f.path)}</code></a>`;
+        ? `<code class="file-mention">${escapeHtml(f.path)}</code> <span class="badge">new</span>`
+        : `<a href="#" class="file-link" data-path="${escapeHtml(f.path)}"><code class="file-mention">${escapeHtml(f.path)}</code></a>`;
       return renderBlock(
         `file:${i}`,
         `file ${f.path}`,
-        `<div class="file-row"><div class="file-path">${path}</div><div class="file-change">${escapeHtml(f.change)}</div></div>`,
-        "card"
+        `<div class="file-row"><div class="file-path">${path}</div><div class="file-change">${escapeWithMentions(f.change, known)}</div></div>`,
+        "file-block"
       );
     })
     .join("\n");
 }
 
 /** Renders the implementation steps as numbered, editable, commentable cards. */
-function renderSteps(steps: string[]): string {
+function renderSteps(steps: string[], known: readonly string[]): string {
   return steps
     .map((s, i) =>
       renderBlock(
         `step:${i}`,
         `step ${i + 1}`,
-        `<div class="step-row"><span class="num">${i + 1}.</span>${renderTextBlock(`step:${i}`, `step ${i + 1}`, s)}</div>`,
+        `<div class="step-row"><span class="num">${i + 1}.</span>${renderTextBlock(`step:${i}`, `step ${i + 1}`, s, "", known)}</div>`,
         "card"
       )
     )
@@ -474,9 +487,9 @@ function renderSteps(steps: string[]): string {
 }
 
 /** Renders the verification items as read-only, commentable cards. */
-function renderVerification(items: string[]): string {
+function renderVerification(items: string[], known: readonly string[]): string {
   return items
-    .map((v, i) => renderBlock(`verification:${i}`, `verification ${i + 1}`, renderPlainText("verification-item", v), "card"))
+    .map((v, i) => renderBlock(`verification:${i}`, `verification ${i + 1}`, renderPlainText("verification-item", v, known), "card"))
     .join("\n");
 }
 
@@ -494,13 +507,14 @@ export function renderPlanHtml(plan: Plan, nonce: string, options?: { resetState
   const langLabel = label !== ""
     ? `<span class="lang-label">${escapeHtml(label)}</span>`
     : "";
+  const known = plan.files.map((f) => f.path);
   const titleEl = renderEditable("h1", "title", "title", plan.title);
   const overviewBlock = renderBlock(
     "overview",
     "overview",
-    `<h2>Overview</h2>${renderTextBlock("summary", "summary", plan.overview.summary)}<h3>Out of scope</h3>${renderTextBlock("outOfScope", "out of scope", plan.overview.outOfScope ?? "", "Nothing excluded")}`
+    `<h2>Overview</h2>${renderTextBlock("summary", "summary", plan.overview.summary, "", known)}<h3>Out of scope</h3>${renderTextBlock("outOfScope", "out of scope", plan.overview.outOfScope ?? "", "Nothing excluded", known)}`
   );
-  const codeHtml = highlightsLanguage(label) ? renderHighlighted(plan.proposedChanges.code) : escapeHtml(plan.proposedChanges.code);
+  const codeHtml = highlightsLanguage(label) ? renderHighlighted(plan.proposedChanges.code, known) : escapeWithMentions(plan.proposedChanges.code, known);
   const codeBlock = renderBlock(
     "code",
     "code",
@@ -523,6 +537,7 @@ export function renderPlanHtml(plan: Plan, nonce: string, options?: { resetState
     --popover: #232323;
     --card: #232323;
     --code-bg: #232323;
+    --mention-bg: #282828;
     --border: #292929;
     --badge-bg: #2ea043;
     --badge-fg: #ffffff;
@@ -570,6 +585,7 @@ export function renderPlanHtml(plan: Plan, nonce: string, options?: { resetState
       --popover: #f7f7f7;
       --card: #f7f7f7;
       --code-bg: #f3f3f3;
+      --mention-bg: #f3f3f3;
       --border: #dcdcdc;
       --link: #1f5fbf;
       --accent: #2a64b8;
@@ -673,7 +689,9 @@ export function renderPlanHtml(plan: Plan, nonce: string, options?: { resetState
   .code-wrap { position: relative; }
   .lang-label { position: absolute; top: 0.4rem; left: 1rem; color: var(--muted); font-size: 0.75rem; }
   button.copy-code { position: absolute; top: 0.35rem; right: 0.5rem; background: var(--btn-secondary); color: var(--fg); border: 1px solid var(--border); border-radius: 4px; padding: 0.1rem 0.5rem; font: inherit; font-size: 0.75rem; cursor: pointer; }
-  pre { background: var(--code-bg); border: 1px solid var(--border); border-radius: 6px; padding: 2rem 1rem 0.75rem; overflow-x: auto; margin: 0; }
+  .file-mention { background: var(--mention-bg); border-radius: 3px; padding: 0 0.15em; }
+  .block.file-block > .body { padding: 0.5rem 0.9rem; }
+  pre { background: transparent; border: 1px solid var(--border); border-radius: 6px; padding: 2rem 1rem 0.75rem; overflow-x: auto; margin: 0; }
   .badge { background: var(--badge-bg); color: var(--badge-fg); border-radius: 999px; padding: 0 0.5rem; font-size: 0.75rem; margin-left: 0.25rem; }
   button.add-comment { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; padding: 0; background: var(--accent); color: var(--accent-fg); border: 0; border-radius: 4px; font: bold 10px/1 var(--font-body); cursor: pointer; opacity: 0; }
   button.add-comment .plus-glyph { display: flex; align-items: center; justify-content: center; width: 10px; height: 10px; line-height: 1; }
@@ -720,13 +738,13 @@ ${overviewBlock}
 ${codeBlock}
 <hr class="section-rule">
 <h2>Files</h2>
-${renderFiles(plan.files)}
+${renderFiles(plan.files, known)}
 <hr class="section-rule">
 <h2>Implementation steps</h2>
-${renderSteps(plan.implementationSteps)}
+${renderSteps(plan.implementationSteps, known)}
 <hr class="section-rule">
 <h2>Verification</h2>
-${renderVerification(plan.verification)}
+${renderVerification(plan.verification, known)}
 </div>
 </div>
 <script nonce="${nonce}">${resetLine}${COMMENT_SCRIPT}</script>

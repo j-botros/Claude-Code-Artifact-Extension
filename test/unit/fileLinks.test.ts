@@ -45,13 +45,13 @@ function planWith(files: Plan["files"]): Plan {
 describe("Files table links", () => {
   it("renders non-new files as links with the data-path", () => {
     const html = renderPlanHtml(planWith([{ path: "src/a.ts", change: "c", isNew: false }]), NONCE);
-    expect(html).toContain('<a href="#" class="file-link" data-path="src/a.ts"><code>src/a.ts</code></a>');
+    expect(html).toContain('<a href="#" class="file-link" data-path="src/a.ts"><code class="file-mention">src/a.ts</code></a>');
     expect(html).not.toContain('class="badge">new');
   });
 
   it("renders new files without a link and with the new badge", () => {
     const html = renderPlanHtml(planWith([{ path: "src/n.ts", change: "c", isNew: true }]), NONCE);
-    expect(html).toContain('<code>src/n.ts</code> <span class="badge">new</span>');
+    expect(html).toContain('<code class="file-mention">src/n.ts</code> <span class="badge">new</span>');
     // The CSS rule and script mention file-link, so check the markup only.
     expect(html).not.toContain('class="file-link"');
     expect(html).not.toContain("data-path=\"src/n.ts\"");
