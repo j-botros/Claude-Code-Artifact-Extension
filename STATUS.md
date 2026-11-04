@@ -13,6 +13,14 @@ Owned by the core agent only. Keep the latest run first. Keep only the last few 
 
 ## Run log
 
+### Run 34 (2026-11-04)
+- Task: `remove-code-line-hover` (developer, then tester). Branch `task/remove-code-line-hover`. Brief commit is on the branch, developer commit `4b64190`, tester commit `0d5bedc`. PR #82 into `dev`, merged 2026-11-04 17:27 UTC. TASKS.md row set to `done`.
+- Developer: removed the `.code-line:hover > .body` rule from `src/webview/planPanel.ts` (line 859 before the edit). It was the only rule that gave a code line a background. `.file-mention` and `--mention-bg` are unchanged.
+- Tester: PASS. Added `test/ui/codeLineHover.spec.ts` (4 tests: hovered and unhovered code lines transparent, file mention keeps `--mention-bg`, in dark and light). No old assertion broke.
+- Core agent: `npm run compile` passed. Test results from the tester run: unit 341 (21 files), UI 104, integration 33 (VS Code 1.107.0). README needs no change.
+- Not verified: headless Chromium and the stub integration host only. Owner: open a plan in Antigravity and check that code lines show no hover background.
+- Next: `comment-every-line` (developer, then tester) is the next `todo` in table order.
+
 ### Run 33 (2026-11-04)
 - Task: `open-questions-section` (developer, then tester). Branch `task/open-questions-section`. Brief commit `c4d8cbc`, developer commits `062a7a2` and `503dd01`, tester commits `b4feb3a` and `9b683f6`, core agent commits `2ad458d` (CLAUDE.md) and `0d17c9a` (README). PR #79 into `dev`, merged 2026-11-04 17:16 UTC. TASKS.md row set to `done`.
 - Developer: optional `openQuestions` (array of non-blank strings; absent or `[]` means no section). The section renders last, after Verification, only when non-empty. Each question is a click-to-edit, commentable line with id `question:<i>` and label `Open question <i+1>`. Out-of-range `question:<i>` comments are dropped and reported.
