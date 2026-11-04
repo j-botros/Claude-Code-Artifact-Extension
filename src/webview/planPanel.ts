@@ -463,6 +463,9 @@ function wireBlock(block) {
     }
   }
   addBtn.addEventListener("click", () => show(true));
+  /* Comment controls live inside the editable code area, so stop their clicks here, before the
+     controls detach themselves, to keep them from reaching the editable click handler. */
+  block.querySelector(":scope > .margin").addEventListener("click", (event) => event.stopPropagation());
   show(false);
 }
 document.querySelectorAll(".block").forEach(wireBlock);
@@ -806,7 +809,7 @@ export function renderPlanHtml(plan: Plan, nonce: string, options?: { resetState
   .callout-label { color: var(--callout-color); font-weight: 600; font-size: 0.85em; margin-bottom: 0.15rem; }
   .code-wrap { position: relative; }
   .lang-label { position: absolute; top: 0.4rem; left: 1rem; color: var(--muted); font-size: 0.75rem; }
-  button.copy-code { position: absolute; top: 0.35rem; right: 0.5rem; background: var(--btn-secondary); color: var(--fg); border: 1px solid var(--border); border-radius: 4px; padding: 0.1rem 0.5rem; font: inherit; font-size: 0.75rem; cursor: pointer; }
+  button.copy-code { position: absolute; z-index: 6; top: 0.35rem; right: 0.5rem; background: var(--btn-secondary); color: var(--fg); border: 1px solid var(--border); border-radius: 4px; padding: 0.1rem 0.5rem; font: inherit; font-size: 0.75rem; cursor: pointer; }
   .file-mention { background: var(--mention-bg); border-radius: 3px; padding: 0 0.15em; }
   .block.file-block > .body { padding: 0.5rem 0.9rem; }
   pre { background: transparent; border: 1px solid var(--border); border-radius: 6px; padding: 2rem 1rem 0.75rem; overflow-x: auto; margin: 0; }
