@@ -35,7 +35,20 @@
 
 ## Development (developer)
 
-_(to be written by the developer)_
+**Changed**
+- `src/plan/planWatch.ts` (new, no `vscode` import): `decidePlanFile(content, hash, ownHashes)` returns `open` (with the parsed plan), `skip` (hash is an own save; the record is kept), or `warn` (invalid JSON, with the error). Also `hashText` (SHA-256 hex via Node `crypto`), `recordOwnSave(text)`, and `getOwnSaveHashes()`. The record lives for the session.
+- `src/extension.ts`: `watchPlanFolder` creates one `createFileSystemWatcher` with a `RelativePattern` on the first workspace folder, `.claude/plans/*.json`, on create and change. The watcher and listeners are pushed onto `context.subscriptions`. `handlePlanFile` reads the file, calls `decidePlanFile`, opens through `PlanPanel.show(plan, reviewPlan, implementPlan)`, or shows one warning with the file name. Invalid JSON touches no panel.
+- `src/webview/planPanel.ts`: `save` only. It builds the text once and calls `recordOwnSave(text)` before the write; the written bytes are the same text.
+- `package.json`: added `activationEvents: ["onStartupFinished"]` (there was no such field before). Nothing else.
+
+**Tests passed:** `npm run compile` OK. `npm run test:unit`: 23 files, 374 tests passed. No tests added (the tester owns `test/`).
+
+**Not run:** the owner check in Antigravity (does the artifact open when a plan file appears) was not tested in this run. Integration tests were not run.
+
+**Tester should check**
+- Unit: `decidePlanFile` for a new valid file (open), a matching own hash (skip), fenced JSON (open), invalid JSON (warn).
+- Integration: write a valid plan into `.claude/plans/`, check the panel opens; then save the same content through the panel's save path and check it does not open again; write invalid JSON and check one warning and no panel change.
+- Known limit: an edit by the panel that changes a plan back to previously saved content is skipped (hash stays recorded for the session), as the brief specifies.
 
 ## Testing (tester)
 
