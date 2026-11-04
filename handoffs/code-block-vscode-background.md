@@ -59,4 +59,19 @@ Do not edit `TASKS.md`, `STATUS.md`, `README.md`, `CLAUDE.md`, or `package.json`
 
 ## Testing (tester)
 
-_Not yet written._
+**Added.** `test/ui/codeBlockBackground.spec.ts` (new, 5 tests x dark and light = 10 tests). The fixture is a `<style nonce>` inserted before the artifact CSS. It holds the three base rules (`code { background-color: var(--vscode-textPreformat-background); padding: 1px 3px; border-radius: 4px }`, `pre code { padding: 0 }`, `:root { --vscode-textPreformat-background: #ff0000 }`). Its comment gives the source as the owner's note in TASKS.md (VS Code 1.107.0 webview base stylesheet), not re-read from the install.
+- fixture paints inline code outside code blocks red (so a transparent result is meaningful).
+- pre code and every `.code-line` and `.code-line .body` compute `rgba(0, 0, 0, 0)`, at rest and while hovering the first and last line.
+- pre code computes padding `0px` and radius `0px`.
+- `.file-mention` (Files table and prose) keeps `rgb(40, 40, 40)` dark and `rgb(243, 243, 243)` light, also on hover.
+- guard test: with the fix rule removed from the rendered CSS, `pre code` computes `rgb(255, 0, 0)` and radius `4px`.
+
+**Results.**
+- `npm run compile`: pass (run inside each test command), exit 0.
+- `npm run test:unit`: 22 files, 368 tests passed, exit 0.
+- `npm run test:ui`: 127 passed, 0 failed (117 existing plus 10 new; an earlier run before I added the guard test had 125 passed).
+- `npm run test:integration`: 33 passing, exit code 0.
+
+**Fail-without-fix check.** I did not revert `src/` (out of scope, and git was not available to me for `git show`). The guard test removes the line-1074 fix (`background: transparent; padding: 0; border-radius: 0`) from the rendered HTML string and asserts that the red fixture then shows on `pre code` (`rgb(255, 0, 0)`, radius 4px). That passes, so the main tests would fail without the fix, since they assert `rgba(0, 0, 0, 0)` / `0px` on the same elements. Not verified: the `.code-line` rule (line 1075) has no failing counterpart, because the fixture only targets `code`, so `.code-line` is transparent with or without it. That rule is belt and braces.
+
+Verdict: PASS
