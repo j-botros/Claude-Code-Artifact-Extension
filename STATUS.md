@@ -13,6 +13,18 @@ Owned by the core agent only. Keep the latest run first. Keep only the last few 
 
 ## Run log
 
+### Run 26 (2026-11-03)
+- Task: `match-antigravity-style` (developer, then tester). Branch `task/match-antigravity-style`, brief commit `465d7f3`.
+- Developer (commit `89fd0df`): every colour from the brief as a `:root` custom property (dark default, light variant); type, 800px column, 40px margin, 16px phone padding; accent on "+", Review with comments, Add Comment, Submit. Behaviour, CSP, and light theme kept.
+- Tester (commit `5cf51f0`): fixed the old dark-scheme unit test and four old UI assertions; added `test/ui/antigravityStyle.spec.ts` (8 computed-style tests). Verdict PASS.
+- Core agent re-ran `npm test` on the branch: unit 246 (15 files), UI 43, integration 28 (VS Code 1.107.0), exit 0. README got one line on the look (commit `ddfc3c2`). PR #64 into `dev`. Merged once tests passed. Task marked `done`.
+- Not verified:
+  - Headless Chromium only. Not run in a real VS Code or Antigravity webview.
+  - Font sizes are estimates because the screenshot scale is not known.
+  - The callout and code-token colours are tested on injected elements. The renderer does not emit them yet.
+  - Owner: open the sample plan in Antigravity and compare it against the screenshots.
+- Next: no `todo` task for developer or tester is left. `antigravity-test-2` is owner-only. `vitest-pin-two-weeks` is `blocked` (lock file, run 22). The next scheduled run should write `PAUSE` unless the owner adds a task or unblocks `vitest-pin-two-weeks`.
+
 ### Run 25 (2026-11-03)
 - Task: `comments-match-antigravity` (developer, then tester). Branch `task/comments-match-antigravity`. The local branch and the remote branch were at the queue commit `52bb7c4`, which PR #61 had already merged into dev (the queue commit only). The brief commit is `a1dc743`.
 - Developer (commits `91f6840`, `f2fb750`): hover "+" with the tooltip "Add inline comment" and a popover; comment cards with Delete and Edit Comment; "Review • N" button with the Submit comment popover (optional message, collapsible list) through the existing review path; kebab menu with Copy (Markdown), Copy Path, and Export Artifact. Pure logic in `src/plan/planMarkdown.ts`. `buildReviewPrompt` takes an optional message.
