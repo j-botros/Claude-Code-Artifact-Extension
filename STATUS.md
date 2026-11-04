@@ -17,8 +17,11 @@ Owned by the core agent only. Keep the latest run first. Keep only the last few 
 - Owner asked to remove `PAUSE` and start the run. `PAUSE` (empty file, written by run 36's scheduler) was removed.
 - Queue check: no `todo` row for developer or tester. The only `todo` is `antigravity-test-2` (owner-only). `vitest-pin-two-weeks` is still `blocked`. No developer or tester task was run.
 - PR #88 (`task/code-block-vscode-background` into `dev`) is still `CONFLICTING`. `origin/dev` is 2 commits ahead (`e0aeee8`, PR #87). A read-only `git merge-tree` shows the only conflict is `TASKS.md`.
-- The core agent tried `git merge origin/dev` on its own task branch, as CLAUDE.md section 6a allows. The Bash permission was denied, so the merge did not happen. Owner: allow `git merge` on `task/code-block-vscode-background`, or resolve TASKS.md on that branch yourself, or merge PR #88 in GitHub's web UI.
-- Next: nothing to run until the owner adds a developer or tester task, or unblocks PR #88. The scheduler will write `PAUSE` again when the queue is empty.
+- The core agent's `git merge origin/dev` was denied by the Bash permission at first. The owner ran it with `!`, and it stopped on a `TASKS.md` conflict. The core agent resolved it on the task branch (merge commit `97a5966`). The conflict was one duplicate `code-block-vscode-background` row: `dev` had it as `todo`, the branch as `done`. The `done` row was kept, and the `design-plan-command` and `plan-folder-watcher` rows from `dev` were kept.
+- `npm test` on the merged branch: unit 368 (22 files), UI 127, integration 33, exit 0.
+- Pushed `task/code-block-vscode-background`. PR #88 became `MERGEABLE`, and the core agent merged it into `dev` (merge commit, per owner's merge rules, tests passing). PR #88 state: MERGED.
+- Next: `design-plan-command` (developer, then tester), then `plan-folder-watcher`. Both are `todo` on `dev`. The next run should branch from `dev`.
+- `antigravity-test-2` is still owner-only.
 
 ### Run 36 (2026-11-04)
 - Task: `code-block-vscode-background` (developer, then tester). Branch `task/code-block-vscode-background` already existed from an interrupted run (brief `cdc6c25`, developer fix `b1418e5`). This run picked it up at the tester step.
