@@ -102,6 +102,12 @@ After a click-to-edit commit, the field is re-split (`relineEl`), the block's sl
 - UI: a comment on the second sentence of the overview summary (`.slot[data-line="overview#1"]`), a file row, and a step; bubbles in the margin; reload keeps them; editing a step so it has fewer lines drops the comment on the removed line with the status note; phone width (slot strip at the right, no horizontal scroll). Margin slot positions are set by JS (`style.top`), so check them in headless Chromium, not in jsdom.
 - Integration: none of the files I touched has an integration test that depends on one comment per block that I could see (not run).
 
+### Round 2 (fix for UI test failures)
+
+Cause: margin slots are absolutely positioned and `layoutSlots` can push a later slot (22 px minimum step) below its own block, and the comment editor opens downward. Those parts then lay under the next block's margin and the next block's Copy button (`z-index: 6`), which won hit-testing.
+Fix (CSS only, `src/webview/planPanel.ts`): `.slot` now has `z-index: 7` (above the Copy button at 6 and the bubble popover at 5 inside it), and `.block:has(.bubble.editing)` gets `position: relative; z-index: 8` so an open editor sits above neighbouring blocks' slots.
+Results: `npm run compile` passes; `npm run test:unit` 368 passed (22 files); `npm run test:ui` 115 passed, 0 failed. The test expectations were right; no test edits.
+
 ## Testing (tester)
 
 _To be filled by the tester._

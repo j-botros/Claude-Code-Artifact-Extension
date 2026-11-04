@@ -1038,7 +1038,8 @@ export function renderPlanHtml(plan: Plan, nonce: string, options?: { resetState
   .block > .body { min-width: 0; }
   .block.card > .body { background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 0.5rem 0.9rem; }
   .margin { position: relative; }
-  .slot { position: absolute; top: 0.25rem; left: 0; right: 0; }
+  .slot { position: absolute; top: 0.25rem; left: 0; right: 0; z-index: 7; }
+  .block:has(.bubble.editing) { z-index: 8; position: relative; }
   .block.title-block { margin: 0; }
   .tline { border-radius: 2px; }
   h1, h2, h3 { color: var(--heading); }
