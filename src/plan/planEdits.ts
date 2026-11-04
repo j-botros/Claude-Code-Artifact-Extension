@@ -8,6 +8,8 @@ export interface PlanEdits {
   steps: string[];
   /** The proposed code; when absent the current code is kept. */
   code?: string;
+  /** The open questions; when absent the current questions are kept. */
+  questions?: string[];
 }
 
 /** Builds a safe file name (ending in .json) from a plan title. */
@@ -78,6 +80,32 @@ export function applyPlanEdits(current: Plan, input: unknown): ParseResult {
     }
     steps.push(trimmed);
   }
+  let questions: string[] | undefined =
+    current.openQuestions === undefined ? undefined : [...current.openQuestions];
+  if (input.questions !== undefined) {
+    if (!Array.isArray(input.questions)) {
+      return { ok: false, error: "questions must be an array" };
+    }
+    const expected = current.openQuestions?.length ?? 0;
+    if (input.questions.length !== expected) {
+      return { ok: false, error: `questions must have ${expected} items` };
+    }
+    const edited: string[] = [];
+    for (let i = 0; i < input.questions.length; i++) {
+      const question: unknown = input.questions[i];
+      if (typeof question !== "string") {
+        return { ok: false, error: `questions[${i}] must be a string` };
+      }
+      const trimmed = question.trim();
+      if (trimmed === "") {
+        return { ok: false, error: `questions[${i}] must not be empty` };
+      }
+      edited.push(trimmed);
+    }
+    if (current.openQuestions !== undefined) {
+      questions = edited;
+    }
+  }
   let code = current.proposedChanges.code;
   if (input.code !== undefined) {
     if (typeof input.code !== "string") {
@@ -103,6 +131,9 @@ export function applyPlanEdits(current: Plan, input: unknown): ParseResult {
   };
   if (current.proposedFiles !== undefined) {
     plan.proposedFiles = current.proposedFiles.map((f) => ({ path: f.path, content: f.content }));
+  }
+  if (questions !== undefined) {
+    plan.openQuestions = questions;
   }
   return { ok: true, plan };
 }
