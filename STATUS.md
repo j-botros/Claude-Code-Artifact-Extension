@@ -13,6 +13,16 @@ Owned by the core agent only. Keep the latest run first. Keep only the last few 
 
 ## Run log
 
+### Run 28 (2026-11-03)
+- Task: `match-antigravity-sizes` (developer, then tester). Branch `task/match-antigravity-sizes`. Brief commit `0db5b49`.
+- Developer (commit `fd68dd0`): content padding `max(9vw, 16px)` in place of the 77vw column; top bar padding 1.4vw; order title, Review, Implement, kebab; Review and Implement 30px high, 12px padding, 13px font, 4px radius; "+" 24px with a 12px glyph. The kebab button is 30px square, which the brief did not specify.
+- Tester (commit `7602178`): updated the old order and palette unit assertions, added a size block to the UI spec and checks in `antigravityStyle.spec.ts`. Verdict PASS.
+- Core agent: re-ran `npm test` on the branch, exit 0: unit 266 (16 files), UI 73, integration 29 (VS Code 1.107.0). README sticky-bar line fixed to the new order (commit `4da7841`). PR #69 into `dev`.
+- Choices (not in CLAUDE.md): sizes use the brief's measured values, assuming a 2x screenshot scale.
+- Open point for the owner: the brief says content ends at about 87% of the width. Symmetric 9vw padding ends the blocks at 91%. The 87% may be where text ends inside the 40px comment margin. Tests check the 9% left edge and the 91% block edge.
+- Not verified: headless Chromium only, not a real VS Code or Antigravity webview. Owner: open the sample plan in Antigravity and compare with the screenshots.
+- Next: no `todo` task for developer or tester is left. `antigravity-test-2` is owner-only. `vitest-pin-two-weeks` is `blocked` (lock file, run 22). The next scheduled run should write `PAUSE` unless the owner adds a task or unblocks `vitest-pin-two-weeks`.
+
 ### Run 27 (2026-11-03)
 - Task: `match-antigravity-layout` (developer, then tester). Branch `task/match-antigravity-layout`. Brief commit `adc9a08`.
 - Developer (commit `3dca138`): 77% column, sticky bar (title, kebab, Review, Implement), blue Review, green Implement, heading sizes, callouts for five markers (pure helper `src/plan/callouts.ts`), 1px section rules, 24px "+", code labels and a copy button, "Click to edit" tooltip. CLAUDE.md Section 3 lists the markers.
