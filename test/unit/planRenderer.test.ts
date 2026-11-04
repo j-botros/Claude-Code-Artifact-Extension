@@ -166,13 +166,27 @@ describe("renderPlanHtml", () => {
     expect(html.lastIndexOf("<hr")).toBeLessThan(html.indexOf("<h2>Verification</h2>"));
   });
 
-  it("orders the sticky bar as title, kebab, Review, Implement, with the title editable", () => {
+  it("orders the sticky bar as title, Review, Implement, kebab, with the title editable", () => {
     const html = renderPlanHtml(makePlan(), NONCE);
     const bar = html.slice(html.indexOf('<header class="top">'), html.indexOf("</header>"));
-    const order = ['data-edit="title"', 'class="kebab"', 'class="review"', 'class="implement"'].map((s) => bar.indexOf(s));
+    const order = ['data-edit="title"', 'class="review"', 'class="implement"', 'class="kebab"'].map((s) => bar.indexOf(s));
     expect(order.every((i) => i >= 0)).toBe(true);
     expect([...order].sort((a, b) => a - b)).toEqual(order);
     expect(html).toContain("position: sticky; top: 0");
+  });
+
+  it("sets the Antigravity sizes: content padding, bar padding, 30px buttons, 12px plus", () => {
+    const html = renderPlanHtml(makePlan(), NONCE);
+    expect(html).toContain("--content-pad: max(9vw, 16px);");
+    expect(html).toContain("--bar-pad: 1.4vw;");
+    expect(html).toContain(".content { padding-inline: var(--content-pad); }");
+    expect(html).toContain(":root { --content-pad: 16px; }");
+    expect(html).not.toContain("--content-width");
+    expect(html).toMatch(/button\.review \{[^}]*border-radius: 4px; height: 30px; padding: 0 12px;[^}]*font-size: 13px;/);
+    expect(html).toMatch(/button\.implement \{[^}]*border-radius: 4px; height: 30px; padding: 0 12px;[^}]*font-size: 13px;/);
+    expect(html).toMatch(/button\.add-comment \{[^}]*width: 24px; height: 24px;[^}]*font: bold 12px\/1/);
+    // The content wrapper comes after the header and holds the plan sections.
+    expect(html.indexOf('<div class="content">')).toBeGreaterThan(html.indexOf("</header>"));
   });
 
   it("escapes attribute-breaking characters in file paths", () => {
@@ -246,7 +260,7 @@ describe("renderPlanHtml", () => {
       "--code-comment: #8693a2;",
       "--code-keyword: #8ae0f6;",
       "--code-string: #bbec56;",
-      "--content-width: 77vw;",
+      "--content-pad: max(9vw, 16px);",
       "--review: #3376ce;",
       "--implement: #3fa34d;",
       "--margin-width: 40px;",
@@ -255,7 +269,7 @@ describe("renderPlanHtml", () => {
     }
     expect(html).toContain("prefers-color-scheme: light");
     expect(html).not.toContain("prefers-color-scheme: dark");
-    expect(html).toContain("--side-padding: 16px;");
+    expect(html).not.toContain("--side-padding");
   });
 
   it("adds a language class only for safe values", () => {

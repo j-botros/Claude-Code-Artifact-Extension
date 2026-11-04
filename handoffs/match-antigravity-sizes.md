@@ -77,3 +77,21 @@ All changes are in `src/webview/planPanel.ts` (CSS and markup). No `src/plan/` h
 **Deviation:** none from the brief (the 30px kebab is the only addition).
 
 ## Testing (tester)
+
+**Verdict: PASS.**
+
+Commands, each run separately:
+- `npm run compile`: passes, no errors.
+- `npm run test:unit`: 16 files, 266 tests passed, 0 failed (the 2 expected failures were fixed by updating assertions; a third, `--side-padding: 16px;`, was also removed by the developer's change and was updated).
+- `npm run test:ui`: 73 passed, 0 failed (headless Chromium, 3 workers).
+- `npm run test:integration`: 29 passing, 0 failing (VS Code 1.107.0 Extension Development Host), including the sample plan opening and Implement the Design showing hunks.
+
+**Test changes.**
+- `test/unit/planRenderer.test.ts`: bar order is now title, Review, Implement, kebab; palette test expects `--content-pad: max(9vw, 16px);` and no `--side-padding`; new test for the size CSS (content padding, bar padding, 30px buttons with 12px padding and 13px font, 4px radius, 24px "+" with 12px font, `--content-width` gone, content wrapper after header).
+- `test/ui/layout.spec.ts`: order test updated; narrow test also checks 16px content padding; new "Antigravity sizes at 2000px" block (content padding 180px each side, blocks span 180px to 1820px, 16px minimum at 320px, bar padding 28px and title at x=28, Review and Implement 30px high with 12px padding, 13px font, 4px radius, kebab right of Implement and 30px high, "+" 24px square with 12px font, sticky bar at y=0 after scroll, Review `#3376ce`, Implement `#3fa34d`, callouts render, no CSP violations, no inline style attributes).
+- `test/ui/antigravityStyle.spec.ts`: phone and desktop width tests now check `.content` padding (16px; 144px at 1600px) and a full-width `.doc` instead of body padding and the 77% column.
+
+**Notes and limits.**
+- The brief says content ends at about 87%. With symmetric `padding-inline: 9vw` the blocks (including the 40px comment margin column) end at 91% of the window, so 87% is not asserted; only the left edge (9%) is checked tightly. The 87% in the screenshots is likely where the text ends, inside the margin column. Flagged for the core agent, not a failure.
+- The 2x screenshot scale is an assumption in the brief; the tests check CSS px values only.
+- All UI checks ran in headless Chromium on the rendered HTML with a stubbed `acquireVsCodeApi`, not in a real VS Code or Antigravity webview. The integration tests do not check pixel sizes.
