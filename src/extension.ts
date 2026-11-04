@@ -59,7 +59,8 @@ export async function runPlanPrompt(
 /** Sends the plan and comments to Claude Code and returns the revised plan. */
 export async function reviewPlan(
   plan: Plan,
-  comments: Record<string, string>
+  comments: Record<string, string>,
+  message?: string
 ): Promise<{ ok: true; plan: Plan } | { ok: false; message: string }> {
   const folder = vscode.workspace.workspaceFolders?.[0];
   if (folder === undefined) {
@@ -67,7 +68,7 @@ export async function reviewPlan(
   }
   return vscode.window.withProgress(
     { location: vscode.ProgressLocation.Notification, title: "Asking Claude Code to review the plan..." },
-    () => runPlanPrompt(buildReviewPrompt(plan, comments), folder.uri.fsPath)
+    () => runPlanPrompt(buildReviewPrompt(plan, comments, message),folder.uri.fsPath)
   );
 }
 
