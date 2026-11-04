@@ -60,7 +60,7 @@ async function css(page: Page, selector: string, prop: string): Promise<string> 
 async function addTitleComment(page: Page): Promise<void> {
   const b = page.locator(".block[data-block='overview']");
   await b.hover();
-  await b.locator("button.add-comment").click();
+  await b.locator(".slot").first().locator("button.add-comment").click();
   await b.locator("textarea.comment-field").fill("note");
   await b.getByRole("button", { name: "Add Comment", exact: true }).click();
   await expect(b.locator(".bubble")).toHaveCount(1);
@@ -114,7 +114,7 @@ test.describe("Antigravity style (dark default)", () => {
     const b = page.locator(".block[data-block='overview']");
     await b.hover();
     expect(await css(page, ".block[data-block='overview'] button.add-comment", "background-color")).toBe(accent);
-    await b.locator("button.add-comment").click();
+    await b.locator(".slot").first().locator("button.add-comment").click();
     const addBtn = b.getByRole("button", { name: "Add Comment", exact: true });
     expect(await addBtn.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe(accent);
     await b.locator("textarea.comment-field").fill("note");
