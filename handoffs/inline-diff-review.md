@@ -55,4 +55,29 @@ Do not edit `test/`, `TASKS.md`, `STATUS.md`, `README.md`, `CLAUDE.md`, or `pack
 
 ## Development (developer)
 
+Commit: d18c2d6 on `task/inline-diff-review-2`.
+
+**What changed**
+- `src/plan/inlineReview.ts` (new, pure, no VS Code imports). Exports:
+  - `LineSpan { start, count }` (zero-based first line, line count).
+  - `InlineHunkRange { index, firstLine, removed: LineSpan | null, added: LineSpan | null }`.
+  - `InlineView { text, hunks: InlineHunkRange[] }`.
+  - `buildInlineView(originalText, hunks: DiffHunk[], rejected: ReadonlySet<number>): InlineView`. Unchanged lines plain; for a non-rejected hunk, old lines (removed span) then new lines (added span); for a rejected hunk, old lines only, both spans null, `firstLine` still set. An empty original (new file) gives the proposed text with one added span. Spans already account for the shift from earlier hunks.
+- `src/review/hunkReview.ts`:
+  - `ORIGINAL_SCHEME` and `PROPOSED_SCHEME` replaced by one `INLINE_SCHEME = "claude-artifact-inline"`. URI path is `/<real path>`, query `session=<id>`.
+  - `ReviewFile` now has `isNew` and `uri`; `proposedText`, `newStarts`, `leftUri`, `rightUri` removed. `writeOneFile` uses `file.isNew` (was the scheme check). The rest of the apply path is untouched.
+  - `startImplementReview` opens each file with `showTextDocument(uri, { preview: false })`; no `vscode.diff`. Signature and return value unchanged.
+  - `SessionContentProvider` builds text from `buildInlineView` using current decisions and has an `onDidChange` emitter (`contentChanged`), fired by `decide` for the file of the decided hunk.
+  - Decorations and lenses use the view's spans and `firstLine`. Same theme colours as before. Lens commands and args unchanged. Added an `onDidChangeTextDocument` listener (inline scheme only) to repaint after a rebuild.
+
+**Tests run:** `npm run compile` passes. `npm run test:unit`: 17 files, 272 tests pass. Integration and UI not run (tester's job).
+
+**Old assertions that break:** none in unit tests. Integration tests (`applyFlows` etc.) that assert diff tabs or the `claude-artifact-proposed` / `claude-artifact-original` schemes will break; I did not read or edit them.
+
+**Departures from the brief:** none. Note that a rejected hunk's lens position is its first original line, and a pure-insert hunk's lens sits on its first added line.
+
+**Tester should check**
+- `buildInlineView`: removed/added spans, new file, rejected hunk, multiple hunks and shifted positions, pure insert and pure delete.
+- Integration: inline doc opens with no `vscode.diff`; text contains removed and added lines; accept/reject affect one hunk; text drops added lines after reject (the document reload is asynchronous, so wait for it); apply writes only accepted hunks.
+
 ## Testing (tester)
