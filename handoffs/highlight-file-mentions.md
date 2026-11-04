@@ -62,4 +62,20 @@ Do not edit `test/`, `TASKS.md`, `STATUS.md`, `README.md`, `CLAUDE.md`, or `pack
 
 ## Testing (tester)
 
-_To be written by the tester._
+**Commands run.** `npm run compile`, `npm run test:unit`, `npm run test:ui`, `npm run test:integration`.
+
+**Results (after my changes).**
+- Unit: 19 files, 299 tests passed (15 new in `test/unit/fileMentions.test.ts`).
+- UI (Playwright): 83 passed (8 new in `test/ui/fileMentions.spec.ts`: 4 tests x dark and light).
+- Integration: 33 passing (no new tests, no seam needed).
+
+**Test changes (commit bad0d48).**
+- `test/unit/fileLinks.test.ts`: two expectations now use `<code class="file-mention">`.
+- `test/unit/planRenderer.test.ts`: "escapes every plan field" now expects the EVIL string inside `<span class="file-mention">` (still fully escaped, checks not weakened); the Files cell expects `<code class="file-mention">ESCAPED</code>`.
+- `test/ui/antigravityStyle.spec.ts`: the developer's change also broke two UI assertions that the handoff did not list. `pre` background was expected as `rgb(35,35,35)` (dark) and `rgb(243,243,243)` (light); now expected transparent, as the brief requires.
+- New `test/unit/fileMentions.test.ts`: path in a sentence, at start and end, trailing period and comma, `e.g.`/`1.5`/`i.e.` not matched, known path with unlisted extension and with no extension, `./` and `../` paths, scoped package not matched, segments join back to input, hostile characters left raw in segments, regex metacharacters in a known path, longest known path wins.
+- New `test/ui/fileMentions.spec.ts` (dark and light): `pre`, `pre code`, Files rows, `.body`, `.file-row`, cells have transparent background; Files path `code` (new and existing) has the mention background (`#282828` dark, `#f3f3f3` light) while the row does not; mentions in summary, code comments, steps, and verification have the same background; hostile path text (`<`, `&`, quotes) is escaped, injects no element, and `data-path` is intact.
+
+**Known limit** (edited fields lose the highlight until rebuild): not tested. It is documented behaviour and the saved text is unaffected.
+
+**Verdict: PASS.**
