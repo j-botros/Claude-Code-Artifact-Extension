@@ -856,7 +856,6 @@ export function renderPlanHtml(plan: Plan, nonce: string, options?: { resetState
   .block.code-line { margin: 0; }
   .code-line > .margin { padding-top: 0; }
   .code-line pre { border: 0; border-radius: 0; padding: 0; overflow: visible; min-height: 1.5em; white-space: pre-wrap; }
-  .code-line:hover > .body { background: var(--mention-bg); border-radius: 3px; }
   .edit-field.edit-code { font-family: var(--font-code); font-size: 13px; white-space: pre; overflow-x: auto; }
   .badge { background: var(--badge-bg); color: var(--badge-fg); border-radius: 999px; padding: 0 0.5rem; font-size: 0.75rem; margin-left: 0.25rem; }
   button.add-comment { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; padding: 0; background: var(--accent); color: var(--accent-fg); border: 0; border-radius: 4px; font: bold 10px/1 var(--font-body); cursor: pointer; opacity: 0; }
