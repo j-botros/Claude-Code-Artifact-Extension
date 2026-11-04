@@ -26,6 +26,8 @@ export interface Plan {
   implementationSteps: string[];
   verification: string[];
   proposedFiles?: ProposedFile[];
+  /** Optional questions from the AI that the plan does not answer; absent or empty means no section. */
+  openQuestions?: string[];
 }
 
 /**
@@ -233,8 +235,27 @@ function validatePlan(v: unknown): string | null {
   return (
     checkStringArray(v.implementationSteps, "implementationSteps") ??
     checkStringArray(v.verification, "verification") ??
-    checkProposedFiles(v.proposedFiles)
+    checkProposedFiles(v.proposedFiles) ??
+    checkOpenQuestions(v.openQuestions)
   );
+}
+
+/** Validates the optional openQuestions field: an array of non-blank strings; returns an error or null. */
+function checkOpenQuestions(value: unknown): string | null {
+  if (value === undefined) {
+    return null;
+  }
+  const error = checkStringArray(value, "openQuestions");
+  if (error !== null) {
+    return error;
+  }
+  const items = value as string[];
+  for (let i = 0; i < items.length; i++) {
+    if (items[i].trim() === "") {
+      return `openQuestions[${i}] must not be blank`;
+    }
+  }
+  return null;
 }
 
 /** Validates the optional proposedFiles field; returns an error naming the bad item, or null. */
@@ -286,6 +307,9 @@ export function parsePlanJson(text: string): ParseResult {
   };
   if (v.proposedFiles !== undefined) {
     plan.proposedFiles = v.proposedFiles.map((f) => ({ path: f.path, content: f.content }));
+  }
+  if (v.openQuestions !== undefined) {
+    plan.openQuestions = [...v.openQuestions];
   }
   return { ok: true, plan };
 }

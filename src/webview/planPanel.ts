@@ -6,7 +6,7 @@ import { splitFileMentions } from "../plan/fileMentions";
 import { Plan, isSafeRelativePath } from "../plan/plan";
 import { applyPlanEdits, planFileName } from "../plan/planEdits";
 import { planMarkdownFileName, planToMarkdown } from "../plan/planMarkdown";
-import { parseReviewComments } from "../plan/reviewComments";
+import { dropOutOfRangeQuestionComments, parseReviewComments } from "../plan/reviewComments";
 
 /** Asks Claude Code to revise a plan given comments keyed by block id and an optional overall message. */
 export type ReviewHandler = (
@@ -193,11 +193,18 @@ function readEdits() {
     steps.push(fullText(editEls["step:" + i]));
     i++;
   }
+  const questions = [];
+  let q = 0;
+  while (editEls["question:" + q]) {
+    questions.push(fullText(editEls["question:" + q]));
+    q++;
+  }
   return {
     title: fullText(editEls.title),
     summary: fullText(editEls.summary),
     outOfScope: fullText(editEls.outOfScope),
     steps: steps,
+    questions: questions,
     code: rawCode,
   };
 }
@@ -263,11 +270,16 @@ if (saved && typeof saved === "object") {
       if (typeof text === "string" && editEls["step:" + i]) { setFullText(editEls["step:" + i], text); }
     });
   }
+  if (Array.isArray(saved.questions)) {
+    saved.questions.forEach((text, i) => {
+      if (typeof text === "string" && editEls["question:" + i]) { setFullText(editEls["question:" + i], text); }
+    });
+  }
 }
 let lastSent = null;
 function sendEdits() {
   lastSent = readEdits();
-  vscode.postMessage({ type: "savePlan", title: lastSent.title, summary: lastSent.summary, outOfScope: lastSent.outOfScope, steps: lastSent.steps, code: lastSent.code });
+  vscode.postMessage({ type: "savePlan", title: lastSent.title, summary: lastSent.summary, outOfScope: lastSent.outOfScope, steps: lastSent.steps, questions: lastSent.questions, code: lastSent.code });
 }
 function startEdit(el) {
   if (el.hidden) { return; }
@@ -511,13 +523,13 @@ submitBtn.addEventListener("click", () => {
   reviewBtn.disabled = true;
   closePopovers();
   statusEl.textContent = "Asking Claude Code to review...";
-  vscode.postMessage({ type: "reviewComments", title: edits.title, summary: edits.summary, outOfScope: edits.outOfScope, steps: edits.steps, code: edits.code, comments: readComments(), message: messageBox.value });
+  vscode.postMessage({ type: "reviewComments", title: edits.title, summary: edits.summary, outOfScope: edits.outOfScope, steps: edits.steps, questions: edits.questions, code: edits.code, comments: readComments(), message: messageBox.value });
 });
 menu.querySelectorAll("button[data-action]").forEach((item) => {
   item.addEventListener("click", () => {
     const edits = readEdits();
     closePopovers();
-    vscode.postMessage({ type: item.getAttribute("data-action"), title: edits.title, summary: edits.summary, outOfScope: edits.outOfScope, steps: edits.steps, code: edits.code });
+    vscode.postMessage({ type: item.getAttribute("data-action"), title: edits.title, summary: edits.summary, outOfScope: edits.outOfScope, steps: edits.steps, questions: edits.questions, code: edits.code });
   });
 });
 const implementBtn = document.querySelector("button.implement");
@@ -615,6 +627,32 @@ function renderVerification(items: string[], known: readonly string[]): string {
   return items
     .map((v, i) => renderBlock(`verification:${i}`, `verification ${i + 1}`, renderPlainText("verification-item", v, known), "card"))
     .join("\n");
+}
+
+/**
+ * Renders the open questions as numbered, editable, commentable cards. Block id is
+ * `question:<i>` and the label is `Open question <i+1>`.
+ */
+function renderQuestions(questions: string[], known: readonly string[]): string {
+  return questions
+    .map((q, i) =>
+      renderBlock(
+        `question:${i}`,
+        `Open question ${i + 1}`,
+        `<div class="step-row"><span class="num">${i + 1}.</span>${renderTextBlock(`question:${i}`, `Open question ${i + 1}`, q, "", known)}</div>`,
+        "card question"
+      )
+    )
+    .join("\n");
+}
+
+/** Renders the Open Questions section (rule, heading, cards), or an empty string when there are none. */
+function renderOpenQuestionsSection(plan: Plan, known: readonly string[]): string {
+  const questions = plan.openQuestions ?? [];
+  if (questions.length === 0) {
+    return "";
+  }
+  return `<hr class="section-rule">\n<h2>Open Questions</h2>\n${renderQuestions(questions, known)}\n`;
 }
 
 /**
@@ -878,7 +916,7 @@ ${renderSteps(plan.implementationSteps, known)}
 <hr class="section-rule">
 <h2>Verification</h2>
 ${renderVerification(plan.verification, known)}
-</div>
+${renderOpenQuestionsSection(plan, known)}</div>
 </div>
 <script nonce="${nonce}">${resetLine}${COMMENT_SCRIPT}</script>
 </body>
@@ -1087,13 +1125,25 @@ export class PlanPanel {
           codeLineCount(edited.plan.proposedChanges.code)
         ).comments;
       }
+      let droppedNote = "";
+      if (typeof rawComments === "object" && rawComments !== null && !Array.isArray(rawComments)) {
+        // Question comments past the current questions are dropped, and the count is reported.
+        const pruned = dropOutOfRangeQuestionComments(
+          rawComments as Record<string, unknown>,
+          edited.plan.openQuestions?.length ?? 0
+        );
+        rawComments = pruned.comments;
+        if (pruned.dropped > 0) {
+          droppedNote = ` Dropped ${pruned.dropped} question comment${pruned.dropped === 1 ? "" : "s"} that no longer match a question.`;
+        }
+      }
       const parsed = parseReviewComments(rawComments, edited.plan);
       if (!parsed.ok) {
-        this.replyReview(parsed.error);
+        this.replyReview(parsed.error + droppedNote);
         return;
       }
       if (Object.keys(parsed.comments).length === 0) {
-        this.replyReview("Add a comment first.");
+        this.replyReview("Add a comment first." + droppedNote);
         return;
       }
       const rawMessage = (input as { message?: unknown }).message;
