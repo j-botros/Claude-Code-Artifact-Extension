@@ -52,4 +52,18 @@
 
 ## Testing (tester)
 
-_(to be written by the tester)_
+**Verdict: PASS**
+
+**Test files**
+- `test/unit/planWatch.test.ts` (7 tests): `decidePlanFile` for new file (open, parsed plan), own-save hash (skip, record kept), invalid JSON (warn with error), fenced JSON (open), unrelated hash (open); `hashText` same/different/64-hex; `recordOwnSave` then `getOwnSaveHashes`.
+- `test/integration/planWatcher.test.ts` (2 tests), real watcher in the Extension Development Host: (1) writing a valid plan to `.claude/plans/` opens the webview tab; after closing it, `recordOwnSave(text)` plus writing the same text (the same two steps as `PlanPanel.save`) opens no tab within 3 s; (2) invalid JSON gives exactly one warning naming `watcher-bad.json` and no webview tab.
+
+**Commands and counts**
+- `npm run compile`: OK.
+- `npm run test:unit`: 24 files, 381 tests passed.
+- `npm test`: unit 381 passed; ui 128 passed; integration 35 passing, 0 failing (includes the 2 new tests).
+
+**Not verified**
+- The own-save case calls `recordOwnSave` and writes the file directly. It does not click Save in the webview, so the call inside `PlanPanel.save` is not exercised end to end.
+- Not run in Antigravity (owner check).
+- The "no reopen" check is a 3 s wait, so a very late event would be missed.
