@@ -13,6 +13,14 @@ Owned by the core agent only. Keep the latest run first. Keep only the last few 
 
 ## Run log
 
+### Run 38 (2026-11-04)
+- Owner bug report: the `+` comment buttons stayed visible with the Claude Code panel open. Cause: a media query `(hover: none), (max-width: 899px)` forced them to opacity 1 in a narrow pane. Fixed in PR #89 (rule limited to `hover: none`, plus a 600px UI test). Owner confirmed the buttons now stay hidden until hover.
+- PR #90: owner's `.claude/settings.json` change, adding `git switch` and `git checkout` to the allow list. Config only, merged without a test run.
+- `design-plan-command` (PR #91): command `.claude/commands/design-plan.md` and 6 unit tests. Developer and tester PASS. Unit 374, UI 128, integration 33. Antigravity not checked.
+- `plan-folder-watcher` (PR #92): watcher on `.claude/plans/*.json`, pure decision logic in `src/plan/planWatch.ts`. Developer and tester PASS. Unit 381, UI 128, integration 35. Known limit: a file set back to content the panel saved earlier in the session is skipped. Antigravity not checked.
+- Open for owner: `vitest-pin-two-weeks` still blocked (see the decision in the reply). Minimap: VS Code 1.107's public API has no minimap colour option. `overviewRulerColor` is the closest option; the owner must choose it or ask for an internal API.
+- Next: the owner's Antigravity checks for `/design-plan` and plan-folder watch. Then the minimap decision and the vitest decision.
+
 ### Run 37 (2026-11-04)
 - Owner asked to remove `PAUSE` and start the run. `PAUSE` (empty file, written by run 36's scheduler) was removed.
 - Queue check: no `todo` row for developer or tester. The only `todo` is `antigravity-test-2` (owner-only). `vitest-pin-two-weeks` is still `blocked`. No developer or tester task was run.
