@@ -6,12 +6,30 @@ Owned by the core agent only. Keep the latest run first. Keep only the last few 
 - Stage: early idea, with a working scaffold. `Claude Artifact: Open Sample Plan` opens a webview with a sample plan. The owner confirmed it renders in Antigravity.
 - Branches: `main` and `dev` exist on GitHub. `dev` includes PRs #1 through #6, #12, #18, #23, and #26.
 - Packaging: `npm run package` produces a `.vsix` that installs in Antigravity 1.107.0. `engines.vscode` is `^1.107.0` and `@types/vscode` is pinned to `1.107.0`. Latest stable VS Code is 1.144.0 (published 2026-10-28, checked 2026-11-03).
-- Compile: `npm run compile` passes. `npm test` passes (unit 227, UI 19, integration 23) as of run 24 (PR #60).
+- Compile: `npm run compile` passes. `npm test` passes (unit 341, UI 100, integration 33) as of run 33 (PR #79).
 - `.vscode/launch.json` exists.
 - Agent setup: `.claude/agents/developer.md`, `.claude/agents/tester.md`, and `.claude/settings.json` are committed.
 - Scheduler (as of 2026-11-03): the launchd job `com.j-botros.claude-artifact-agent` is installed and loaded. It runs back to back, up to 12 runs per chain, and writes `PAUSE` when the queue is empty.
 
 ## Run log
+
+### Run 33 (2026-11-04)
+- Task: `open-questions-section` (developer, then tester). Branch `task/open-questions-section`. Brief commit `c4d8cbc`, developer commits `062a7a2` and `503dd01`, tester commits `b4feb3a` and `9b683f6`, core agent commits `2ad458d` (CLAUDE.md) and `0d17c9a` (README). PR #79 into `dev`, merged 2026-11-04 17:16 UTC. TASKS.md row set to `done`.
+- Developer: optional `openQuestions` (array of non-blank strings; absent or `[]` means no section). The section renders last, after Verification, only when non-empty. Each question is a click-to-edit, commentable line with id `question:<i>` and label `Open question <i+1>`. Out-of-range `question:<i>` comments are dropped and reported.
+- Tester: PASS. Added 22 unit tests (`test/unit/openQuestions.test.ts`) and 6 Playwright tests (`test/ui/openQuestions.spec.ts`). One UI failure was a test-stub bug (no `setState`/`getState`), fixed in the test.
+- Core agent: re-ran `npm test` on the branch, exit 0: unit 341 (21 files), UI 100, integration 33 (VS Code 1.107.0). CLAUDE.md Section 3 bullet added. README bullet added.
+- Choices (not in CLAUDE.md):
+  - The developer made `applyPlanEdits` require the same number of questions on save, so a save cannot add or remove questions. Editing a question works as for a step. Add and remove are not offered.
+  - The review prompt keeps the old list wording and adds the open-question label as a separate clause, because an existing test matches the old wording.
+- Not verified:
+  - Real VS Code or Antigravity window. Headless Chromium and the stub integration host only.
+  - Copy and Export as Markdown omit open questions, because `src/plan/planMarkdown.ts` was out of scope. Follow-up task needed.
+  - The host message "Dropped N question comment(s)" is covered only by the pure helper's tests.
+  - Saving and reloading questions in a real workspace.
+- Process notes:
+  - TASKS.md row for `line-comments-editable-code` had two extra cells. Fixed.
+  - The test run reports vitest 5.1.0, which CLAUDE.md says is too new. `vitest-pin-two-weeks` is still blocked (lock file, run 22).
+- Next: no `todo` task for developer or tester is left. `antigravity-test-2` is owner-only. `vitest-pin-two-weeks` is `blocked`. The next scheduled run should write `PAUSE` unless the owner adds a task or unblocks `vitest-pin-two-weeks`.
 
 ### Run 32 (2026-11-04)
 - Task: `line-comments-editable-code` (developer, then tester, then developer round 2, then core agent test run). Branch `task/line-comments-editable-code`. Brief commit `fc1d1db`. PR #78 into `dev`, opened after tests passed.
