@@ -28,7 +28,11 @@
 
 ## Development (developer)
 
-_(to be written by the developer)_
+- **Changed:** added `.claude/commands/design-plan.md`, the `/design-plan <request>` slash command. It uses `$ARGUMENTS` for the request, tells Claude to write one file to `.claude/plans/<slug>.json` (slug from the title, lowercase, hyphens), and not to answer with the plan in chat or edit source files. It lists all required fields, the optional `proposedFiles` and `openQuestions` (omit when not needed), and the callout markers at the very start of a text block. The field list matches `src/plan/planPrompt.ts` and CLAUDE.md Section 3 (no disagreement found).
+- **Tests passed:** `npm run compile` OK; `npm run test:unit` 22 files, 368 tests passed.
+- **Not tested:** Antigravity showing `/design-plan` in the chat was not tested in this run.
+- **Left:** nothing in scope.
+- **Tester should check:** the file names `.claude/plans/`, the slug rule, every required field, the optional fields with the omit rule, the callout markers, and the no-chat / no-source-edit rule.
 
 ## Testing (tester)
 
