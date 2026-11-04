@@ -2,6 +2,7 @@ import * as vscode from "vscode";
 import { AgyRunResult, runAgyWithRetry } from "./agy/agyRunner";
 import { RunResult, runClaude } from "./claude/claudeRunner";
 import { Plan, parsePlanJson, samplePlan } from "./plan/plan";
+import { decidePlanFile, getOwnSaveHashes, hashText } from "./plan/planWatch";
 import { buildPlanPrompt, buildReviewPrompt } from "./plan/planPrompt";
 import { registerHunkReview, startImplementReview } from "./review/hunkReview";
 import { PlanPanel } from "./webview/planPanel";
@@ -106,10 +107,44 @@ async function generatePlan(): Promise<void> {
   PlanPanel.show(result.plan, reviewPlan, implementPlan);
 }
 
+/** Reads a changed plan file and opens, skips, or warns as decidePlanFile says. */
+async function handlePlanFile(uri: vscode.Uri): Promise<void> {
+  let content: string;
+  try {
+    content = new TextDecoder().decode(await vscode.workspace.fs.readFile(uri));
+  } catch {
+    return;
+  }
+  const decision = decidePlanFile(content, hashText(content), getOwnSaveHashes());
+  if (decision.action === "open") {
+    PlanPanel.show(decision.plan, reviewPlan, implementPlan);
+  } else if (decision.action === "warn") {
+    const name = uri.path.substring(uri.path.lastIndexOf("/") + 1);
+    void vscode.window.showWarningMessage(`Could not read plan file ${name}: ${decision.error}`);
+  }
+}
+
+/** Creates the one watcher on .claude/plans/*.json in the first workspace folder. */
+function watchPlanFolder(context: vscode.ExtensionContext): void {
+  const folder = vscode.workspace.workspaceFolders?.[0];
+  if (folder === undefined) {
+    return;
+  }
+  const watcher = vscode.workspace.createFileSystemWatcher(
+    new vscode.RelativePattern(folder, ".claude/plans/*.json")
+  );
+  context.subscriptions.push(
+    watcher,
+    watcher.onDidCreate((uri) => void handlePlanFile(uri)),
+    watcher.onDidChange((uri) => void handlePlanFile(uri))
+  );
+}
+
 /** Called by VS Code when the extension activates; registers the commands. */
 export function activate(context: vscode.ExtensionContext): void {
   extensionContext = context;
   registerHunkReview(context);
+  watchPlanFolder(context);
   context.subscriptions.push(
     vscode.commands.registerCommand("claudeArtifact.openSamplePlan", () => {
       PlanPanel.show(samplePlan, reviewPlan, implementPlan);

@@ -6,6 +6,7 @@ import { splitFileMentions } from "../plan/fileMentions";
 import { lineId, lineLabel, splitTextLines, textLineIds } from "../plan/lineComments";
 import { Plan, isSafeRelativePath } from "../plan/plan";
 import { applyPlanEdits, planFileName } from "../plan/planEdits";
+import { recordOwnSave } from "../plan/planWatch";
 import { planMarkdownFileName, planToMarkdown } from "../plan/planMarkdown";
 import { dropOutOfRangeQuestionComments, dropOutOfRangeTextLineComments, parseReviewComments } from "../plan/reviewComments";
 
@@ -1437,10 +1438,9 @@ export class PlanPanel {
       const dir = vscode.Uri.joinPath(folder.uri, ".claude", "plans");
       const name = planFileName(result.plan.title);
       await vscode.workspace.fs.createDirectory(dir);
-      await vscode.workspace.fs.writeFile(
-        vscode.Uri.joinPath(dir, name),
-        new TextEncoder().encode(JSON.stringify(result.plan, null, 2) + "\n")
-      );
+      const text = JSON.stringify(result.plan, null, 2) + "\n";
+      recordOwnSave(text);
+      await vscode.workspace.fs.writeFile(vscode.Uri.joinPath(dir, name), new TextEncoder().encode(text));
       this.currentPlan = result.plan;
       this.savedName = name;
       this.reply(true, `Saved to .claude/plans/${name}`);
