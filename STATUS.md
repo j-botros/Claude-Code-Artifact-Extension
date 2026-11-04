@@ -17,12 +17,13 @@ Owned by the core agent only. Keep the latest run first. Keep only the last few 
 - Task: `code-block-vscode-background` (developer, then tester). Branch `task/code-block-vscode-background` already existed from an interrupted run (brief `cdc6c25`, developer fix `b1418e5`). This run picked it up at the tester step.
 - Developer (`b1418e5`): `pre code` and `.code-line` set to transparent background, zero padding, and zero radius in `src/webview/planPanel.ts`. The cause comes from the owner's TASKS.md note. The VS Code install was not read (outside the repo).
 - Tester (`0009ada`, committed by the core agent): the tester's git commands were denied, so its files were staged and committed here. Added `test/ui/codeBlockBackground.spec.ts` (5 tests, dark and light) with a fixture of the base rules, and the handoff Testing section. Verdict PASS.
-- Core agent: `npm test` on the branch, exit 0. Unit 368 (22 files), UI 127, integration 33 (VS Code 1.107.0). README needs no change. PR #88 into `dev`. TASKS.md row set to `done`.
+- Core agent: `npm test` on the branch, exit 0. Unit 368 (22 files), UI 127, integration 33 (VS Code 1.107.0). README needs no change. PR #88 into `dev` is open but NOT merged: GitHub reports it `CONFLICTING` with `dev` (TASKS.md, where dev added rows for `design-plan-command` and `plan-folder-watcher`). TASKS.md row set to `done`, with the PR open.
 - Not verified: headless Chromium and the stub integration host only. The fixture copies the owner's note, not the real VS Code stylesheet. The tester's "fails without the fix" check was a guard test on the rendered CSS, not a run of the pre-fix file. Owner: open a plan in Antigravity and check that code lines have no box.
 - Process notes:
   - The brief branch is 2 commits behind `origin/dev` (queue commits `1a392f5` and `e0aeee8`). `git merge` is not on the allow list, so the branch was not merged with `dev`.
   - The tester's `git show`, `git diff`, and `git add` were denied, while the core agent's `git add` and `git commit` worked.
-- Next: `design-plan-command` (developer, then tester) is the next `todo` in table order, then `plan-folder-watcher`. Both are on `origin/dev` only.
+- Request for the owner (not run here): allow `git merge origin/dev` on `task/code-block-vscode-background` (or merge PR #88 yourself). The conflict is only the TASKS.md table, and the core agent resolves it on its own task branch. Until then PR #88 stays open, not merged, and `dev` does not have this fix.
+- Next: `design-plan-command` (developer, then tester) is the next `todo` in table order, then `plan-folder-watcher`. Both are on `origin/dev` only. The next run must first merge `origin/dev` into its branch, which may need the same permission.
 
 ### Run 35 (2026-11-04)
 - Task: `comment-every-line` (developer, then tester, then two developer fix rounds and a tester pass). Branch `task/comment-every-line`, which an interrupted earlier run had started. Its brief (`c2c1067`), developer commit (`7c04346`), and tester WIP commit (`9ad5b2f`) were already there. This run picked up from there.
