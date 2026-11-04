@@ -85,4 +85,21 @@ Do not edit `test/`, `TASKS.md`, `STATUS.md`, `README.md`, or `CLAUDE.md`. If yo
 
 ## Testing (tester)
 
-_To be filled by the tester._
+**Verdict: PASS.** No src/ bug found; all failures were old-value assertions.
+
+**Commands and results**
+- `npm run compile`: pass.
+- `npm run test:unit`: 17 files, 272 passed, 0 failed.
+- `npm run test:ui`: 75 passed, 0 failed (Playwright, headless Chromium).
+- `npm run test:integration`: 29 passed, 0 failed (VS Code 1.107.0).
+
+**Test changes (all under test/)**
+- New `test/unit/codeTokens.test.ts`: fixed sample; round trip, every token kind, block comments, template strings, escapes, unterminated input, `highlightsLanguage`.
+- `test/unit/plan.test.ts`: sample counts (12+ steps, 8+ files, 6+ verification, 35-45 line code), all five markers, 2+ proposed files.
+- `test/unit/planRenderer.test.ts`: button 26px/10px/12px, plus 20px and `bold 10px/1`, bar title `1.26em`.
+- `test/ui/antigravityStyle.spec.ts`: bar title is 0.9 x the h2 size (replaces the old h1 25.2px assertion).
+- `test/ui/layout.spec.ts`: buttons 26/10/12; plus 20px square, 10px glyph, glyph and SVG centred within 1px; token colours (comment, keyword, string, type, function, control); sample page scrolls and sticky bar stays at top. CSP tests already cover no violations and still pass.
+- `test/ui/planPanel.spec.ts`: sample counts instead of 2/3/1; leading callout marker stripped when comparing displayed text (the view shows it as a label); plus button is now an SVG, not "+" text; the read-only test clicks `pre` instead of `pre code` (the inline `<code>` now spans 41 lines, so its centre can fall outside any line and Playwright never gets a hit).
+- `test/integration/implementFlow.test.ts`: `waitForDiff` matches with `includes`, and the sample test accepts any `sample-artifact/` diff tab. With two proposed files, diffs open as preview tabs and the later one (`names.ts`) replaces the earlier (`greet.ts`), so only one tab is open. Observation for the core agent: if the owner wants both file diffs open at once, the diff review would need to open them as non-preview tabs; this is not a bug against the brief.
+
+**Not verified:** colours and sizes are the brief's values, not confirmed by the owner. `light` theme token colours were not asserted.

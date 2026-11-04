@@ -154,10 +154,35 @@ describe("parsePlanJson", () => {
 });
 
 describe("samplePlan", () => {
-  it("has 3 implementation steps and at least 1 verification entry", () => {
+  it("is long enough to scroll: 12+ steps, 8+ files, 6+ verification items, ~40 line code", () => {
     expect(samplePlan.title).not.toBe("");
-    expect(samplePlan.implementationSteps).toHaveLength(3);
-    expect(samplePlan.verification.length).toBeGreaterThanOrEqual(1);
+    expect(samplePlan.implementationSteps.length).toBeGreaterThanOrEqual(12);
+    expect(samplePlan.files.length).toBeGreaterThanOrEqual(8);
+    expect(samplePlan.verification.length).toBeGreaterThanOrEqual(6);
+    const lines = samplePlan.proposedChanges.code.split("\n").length;
+    expect(lines).toBeGreaterThanOrEqual(35);
+    expect(lines).toBeLessThanOrEqual(45);
+  });
+
+  it("uses all five callout markers", () => {
+    const text = [
+      samplePlan.overview.summary,
+      samplePlan.overview.outOfScope ?? "",
+      ...samplePlan.implementationSteps,
+      ...samplePlan.verification,
+    ];
+    for (const marker of ["NOTE:", "TIP:", "IMPORTANT:", "WARNING:", "CAUTION:"]) {
+      expect(text.some((t) => t.startsWith(marker))).toBe(true);
+    }
+  });
+
+  it("has at least two proposed files with relative paths and content", () => {
+    const files = samplePlan.proposedFiles ?? [];
+    expect(files.length).toBeGreaterThanOrEqual(2);
+    for (const f of files) {
+      expect(f.path.startsWith("/")).toBe(false);
+      expect(f.content.length).toBeGreaterThan(0);
+    }
   });
 });
 

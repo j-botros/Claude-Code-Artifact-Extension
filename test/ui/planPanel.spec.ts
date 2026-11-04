@@ -99,21 +99,25 @@ async function addComment(page: Page, id: string, text: string): Promise<void> {
   await expect(b.locator(".bubble")).toHaveCount(1);
 }
 
+/** Removes a leading callout marker (the view shows it as a label, not in the text). */
+function noMarker(text: string): string {
+  return text.replace(/^(NOTE|TIP|IMPORTANT|WARNING|CAUTION): /, "");
+}
+
 test.describe("plan webview", () => {
   // Checks every plan block renders, in the order CLAUDE.md Section 3 requires.
   test("renders all blocks in order", async ({ page }) => {
     await openPlan(page, "render");
     await expect(page.locator("h1")).toHaveText(samplePlan.title);
-    await expect(page.locator("[data-edit='summary']")).toHaveText(samplePlan.overview.summary);
-    await expect(page.locator("[data-edit='outOfScope']")).toHaveText(samplePlan.overview.outOfScope);
+    await expect(page.locator("[data-edit='summary']")).toHaveText(noMarker(samplePlan.overview.summary));
+    await expect(page.locator("[data-edit='outOfScope']")).toHaveText(noMarker(samplePlan.overview.outOfScope));
     await expect(page.locator("pre code")).toContainText("export function greet");
-    await expect(page.locator(".block[data-block^='file:']")).toHaveCount(2);
+    await expect(page.locator(".block[data-block^='file:']")).toHaveCount(samplePlan.files.length);
     await expect(page.locator(".block[data-block='file:0'] .badge")).toHaveText("new");
-    await expect(page.locator(".block[data-block='file:1'] .badge")).toHaveCount(0);
-    await expect(page.locator(".block[data-block^='step:']")).toHaveCount(3);
-    await expect(page.locator("[data-edit='step:0']")).toHaveText(samplePlan.implementationSteps[0]);
-    await expect(page.locator(".block[data-block^='verification:']")).toHaveCount(1);
-    await expect(page.locator(".verification-item").first()).toHaveText(samplePlan.verification[0]);
+    await expect(page.locator(".block[data-block^='step:']")).toHaveCount(samplePlan.implementationSteps.length);
+    await expect(page.locator("[data-edit='step:0']")).toHaveText(noMarker(samplePlan.implementationSteps[0]));
+    await expect(page.locator(".block[data-block^='verification:']")).toHaveCount(samplePlan.verification.length);
+    await expect(page.locator(".verification-item").first()).toHaveText(noMarker(samplePlan.verification[0]));
 
     // Vertical order: overview, code, files, steps, verification (the title sits in the sticky bar).
     const ids = ["overview", "code", "file:0", "file:1", "step:0", "step:1", "step:2", "verification:0"];
@@ -266,7 +270,7 @@ test.describe("plan webview", () => {
     await page.locator("[data-edit='step:2']").click();
     await page.locator("textarea.edit-field").fill("Edited step three.");
     await page.locator("textarea.edit-field").press("Escape");
-    await expect(page.locator("[data-edit='step:2']")).toHaveText(samplePlan.implementationSteps[2]);
+    await expect(page.locator("[data-edit='step:2']")).toHaveText(noMarker(samplePlan.implementationSteps[2]));
 
     const posted = await page.evaluate(() => (window as any).__posted);
     const saves = posted.filter((m: any) => m.type === "savePlan");
@@ -278,7 +282,8 @@ test.describe("plan webview", () => {
   // Code, files, and verification are read-only: a click does not open a field.
   test("code, files, and verification are not editable", async ({ page }) => {
     await openPlan(page, "readonly");
-    await page.locator("pre code").click();
+    // Click the block itself: the inline <code> spans many lines, so its centre can fall outside any line.
+    await page.locator("pre").click();
     await page.locator(".file-change").first().click();
     await page.locator(".verification-item").first().click();
     await expect(page.locator("input.edit-field, textarea.edit-field")).toHaveCount(0);
@@ -352,7 +357,7 @@ test.describe("plan webview", () => {
     const b = block(page, "step:0");
     const plus = b.locator("button.add-comment");
     await expect(plus).toHaveAttribute("title", "Add inline comment");
-    await expect(plus).toHaveText("+");
+    await expect(plus.locator(".plus-glyph svg")).toHaveCount(1); // the plus is an SVG glyph, not text
     await page.mouse.move(0, 0);
     await expect(plus).toHaveCSS("opacity", "0");
     await b.hover();
