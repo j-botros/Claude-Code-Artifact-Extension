@@ -65,7 +65,32 @@ Do not edit `test/`, `TASKS.md`, `STATUS.md`, or `README.md`. If you need a file
 
 ## Development (developer)
 
-_(to be filled by the developer)_
+**Files changed.** `src/webview/planPanel.ts`; new `src/plan/callouts.ts` (pure helper: `splitCallout`, `CALLOUT_MARKERS`, `codeLabel`); `CLAUDE.md` Section 3 (one bullet listing the five markers); this section.
+
+**Changes by requirement.**
+1. Column: `--content-width: 77vw` on `.doc` (`width: var(--content-width); max-width: 100%`), centred. At max-width 899px it is `100%` so phones keep the 16px padding. The 800px value from `match-antigravity-style` is superseded.
+2. Sticky bar: `header.top` is `position: sticky; top: 0` with the page background and a bottom border. Left: the editable `h1` title (one title element; the old title block in the body is gone). Right, in order: kebab, Review, Implement. Title edit still uses the existing `data-edit="title"` path.
+3. Review button: always `--review` (`#3376ce`), white text. The script still toggles `has-comments`, which no longer changes the colour.
+4. Implement: `--implement` `#3fa34d`. Text colour: the dark page colour `#1f1f1f` (`--implement-fg`), because white on `#3fa34d` is about 3.2:1 while `#1f1f1f` is about 5.1:1.
+5. Sizes: `h1` 1.8em, `h2` 1.4em, `h3` 1.15em (and the title edit field 1.8em). Note the Review popover's "Submit comment" `h2` is also 1.4em, and it is now the first `h2` in the DOM.
+6. Callouts: `splitCallout` (case-sensitive, at the very start, colon required, `\s*` after the colon is part of the prefix). Applied to `summary`, `outOfScope`, steps (editable) and verification items (read-only). Markup: `.callout.<kind>` with `.callout-label` and the body. For editable text, the element holds only the body and keeps the removed prefix in `data-marker`; the script re-adds it in `readEdits` and strips it when restoring saved state, so the saved text keeps the marker. Marker-only text ("NOTE:") is a callout with an empty body. The marker kind cannot be changed by editing.
+7. `hr.section-rule` (1px `--border`) before Proposed changes, Files, Implementation steps, Verification. None above Overview or after Verification.
+8. "+" is 24px by 24px (font 16px).
+9. Code: label from `codeLabel` (typescript to ts, javascript to js, python py, ruby rb, rust rs, golang go, bash/shell/shellscript/zsh sh, markdown md, yaml yml, csharp/c# cs, c++ cpp, kotlin kt, powershell ps1, typescriptreact tsx, javascriptreact jsx; unknown kept lowercased). Label is shown top-left inside the code block, a "Copy" button top-right (`button.copy-code`). Click posts `{type:"copyCode"}`; the host (`PlanPanel.copyCode`) writes the plan's `proposedChanges.code` with `vscode.env.clipboard.writeText` and replies through the status line ("Copied the code."). The host copies its own stored code, not text sent by the webview.
+10. "Click to edit": `.editable::after` pseudo-element on hover, to the left, CSS only. I removed the native `title="Click to edit"` attribute so there is no double tooltip. Hidden at max-width 899px (no room at the left on phones).
+
+**Measured, estimated, chosen.**
+- Owner (from brief): 77% column, 1.8 / 1.4 / 1.15 ratios, Review `#3376ce`, NOTE `#3566ce`, IMPORTANT `#8259dd`.
+- Core agent's choice, used as given: Implement `#3fa34d`, TIP `#3fa34d`, WARNING `#d9a441`, CAUTION `#d1575a`, 24px "+".
+- My choice: light-theme values: review `#2a64b8`, implement `#2b7d37` with white text (about 5.1:1), note `#2a55b8`, tip `#2b7d37`, important `#6b44c4`, warning `#8a6200`, caution `#b3363a`. Dark `--implement-fg` `#1f1f1f`; `--review-fg` white. Also mine: the sticky bar's border, the hr margins, the tooltip styling, the `vw` unit for 77%, the code-block layout (label and Copy inside the block, 2rem top padding).
+
+**Deviations and decisions for the owner or tester.**
+- The title is no longer a commentable block (no "+" on the title), because it now lives in the sticky bar. The comment id `title` is no longer emitted.
+- `.callout.info` CSS is kept from the style task alongside `.callout.note`.
+- `--content-width` is `77vw`, not a percentage of the body, so it ignores body padding.
+- Not checked in a browser.
+
+**Results.** `npm run compile` passes. `npm run test:unit`: 4 failures, all in `test/unit/planRenderer.test.ts`, all old-markup assertions the tester should update: (a) block order expects a `title` block; (b) "gives every block a comment button" expects `aria-label="Add inline comment on title"`; (c) "escapes every plan field" expects `<h1 ... title="Click to edit">` (the title attribute is gone); (d) the palette test expects the 800px content width (now `77vw`). No other unit failures.
 
 ## Testing (tester)
 
