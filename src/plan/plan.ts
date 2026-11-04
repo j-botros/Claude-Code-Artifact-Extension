@@ -47,34 +47,111 @@ export type ParseResult =
   | { ok: true; plan: Plan }
   | { ok: false; error: string };
 
-/** Hard-coded sample plan shown by the scaffold command. */
+/** The sample plan's code block: about 40 lines, so the syntax colours and scrolling can be tried. */
+const SAMPLE_CODE = [
+  "/** Options that control how a greeting is built. */",
+  "export interface GreetOptions {",
+  '  /** The greeting word, for example "Hello". */',
+  "  greeting?: string;",
+  "  /** Text used when the name is empty. */",
+  "  fallbackName?: string;",
+  "  /** The most characters a name may have before it is cut. */",
+  "  maxLength?: number;",
+  "}",
+  "",
+  "/** Returns a greeting for the given name. */",
+  "export function greet(name: string, options: GreetOptions = {}): string;",
+  "",
+  'const DEFAULT_GREETING = "Hello";',
+  "const DEFAULT_MAX_LENGTH = 40;",
+  "",
+  "/** Cuts a name to the allowed length and trims spaces around it. */",
+  "export function cleanName(name: string, maxLength: number): string {",
+  "  const trimmed = name.trim();",
+  "  if (trimmed.length <= maxLength) {",
+  "    return trimmed;",
+  "  }",
+  "  // Keep room for the ellipsis so the result never exceeds maxLength.",
+  '  return trimmed.slice(0, maxLength - 1) + "...";',
+  "}",
+  "",
+  "/** Builds the greeting text from the options, using defaults for missing values. */",
+  "export function greet(name: string, options: GreetOptions = {}): string {",
+  "  const greeting = options.greeting ?? DEFAULT_GREETING;",
+  "  const maxLength = options.maxLength ?? DEFAULT_MAX_LENGTH;",
+  "  const cleaned = cleanName(name, maxLength);",
+  '  if (cleaned === "") {',
+  '    return greeting + ", " + (options.fallbackName ?? "stranger") + ".";',
+  "  }",
+  "  return `${greeting}, ${cleaned}.`;",
+  "}",
+  "",
+  "/** Greets every name in a list and returns the lines in order. */",
+  "export function greetAll(names: string[], options?: GreetOptions): string[] {",
+  "  return names.map((n) => greet(n, options));",
+  "}",
+].join("\n");
+
+/**
+ * Hard-coded sample plan shown by the scaffold command. It is long on purpose, so scrolling
+ * and all five callout kinds can be tried by hand.
+ */
 export const samplePlan: Plan = {
   title: "Sample Implementation Plan",
   overview: {
-    summary: "A hard-coded plan used to check that the webview renders. It follows the plan shape from the project docs.",
-    outOfScope: "Real plan generation and comments are not part of this sample.",
+    summary:
+      "NOTE: A hard-coded plan used to check that the webview renders. It follows the plan shape from the project docs, and it is long enough to scroll.",
+    outOfScope:
+      "CAUTION: Real plan generation is not part of this sample, and nothing is written until you choose Implement the Design.",
   },
   proposedChanges: {
     language: "typescript",
-    code: "/** Returns a greeting for the given name. */\nexport function greet(name: string): string;",
+    code: SAMPLE_CODE,
   },
   files: [
-    { path: "src/greet.ts", change: "Add the greet function.", isNew: true },
+    { path: "src/greet.ts", change: "Add the greet function and its options.", isNew: true },
+    { path: "src/names.ts", change: "Add cleanName and greetAll helpers.", isNew: true },
     { path: "src/extension.ts", change: "Call greet from the sample command.", isNew: false },
+    { path: "src/config.ts", change: "Read the default greeting from settings.", isNew: false },
+    { path: "package.json", change: "Add the greeting setting under contributes.configuration.", isNew: false },
+    { path: "test/unit/greet.test.ts", change: "Test greet with normal, empty, and long names.", isNew: true },
+    { path: "test/unit/names.test.ts", change: "Test cleanName and greetAll.", isNew: true },
+    { path: "docs/greeting.md", change: "Describe the greeting options.", isNew: true },
   ],
   implementationSteps: [
-    "Create src/greet.ts with the greet function.",
+    "Create src/greet.ts with the GreetOptions interface and the greet function.",
+    "Create src/names.ts with cleanName and greetAll.",
+    "IMPORTANT: Keep greet pure, with no editor calls, so unit tests need no VS Code.",
     "Call greet from the sample command in src/extension.ts.",
+    "Read the default greeting in src/config.ts and pass it to greet.",
+    "Add the greeting setting to package.json under contributes.configuration.",
+    "TIP: Name the setting with the extension prefix so it groups in the Settings view.",
+    "Write unit tests in test/unit/greet.test.ts for a normal name, an empty string, and a long name.",
+    "Write unit tests in test/unit/names.test.ts for cleanName and greetAll.",
+    "WARNING: Do not trim inside greetAll; cleanName already does it, and trimming twice hides bugs.",
+    "Document the options in docs/greeting.md.",
     "Compile and run the sample command.",
   ],
-  verification: ["Unit test greet with a normal name and an empty string."],
-  // Lets the Implement the Design flow be tried by hand. Applying writes this new file under the
+  verification: [
+    "Unit test greet with a normal name and an empty string.",
+    "Unit test greet with a name longer than maxLength.",
+    "Unit test greetAll keeps the order of the names.",
+    "Unit test cleanName trims spaces and adds the ellipsis only when it cuts.",
+    "Run npm run compile and confirm there are no type errors.",
+    "Run the sample command by hand and check the greeting in the output.",
+  ],
+  // Lets the Implement the Design flow be tried by hand. Applying writes these new files under the
   // workspace root, so a throwaway workspace is safest.
   proposedFiles: [
     {
       path: "sample-artifact/greet.ts",
       content:
         'export function greet(name: string): string {\n  if (name === "") {\n    return "Hello, stranger.";\n  }\n  return `Hello, ${name}.`;\n}\n',
+    },
+    {
+      path: "sample-artifact/names.ts",
+      content:
+        'export function cleanName(name: string, maxLength: number): string {\n  const trimmed = name.trim();\n  return trimmed.length <= maxLength ? trimmed : trimmed.slice(0, maxLength - 1) + "...";\n}\n\nexport function greetAll(names: string[]): string[] {\n  return names.map((n) => "Hello, " + cleanName(n, 40) + ".");\n}\n',
     },
   ],
 };

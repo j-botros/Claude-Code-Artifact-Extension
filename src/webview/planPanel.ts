@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import { codeLabel, splitCallout } from "../plan/callouts";
+import { highlightsLanguage, tokenizeCode } from "../plan/codeTokens";
 import { Plan, isSafeRelativePath } from "../plan/plan";
 import { applyPlanEdits, planFileName } from "../plan/planEdits";
 import { planMarkdownFileName, planToMarkdown } from "../plan/planMarkdown";
@@ -27,6 +28,13 @@ export function escapeHtml(text: string): string {
     .replace(/'/g, "&#39;");
 }
 
+/** Renders code as escaped HTML, wrapping each coloured token in a `tok-<kind>` span. */
+function renderHighlighted(code: string): string {
+  return tokenizeCode(code)
+    .map((t) => (t.kind === "plain" ? escapeHtml(t.text) : `<span class="tok-${t.kind}">${escapeHtml(t.text)}</span>`))
+    .join("");
+}
+
 /** Creates a random nonce for the Content-Security-Policy. */
 function makeNonce(): string {
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
@@ -45,6 +53,10 @@ const COMMENT_ICON =
 const KEBAB_ICON =
   '<svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><circle cx="8" cy="3" r="1.4" fill="currentColor"/><circle cx="8" cy="8" r="1.4" fill="currentColor"/><circle cx="8" cy="13" r="1.4" fill="currentColor"/></svg>';
 
+/** The plus glyph of the margin comment button: a 10 px box holding a 10 px plus drawn as SVG, so it centres exactly. */
+const PLUS_ICON =
+  '<span class="plus-glyph" aria-hidden="true"><svg viewBox="0 0 10 10" width="10" height="10" focusable="false"><path d="M5 1v8M1 5h8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></span>';
+
 /** The small downward chevron shown on the Review button. */
 const CHEVRON_ICON =
   '<svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true" focusable="false"><path d="M3 6l5 5 5-5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
@@ -55,7 +67,7 @@ const CHEVRON_ICON =
  */
 function renderBlock(id: string, label: string, body: string, extraClass = ""): string {
   const cls = extraClass === "" ? "block" : `block ${extraClass}`;
-  return `<div class="${cls}" data-block="${escapeHtml(id)}" data-label="${escapeHtml(label)}"><div class="body">${body}</div><div class="margin"><button class="add-comment" type="button" aria-label="Add inline comment on ${escapeHtml(label)}" title="Add inline comment">+</button><div class="bubbles"></div></div></div>`;
+  return `<div class="${cls}" data-block="${escapeHtml(id)}" data-label="${escapeHtml(label)}"><div class="body">${body}</div><div class="margin"><button class="add-comment" type="button" aria-label="Add inline comment on ${escapeHtml(label)}" title="Add inline comment">${PLUS_ICON}</button><div class="bubbles"></div></div></div>`;
 }
 
 /** Renders text that turns into a field when clicked. `key` names the edited plan field. */
@@ -488,10 +500,11 @@ export function renderPlanHtml(plan: Plan, nonce: string, options?: { resetState
     "overview",
     `<h2>Overview</h2>${renderTextBlock("summary", "summary", plan.overview.summary)}<h3>Out of scope</h3>${renderTextBlock("outOfScope", "out of scope", plan.overview.outOfScope ?? "", "Nothing excluded")}`
   );
+  const codeHtml = highlightsLanguage(label) ? renderHighlighted(plan.proposedChanges.code) : escapeHtml(plan.proposedChanges.code);
   const codeBlock = renderBlock(
     "code",
     "code",
-    `<h2>Proposed changes</h2><div class="code-wrap">${langLabel}<button class="copy-code" type="button" aria-label="Copy code" title="Copy code">Copy</button><pre><code${langClass}>${escapeHtml(plan.proposedChanges.code)}</code></pre></div>`
+    `<h2>Proposed changes</h2><div class="code-wrap">${langLabel}<button class="copy-code" type="button" aria-label="Copy code" title="Copy code">Copy</button><pre><code${langClass}>${codeHtml}</code></pre></div>`
   );
   return `<!DOCTYPE html>
 <html lang="en">
@@ -530,6 +543,12 @@ export function renderPlanHtml(plan: Plan, nonce: string, options?: { resetState
     --code-comment: #8693a2;
     --code-keyword: #8ae0f6;
     --code-string: #bbec56;
+    --code-type: #4ec9b0;
+    --code-function: #dcdcaa;
+    --code-control: #c586c0;
+    --code-number: #b5cea8;
+    --code-property: #9cdcfe;
+    --code-operator: #d4d4d4;
     --bubble-bg: #232323;
     --bubble-border: #292929;
     --shadow: rgba(0, 0, 0, 0.5);
@@ -567,6 +586,12 @@ export function renderPlanHtml(plan: Plan, nonce: string, options?: { resetState
       --code-comment: #5d6b7a;
       --code-keyword: #0b6d8c;
       --code-string: #3d7a0a;
+      --code-type: #267f6d;
+      --code-function: #795e26;
+      --code-control: #af00db;
+      --code-number: #098658;
+      --code-property: #0070c1;
+      --code-operator: #3b3b3b;
       --bubble-bg: #f7f7f7;
       --bubble-border: #dcdcdc;
       --shadow: rgba(0, 0, 0, 0.18);
@@ -579,9 +604,10 @@ export function renderPlanHtml(plan: Plan, nonce: string, options?: { resetState
   .content { padding-inline: var(--content-pad); }
   header.top { position: sticky; top: 0; z-index: 20; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 0.5rem; padding: 0.6rem 0; padding-inline: var(--bar-pad); background: var(--bg); border-bottom: 1px solid var(--border); }
   header.top .title-wrap { flex: 1 1 12rem; min-width: 0; }
-  header.top h1 { margin: 0; line-height: 1.25; }
+  header.top h1 { margin: 0; line-height: 1.25; font-size: 1.26em; }
+  header.top .edit-field.edit-title { font-size: 1.26em; }
   .bar-actions { display: flex; align-items: center; gap: 0.5rem; }
-  button.review { display: inline-flex; align-items: center; gap: 0.4rem; background: var(--review); color: var(--review-fg); border: 0; border-radius: 4px; height: 30px; padding: 0 12px; font: inherit; font-size: 13px; cursor: pointer; }
+  button.review { display: inline-flex; align-items: center; gap: 0.4rem; background: var(--review); color: var(--review-fg); border: 0; border-radius: 4px; height: 26px; padding: 0 10px; font: inherit; font-size: 12px; cursor: pointer; }
   .review-wrap, .kebab-wrap { position: relative; }
   button.kebab { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; padding: 0; background: transparent; color: var(--fg); border: 1px solid var(--border); border-radius: 4px; cursor: pointer; }
   .popover { position: absolute; top: calc(100% + 0.3rem); right: 0; z-index: 10; background: var(--popover); color: var(--fg); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 4px 16px var(--shadow); }
@@ -598,7 +624,7 @@ export function renderPlanHtml(plan: Plan, nonce: string, options?: { resetState
   .comment-item.empty { color: var(--muted); border-top: 0; }
   button.primary { background: var(--accent); color: var(--accent-fg); border: 0; border-radius: 4px; padding: 0.3rem 0.8rem; font: inherit; cursor: pointer; }
   button.submit-review:disabled { opacity: 0.6; cursor: default; }
-  button.implement { background: var(--implement); color: var(--implement-fg); border: 0; border-radius: 4px; height: 30px; padding: 0 12px; font: inherit; font-size: 13px; cursor: pointer; }
+  button.implement { background: var(--implement); color: var(--implement-fg); border: 0; border-radius: 4px; height: 26px; padding: 0 10px; font: inherit; font-size: 12px; cursor: pointer; }
   button.review:disabled, button.implement:disabled { opacity: 0.6; cursor: default; }
   .status { color: var(--muted); font-size: 0.85rem; min-height: 1.2em; margin: 0.25rem 0 0.5rem; text-align: right; }
   .block { display: grid; grid-template-columns: minmax(0, 1fr) var(--margin-width); column-gap: 0.5rem; margin: 0.25rem 0; }
@@ -629,6 +655,12 @@ export function renderPlanHtml(plan: Plan, nonce: string, options?: { resetState
   pre code .tok-comment { color: var(--code-comment); }
   pre code .tok-keyword { color: var(--code-keyword); }
   pre code .tok-string { color: var(--code-string); }
+  pre code .tok-type { color: var(--code-type); }
+  pre code .tok-function { color: var(--code-function); }
+  pre code .tok-control { color: var(--code-control); }
+  pre code .tok-number { color: var(--code-number); }
+  pre code .tok-property { color: var(--code-property); }
+  pre code .tok-operator { color: var(--code-operator); }
   .callout { --callout-color: var(--info); border-left: 3px solid var(--callout-color); padding: 0.4rem 0.8rem; border-radius: 4px; background: var(--card); color: var(--fg); }
   .callout.info { --callout-color: var(--info); }
   .callout.note { --callout-color: var(--note); }
@@ -643,7 +675,9 @@ export function renderPlanHtml(plan: Plan, nonce: string, options?: { resetState
   button.copy-code { position: absolute; top: 0.35rem; right: 0.5rem; background: var(--btn-secondary); color: var(--fg); border: 1px solid var(--border); border-radius: 4px; padding: 0.1rem 0.5rem; font: inherit; font-size: 0.75rem; cursor: pointer; }
   pre { background: var(--code-bg); border: 1px solid var(--border); border-radius: 6px; padding: 2rem 1rem 0.75rem; overflow-x: auto; margin: 0; }
   .badge { background: var(--badge-bg); color: var(--badge-fg); border-radius: 999px; padding: 0 0.5rem; font-size: 0.75rem; margin-left: 0.25rem; }
-  button.add-comment { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; padding: 0; background: var(--accent); color: var(--accent-fg); border: 0; border-radius: 4px; font: bold 12px/1 var(--font-body); cursor: pointer; opacity: 0; }
+  button.add-comment { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; padding: 0; background: var(--accent); color: var(--accent-fg); border: 0; border-radius: 4px; font: bold 10px/1 var(--font-body); cursor: pointer; opacity: 0; }
+  button.add-comment .plus-glyph { display: flex; align-items: center; justify-content: center; width: 10px; height: 10px; line-height: 1; }
+  button.add-comment .plus-glyph svg { display: block; width: 10px; height: 10px; }
   .block:hover button.add-comment, .block:focus-within button.add-comment, button.add-comment:focus-visible { opacity: 1; }
   .bubble { position: relative; }
   .bubble .marker { display: inline-flex; align-items: center; justify-content: center; width: 1.6rem; height: 1.6rem; color: var(--accent); cursor: pointer; }
