@@ -91,8 +91,9 @@ async function reveal(b: Locator): Promise<void> {
 
 /** Adds a comment on a block through the margin button, and returns once the bubble is shown. */
 async function addComment(page: Page, id: string, text: string): Promise<void> {
-  const b = block(page, id);
-  await b.hover();
+  // The whole-code block contains the per-line blocks, so use only its own margin cell.
+  const b = block(page, id).locator(":scope > .margin");
+  await block(page, id).hover();
   await b.locator("button.add-comment").click();
   await b.locator("textarea.comment-field").fill(text);
   await b.getByRole("button", { name: "Add Comment", exact: true }).click();
@@ -111,7 +112,8 @@ test.describe("plan webview", () => {
     await expect(page.locator("h1")).toHaveText(samplePlan.title);
     await expect(page.locator("[data-edit='summary']")).toHaveText(noMarker(samplePlan.overview.summary));
     await expect(page.locator("[data-edit='outOfScope']")).toHaveText(noMarker(samplePlan.overview.outOfScope));
-    await expect(page.locator("pre code")).toContainText("export function greet");
+    await expect(page.locator("[data-edit='code']")).toContainText("export function greet");
+    await expect(page.locator(".block[data-block^='code:']")).not.toHaveCount(0);
     await expect(page.locator(".block[data-block^='file:']")).toHaveCount(samplePlan.files.length);
     await expect(page.locator(".block[data-block='file:0'] .badge")).toHaveText("new");
     await expect(page.locator(".block[data-block^='step:']")).toHaveCount(samplePlan.implementationSteps.length);
@@ -223,7 +225,7 @@ test.describe("plan webview", () => {
   test("cancelling an edit keeps the comment", async ({ page }) => {
     await openPlan(page, "cancel-comment");
     await addComment(page, "code", "Keep me");
-    const b = block(page, "code");
+    const b = block(page, "code").locator(":scope > .margin");
     await reveal(b);
     await b.getByRole("button", { name: "Edit Comment", exact: true }).click();
     await b.locator("textarea.comment-field").fill("Throw away");
@@ -279,11 +281,9 @@ test.describe("plan webview", () => {
     expect(saves[0].steps[2]).toBe(samplePlan.implementationSteps[2]);
   });
 
-  // Code, files, and verification are read-only: a click does not open a field.
-  test("code, files, and verification are not editable", async ({ page }) => {
+  // Files and verification are read-only: a click does not open a field. (The code is editable now.)
+  test("files and verification are not editable", async ({ page }) => {
     await openPlan(page, "readonly");
-    // Click the block itself: the inline <code> spans many lines, so its centre can fall outside any line.
-    await page.locator("pre").click();
     await page.locator(".file-change").first().click();
     await page.locator(".verification-item").first().click();
     await expect(page.locator("input.edit-field, textarea.edit-field")).toHaveCount(0);

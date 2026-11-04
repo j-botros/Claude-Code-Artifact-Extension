@@ -49,6 +49,7 @@ describe("renderPlanHtml", () => {
     expect(blockIds(html)).toEqual([
       "overview",
       "code",
+      "code:0",
       "file:0",
       "file:1",
       "step:0",
@@ -76,9 +77,9 @@ describe("renderPlanHtml", () => {
 
   it("makes only title, summary, outOfScope and steps editable", () => {
     const html = renderPlanHtml(makePlan(), NONCE);
-    expect(editKeys(html)).toEqual(["title", "summary", "outOfScope", "step:0", "step:1"]);
-    // None of the read-only blocks (code, files, verification) contain an editable element.
-    for (const id of ["code", "file:0", "file:1", "verification:0", "verification:1"]) {
+    expect(editKeys(html)).toEqual(["title", "summary", "outOfScope", "code", "step:0", "step:1"]);
+    // None of the read-only blocks (files, verification) contain an editable element.
+    for (const id of ["file:0", "file:1", "verification:0", "verification:1"]) {
       const start = html.indexOf(`data-block="${id}"`);
       const end = html.indexOf('<div class="block', start + 1);
       const chunk = html.slice(start, end === -1 ? undefined : end);
@@ -355,7 +356,7 @@ describe("renderPlanHtml", () => {
       html = renderPlanHtml(makePlan({ implementationSteps: [] }), NONCE);
     }).not.toThrow();
     expect(blockIds(html).some((id) => id.startsWith("step:"))).toBe(false);
-    expect(editKeys(html)).toEqual(["title", "summary", "outOfScope"]);
+    expect(editKeys(html)).toEqual(["title", "summary", "outOfScope", "code"]);
     expect(html).toContain("<h2>Implementation steps</h2>");
   });
 });
