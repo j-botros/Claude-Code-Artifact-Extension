@@ -2,27 +2,24 @@ import * as vscode from "vscode";
 import { applyAcceptedHunks } from "../plan/applyHunks";
 import { DiffHunk, splitHunks } from "../plan/diffHunks";
 import { Decision, setDecision, summarizeDecisions } from "../plan/hunkDecisions";
+import { InlineView, LineSpan, buildInlineView } from "../plan/inlineReview";
 import { Plan, isSafeRelativePath } from "../plan/plan";
 
 /** Result of starting a review: a message for the status line, and whether it worked. */
 export type ReviewResult = { ok: true; message: string } | { ok: false; message: string };
 
-/** URI scheme for the virtual "original" side (used only for new files). */
-const ORIGINAL_SCHEME = "claude-artifact-original";
+/** URI scheme for the read-only inline review document (real file name, virtual content). */
+const INLINE_SCHEME = "claude-artifact-inline";
 
-/** URI scheme for the virtual "proposed" side. */
-const PROPOSED_SCHEME = "claude-artifact-proposed";
-
-/** One reviewed file: its texts, its hunks, and where each hunk starts in the proposed text. */
+/** One reviewed file: its original text, its hunks, and its inline document URI. */
 interface ReviewFile {
   path: string;
   originalText: string;
-  proposedText: string;
   hunks: DiffHunk[];
-  /** Zero-based line index in the proposed text where each hunk's added lines start. */
-  newStarts: number[];
-  leftUri: vscode.Uri;
-  rightUri: vscode.Uri;
+  /** True when the file does not exist in the workspace yet. */
+  isNew: boolean;
+  /** URI of the virtual inline document. */
+  uri: vscode.Uri;
 }
 
 /** One review session: the files and the in-memory accept/reject decisions. */
@@ -68,34 +65,41 @@ function hunkKey(path: string, index: number): string {
   return `${path}#${index}`;
 }
 
-/** Builds a virtual document URI for a path under the given scheme. */
-function virtualUri(scheme: string, path: string, sessionId: number): vscode.Uri {
-  return vscode.Uri.from({ scheme, path: `/${path}`, query: `session=${sessionId}` });
+/** Builds the inline document URI for a path. The path is the real file's, so title and language match. */
+function inlineUri(path: string, sessionId: number): vscode.Uri {
+  return vscode.Uri.from({ scheme: INLINE_SCHEME, path: `/${path}`, query: `session=${sessionId}` });
 }
 
-/** Finds the reviewed file that owns a document URI (real left file or either virtual side). */
+/** Finds the reviewed file that owns an inline document URI. */
 function fileForUri(uri: vscode.Uri): ReviewFile | undefined {
   if (session === undefined) {
     return undefined;
   }
   for (const file of session.files.values()) {
-    if (file.leftUri.toString() === uri.toString() || file.rightUri.toString() === uri.toString()) {
+    if (file.uri.toString() === uri.toString()) {
       return file;
     }
   }
   return undefined;
 }
 
-/** Builds a range covering `count` whole lines from `start`, limited to the document's lines. */
-function lineRange(document: vscode.TextDocument, start: number, count: number): vscode.Range | undefined {
-  if (count <= 0 || document.lineCount === 0 || start >= document.lineCount) {
-    return undefined;
+/** Computes the inline view of one file from the current in-memory decisions. */
+function viewFor(s: ReviewSession, file: ReviewFile): InlineView {
+  const rejected = new Set<number>();
+  for (const hunk of file.hunks) {
+    if (s.decisions.get(hunkKey(file.path, hunk.index)) === "reject") {
+      rejected.add(hunk.index);
+    }
   }
-  const last = Math.min(start + count - 1, document.lineCount - 1);
-  return new vscode.Range(start, 0, last, 0);
+  return buildInlineView(file.originalText, file.hunks, rejected);
 }
 
-/** Paints green (added) and red (removed) lines on every visible editor that belongs to the session. */
+/** Turns a line span into a whole-line range. */
+function spanRange(span: LineSpan): vscode.Range {
+  return new vscode.Range(span.start, 0, span.start + span.count - 1, 0);
+}
+
+/** Paints green (added) and red (removed) lines on every visible inline editor of the session. */
 function refreshDecorations(): void {
   const types = decorationTypes();
   for (const editor of vscode.window.visibleTextEditors) {
@@ -105,18 +109,14 @@ function refreshDecorations(): void {
       editor.setDecorations(types.removed, []);
       continue;
     }
-    const isRight = editor.document.uri.toString() === file.rightUri.toString();
     const added: vscode.Range[] = [];
     const removed: vscode.Range[] = [];
-    for (const hunk of file.hunks) {
-      if (session.decisions.get(hunkKey(file.path, hunk.index)) === "reject") {
-        continue;
+    for (const range of viewFor(session, file).hunks) {
+      if (range.added !== null) {
+        added.push(spanRange(range.added));
       }
-      const range = isRight
-        ? lineRange(editor.document, file.newStarts[hunk.index], hunk.newLines.length)
-        : lineRange(editor.document, hunk.oldStart, hunk.oldLines.length);
-      if (range !== undefined) {
-        (isRight ? added : removed).push(range);
+      if (range.removed !== null) {
+        removed.push(spanRange(range.removed));
       }
     }
     editor.setDecorations(types.added, added);
@@ -144,8 +144,8 @@ async function readOriginal(uri: vscode.Uri): Promise<string | null> {
 }
 
 /**
- * Starts the hunk review for a plan's proposedFiles: opens a diff per changed file,
- * paints hunks green or red, and offers Accept and Reject lenses. Reads files only; never
+ * Starts the hunk review for a plan's proposedFiles: opens a read-only inline document per
+ * changed file, paints hunks green or red, and offers Accept and Reject lenses. Reads files only; never
  * changes anything on disk. Never throws.
  */
 export async function startImplementReview(plan: Plan, folder: vscode.Uri): Promise<ReviewResult> {
@@ -168,20 +168,12 @@ export async function startImplementReview(plan: Plan, folder: vscode.Uri): Prom
       if (hunks.length === 0) {
         continue;
       }
-      const newStarts: number[] = [];
-      let shift = 0;
-      for (const hunk of hunks) {
-        newStarts.push(hunk.oldStart + shift);
-        shift += hunk.newLines.length - hunk.oldLines.length;
-      }
       files.set(item.path, {
         path: item.path,
         originalText,
-        proposedText: item.content,
         hunks,
-        newStarts,
-        leftUri: original === null ? virtualUri(ORIGINAL_SCHEME, item.path, id) : realUri,
-        rightUri: virtualUri(PROPOSED_SCHEME, item.path, id),
+        isNew: original === null,
+        uri: inlineUri(item.path, id),
       });
       total += hunks.length;
     }
@@ -191,12 +183,8 @@ export async function startImplementReview(plan: Plan, folder: vscode.Uri): Prom
     session = { id, folder, files, decisions: new Map(), total };
     lensChanged.fire();
     for (const file of files.values()) {
-      await vscode.commands.executeCommand(
-        "vscode.diff",
-        file.leftUri,
-        file.rightUri,
-        `${file.path} (proposed)`
-      );
+      contentChanged.fire(file.uri);
+      await vscode.window.showTextDocument(file.uri, { preview: false });
     }
     refreshDecorations();
     return { ok: true, message: summaryMessage() };
@@ -205,25 +193,30 @@ export async function startImplementReview(plan: Plan, folder: vscode.Uri): Prom
   }
 }
 
-/** Serves the text of the virtual documents from the current session. */
+/** Fires when an inline document's text must be rebuilt (a decision changed). */
+const contentChanged = new vscode.EventEmitter<vscode.Uri>();
+
+/** Serves the inline document text from the current session's hunks and decisions. */
 class SessionContentProvider implements vscode.TextDocumentContentProvider {
-  /** Returns the original or proposed text for a virtual URI, or "" when unknown. */
+  /** Lets VS Code reload an inline document when its text is rebuilt. */
+  readonly onDidChange = contentChanged.event;
+
+  /** Returns the inline text for a virtual URI, or "" when unknown. */
   provideTextDocumentContent(uri: vscode.Uri): string {
-    const path = uri.path.replace(/^\//, "");
-    const file = session?.files.get(path);
-    if (file === undefined) {
+    const file = fileForUri(uri);
+    if (file === undefined || session === undefined) {
       return "";
     }
-    return uri.scheme === ORIGINAL_SCHEME ? file.originalText : file.proposedText;
+    return viewFor(session, file).text;
   }
 }
 
-/** Gives each hunk on the proposed side an Accept and a Reject lens above its first line. */
+/** Gives each hunk in an inline document an Accept and a Reject lens above its first line. */
 class HunkLensProvider implements vscode.CodeLensProvider {
   /** Lets VS Code refresh lenses when decisions change. */
   readonly onDidChangeCodeLenses = lensChanged.event;
 
-  /** Builds the lenses for one proposed document. */
+  /** Builds the lenses for one inline document. */
   provideCodeLenses(document: vscode.TextDocument): vscode.CodeLens[] {
     const file = fileForUri(document.uri);
     if (file === undefined || session === undefined) {
@@ -238,8 +231,9 @@ class HunkLensProvider implements vscode.CodeLensProvider {
         arguments: [{ sessionId: session.id }],
       })
     );
+    const view = viewFor(session, file);
     for (const hunk of file.hunks) {
-      const line = Math.min(file.newStarts[hunk.index], Math.max(0, document.lineCount - 1));
+      const line = Math.min(view.hunks[hunk.index].firstLine, Math.max(0, document.lineCount - 1));
       const range = new vscode.Range(line, 0, line, 0);
       const args = { sessionId: session.id, key: hunkKey(file.path, hunk.index) };
       const decision = session.decisions.get(args.key);
@@ -270,6 +264,11 @@ function decide(value: Decision, arg: unknown): void {
     return;
   }
   session.decisions = setDecision(session.decisions, key, value);
+  for (const file of session.files.values()) {
+    if (key.startsWith(`${file.path}#`)) {
+      contentChanged.fire(file.uri);
+    }
+  }
   lensChanged.fire();
   refreshDecorations();
   void vscode.window.setStatusBarMessage(summaryMessage(), 10000);
@@ -317,7 +316,7 @@ async function writeOneFile(s: ReviewSession, file: ReviewFile): Promise<FileRes
     if (!uri.toString().startsWith(root)) {
       return { path, status: "skipped", detail: "path is outside the workspace folder" };
     }
-    const isNew = file.leftUri.scheme === ORIGINAL_SCHEME;
+    const isNew = file.isNew;
     const open = vscode.workspace.textDocuments.find((d) => d.uri.toString() === uri.toString());
     if (open !== undefined && open.isDirty) {
       return { path, status: "skipped", detail: "has unsaved changes" };
@@ -423,17 +422,22 @@ async function applyAccepted(arg: unknown): Promise<void> {
 export function registerHunkReview(context: vscode.ExtensionContext): void {
   const contentProvider = new SessionContentProvider();
   context.subscriptions.push(
-    vscode.workspace.registerTextDocumentContentProvider(ORIGINAL_SCHEME, contentProvider),
-    vscode.workspace.registerTextDocumentContentProvider(PROPOSED_SCHEME, contentProvider),
+    vscode.workspace.registerTextDocumentContentProvider(INLINE_SCHEME, contentProvider),
     vscode.languages.registerCodeLensProvider(
-      [{ scheme: PROPOSED_SCHEME }],
+      [{ scheme: INLINE_SCHEME }],
       new HunkLensProvider()
     ),
     vscode.commands.registerCommand("claudeArtifact.acceptHunk", (arg: unknown) => decide("accept", arg)),
     vscode.commands.registerCommand("claudeArtifact.rejectHunk", (arg: unknown) => decide("reject", arg)),
     vscode.commands.registerCommand("claudeArtifact.applyAccepted", (arg: unknown) => applyAccepted(arg)),
     vscode.window.onDidChangeVisibleTextEditors(() => refreshDecorations()),
+    vscode.workspace.onDidChangeTextDocument((e) => {
+      if (e.document.uri.scheme === INLINE_SCHEME) {
+        refreshDecorations();
+      }
+    }),
     lensChanged,
+    contentChanged,
     {
       dispose: () => {
         addedType?.dispose();

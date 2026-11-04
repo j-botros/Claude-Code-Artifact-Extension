@@ -87,14 +87,12 @@ suite("Apply accepted flows in a temporary workspace", () => {
     assert.ok(result.ok, result.message);
   }
 
-  /** Returns the lenses of the newest proposed document for a path (highest session id). */
-  async function lensesFor(rel: string): Promise<vscode.CodeLens[]> {
-    // The newest session id is the highest id among any open proposed document. With several
-    // files, VS Code may keep only the last diff open, so build this file's URI from that id.
+  /** Builds the inline document URI for a path using the newest session id among open inline documents. */
+  async function inlineUriFor(rel: string): Promise<vscode.Uri> {
     let newestId = -1;
     for (let i = 0; i < 100 && newestId < 0; i++) {
       for (const doc of vscode.workspace.textDocuments) {
-        if (doc.uri.scheme !== "claude-artifact-proposed") {
+        if (doc.uri.scheme !== "claude-artifact-inline") {
           continue;
         }
         newestId = Math.max(newestId, Number(/session=(\d+)/.exec(doc.uri.query)?.[1] ?? -1));
@@ -103,8 +101,27 @@ suite("Apply accepted flows in a temporary workspace", () => {
         await new Promise((r) => setTimeout(r, 50));
       }
     }
-    assert.ok(newestId >= 0, `no proposed document open for ${rel}`);
-    const best = vscode.Uri.from({ scheme: "claude-artifact-proposed", path: `/${rel}`, query: `session=${newestId}` });
+    assert.ok(newestId >= 0, `no inline document open for ${rel}`);
+    return vscode.Uri.from({ scheme: "claude-artifact-inline", path: `/${rel}`, query: `session=${newestId}` });
+  }
+
+  /** Polls until the inline document text equals the expected text, or fails with the last text. */
+  async function waitForInlineText(rel: string, expected: string): Promise<void> {
+    const uri = await inlineUriFor(rel);
+    let last = "";
+    for (let i = 0; i < 100; i++) {
+      last = (await vscode.workspace.openTextDocument(uri)).getText();
+      if (last === expected) {
+        return;
+      }
+      await new Promise((r) => setTimeout(r, 50));
+    }
+    assert.strictEqual(last, expected);
+  }
+
+  /** Returns the lenses of the newest inline document for a path (highest session id). */
+  async function lensesFor(rel: string): Promise<vscode.CodeLens[]> {
+    const best = await inlineUriFor(rel);
     await vscode.workspace.openTextDocument(best);
     const found = await vscode.commands.executeCommand<vscode.CodeLens[]>("vscode.executeCodeLensProvider", best);
     assert.ok(found && found.length > 0, `no code lenses for ${rel}`);
@@ -169,6 +186,68 @@ suite("Apply accepted flows in a temporary workspace", () => {
   /** Two edits (lines 2 and 9) far apart so they form two separate hunks. */
   const ORIGINAL = lines("line", 10);
   const PROPOSED = lines("line", 10, { 2: "CHANGED two", 9: "CHANGED nine" });
+
+  test("review opens the inline document with no vscode.diff call", async () => {
+    put("a.txt", ORIGINAL);
+    const calls: string[] = [];
+    const realExecute = vscode.commands.executeCommand;
+    const restore = replace(vscode.commands, "executeCommand", (command: string, ...rest: unknown[]) => {
+      calls.push(command);
+      return realExecute.call(vscode.commands, command, ...rest);
+    });
+    try {
+      await start([{ path: "a.txt", content: PROPOSED }]);
+    } finally {
+      restore();
+    }
+    assert.ok(!calls.includes("vscode.diff"), `vscode.diff was called: ${calls.join(", ")}`);
+    const tabs = vscode.window.tabGroups.all.flatMap((g) => g.tabs);
+    assert.strictEqual(tabs.filter((t) => t.input instanceof vscode.TabInputTextDiff).length, 0);
+    const inline = tabs.filter((t) => t.input instanceof vscode.TabInputText && t.input.uri.scheme === "claude-artifact-inline");
+    assert.strictEqual(inline.length, 1);
+    assert.ok(inline[0].label.includes("a.txt"), `tab title: ${inline[0].label}`);
+    // The real file is never opened for editing.
+    const realOpen = vscode.workspace.textDocuments.filter((d) => d.uri.scheme === "file" && d.uri.fsPath === path.join(dir, "a.txt"));
+    assert.strictEqual(realOpen.length, 0, "the real file must not be opened");
+    assert.strictEqual(read("a.txt"), ORIGINAL);
+  });
+
+  test("inline text holds the removed and added lines of every pending hunk", async () => {
+    put("a.txt", ORIGINAL);
+    await start([{ path: "a.txt", content: PROPOSED }]);
+    const text = (await vscode.workspace.openTextDocument(await inlineUriFor("a.txt"))).getText();
+    assert.strictEqual(text, lines("line", 10, { 2: "line2\nCHANGED two", 9: "line9\nCHANGED nine" }));
+  });
+
+  test("reject changes one hunk only, and accept changes no text", async () => {
+    put("a.txt", ORIGINAL);
+    await start([{ path: "a.txt", content: PROPOSED }]);
+    const rejects = await argsOf("a.txt", "claudeArtifact.rejectHunk");
+    const accepts = await argsOf("a.txt", "claudeArtifact.acceptHunk");
+
+    await vscode.commands.executeCommand("claudeArtifact.rejectHunk", rejects[1]);
+    await waitForInlineText("a.txt", lines("line", 10, { 2: "line2\nCHANGED two" }));
+    let titles = (await lensesFor("a.txt")).map((l) => l.command?.title);
+    assert.deepStrictEqual(titles.slice(1), ["✓ Accept", "✗ Reject", "✓ Accept", "✗ Rejected"]);
+
+    await vscode.commands.executeCommand("claudeArtifact.acceptHunk", accepts[0]);
+    await waitForInlineText("a.txt", lines("line", 10, { 2: "line2\nCHANGED two" }));
+    titles = (await lensesFor("a.txt")).map((l) => l.command?.title);
+    assert.deepStrictEqual(titles.slice(1), ["✓ Accepted", "✗ Reject", "✓ Accept", "✗ Rejected"]);
+    assert.strictEqual(read("a.txt"), ORIGINAL, "deciding writes nothing");
+    assert.deepStrictEqual(infos, []);
+  });
+
+  test("new file opens with every line added", async () => {
+    await start([{ path: "fresh/new.txt", content: "alpha\nbeta\ngamma" }]);
+    const doc = await vscode.workspace.openTextDocument(await inlineUriFor("fresh/new.txt"));
+    assert.strictEqual(doc.getText(), "alpha\nbeta\ngamma");
+    assert.ok(!fs.existsSync(path.join(dir, "fresh")), "nothing created on disk by the review");
+    const lenses = await lensesFor("fresh/new.txt");
+    const accepts = lenses.filter((l) => l.command?.command === "claudeArtifact.acceptHunk");
+    assert.strictEqual(accepts.length, 1, "one hunk covering the whole file");
+    assert.strictEqual(accepts[0].range.start.line, 0);
+  });
 
   test("accept hunk 0, reject hunk 1: only hunk 0 is written", async () => {
     put("a.txt", ORIGINAL);
