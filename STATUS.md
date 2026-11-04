@@ -13,6 +13,24 @@ Owned by the core agent only. Keep the latest run first. Keep only the last few 
 
 ## Run log
 
+### Run 27 (2026-11-03)
+- Task: `match-antigravity-layout` (developer, then tester). Branch `task/match-antigravity-layout`. Brief commit `adc9a08`.
+- Developer (commit `3dca138`): 77% column, sticky bar (title, kebab, Review, Implement), blue Review, green Implement, heading sizes, callouts for five markers (pure helper `src/plan/callouts.ts`), 1px section rules, 24px "+", code labels and a copy button, "Click to edit" tooltip. CLAUDE.md Section 3 lists the markers.
+- Tester (commit `0ef1d0e`): updated five old unit assertions (one more than the developer listed), added `callouts.test.ts`, `layout.spec.ts`, and one `copyCode` integration test. Verdict PASS.
+- Core agent: README bullet (commit `64dbdc9`). PR #67 into `dev`.
+- Choices (not in CLAUDE.md):
+  - Implement the Design uses dark text `#1f1f1f` on green (about 5.1:1). White on `#3fa34d` is about 3.2:1. Light theme uses `#2b7d37` with white text.
+  - Title is in the sticky bar, so it has no margin "+" and no title comment. It stays click-to-edit.
+  - The copy button sends only `copyCode`; the host copies its own stored code.
+  - Below 900px the "Click to edit" tooltip is hidden and the column is full width.
+- Test results: `npm run compile` passes. `npm run test:unit` 265 passed (16 files). `npm run test:ui` 64 passed. `npm run test:integration` 29 passed on re-runs.
+- Flake, not explained: the first chained `npm test` exited 1 during integration after one test ("Extension host ... exited with code 0"). Two later standalone runs of `npm run test:integration` each passed 29/29 with exit 0. Cause not found. Owner: if it recurs, check `.vscode-test` for a stale host. Not fixed.
+- Not verified:
+  - Headless Chromium only. Not checked in a real VS Code or Antigravity webview. Sticky-bar placement is checked by computed style and bounding boxes, not by eye.
+  - Font and heading ratios are partly estimates. The green and the TIP, WARNING, CAUTION colours are the core agent's choices.
+  - Owner: open the sample plan in Antigravity and compare with the screenshots.
+- Next: no `todo` task for developer or tester is left. `antigravity-test-2` is owner-only. `vitest-pin-two-weeks` is `blocked` (lock file, run 22). The next scheduled run should write `PAUSE` unless the owner adds a task or unblocks `vitest-pin-two-weeks`.
+
 ### Run 26 (2026-11-03)
 - Task: `match-antigravity-style` (developer, then tester). Branch `task/match-antigravity-style`, brief commit `465d7f3`.
 - Developer (commit `89fd0df`): every colour from the brief as a `:root` custom property (dark default, light variant); type, 800px column, 40px margin, 16px phone padding; accent on "+", Review with comments, Add Comment, Submit. Behaviour, CSP, and light theme kept.

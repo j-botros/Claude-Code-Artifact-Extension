@@ -89,6 +89,16 @@ suite("Kebab menu actions (Copy, Copy Path, Export Artifact)", () => {
     assert.strictEqual(posted.at(-1)?.ok, true);
   });
 
+  test("copyCode puts the stored proposedChanges.code on the clipboard and replies", async () => {
+    const plan = makePlan("Copy code plan");
+    const p = openPanel(plan) as unknown as { copyCode(): Promise<void> };
+    await p.copyCode();
+    assert.deepStrictEqual(await clipboardWrites(), [plan.proposedChanges.code]);
+    assert.strictEqual(posted.at(-1)?.type, "actionResult");
+    assert.strictEqual(posted.at(-1)?.ok, true);
+    assert.strictEqual(posted.at(-1)?.message, "Copied the code.");
+  });
+
   test("Copy uses the webview's unsaved edits", async () => {
     const plan = makePlan("Kebab copy edits");
     const p = openPanel(plan);

@@ -115,8 +115,8 @@ test.describe("plan webview", () => {
     await expect(page.locator(".block[data-block^='verification:']")).toHaveCount(1);
     await expect(page.locator(".verification-item").first()).toHaveText(samplePlan.verification[0]);
 
-    // Vertical order: title, overview, code, files, steps, verification.
-    const ids = ["title", "overview", "code", "file:0", "file:1", "step:0", "step:1", "step:2", "verification:0"];
+    // Vertical order: overview, code, files, steps, verification (the title sits in the sticky bar).
+    const ids = ["overview", "code", "file:0", "file:1", "step:0", "step:1", "step:2", "verification:0"];
     const tops: number[] = [];
     for (const id of ids) {
       const box = await block(page, id).boundingBox();
@@ -137,9 +137,9 @@ test.describe("plan webview", () => {
     expect(csp).toContain("default-src 'none'");
     expect(csp).not.toContain("unsafe-inline");
     // The script ran: it wired the comment button, which then opens an editor.
-    await block(page, "title").hover();
-    await block(page, "title").locator("button.add-comment").click();
-    await expect(block(page, "title").locator("textarea.comment-field")).toBeVisible();
+    await block(page, "overview").hover();
+    await block(page, "overview").locator("button.add-comment").click();
+    await expect(block(page, "overview").locator("textarea.comment-field")).toBeVisible();
     expect(errors).toEqual([]);
   });
 
@@ -166,15 +166,15 @@ test.describe("plan webview", () => {
     await expect(page.locator(".bubble")).toHaveCount(1);
   });
 
-  // Comments work on every kind of block: title, overview, code, file, step, verification.
+  // Comments work on every kind of block: overview, code, file, step, verification.
   test("every block can take a comment", async ({ page }) => {
     await openPlan(page, "all-blocks");
-    for (const id of ["title", "overview", "code", "file:0", "file:1", "step:0", "step:2", "verification:0"]) {
+    for (const id of ["overview", "code", "file:0", "file:1", "step:0", "step:2", "verification:0"]) {
       await addComment(page, id, `note on ${id}`);
     }
     const state = await page.evaluate(() => JSON.parse(sessionStorage.getItem("vscodeState") || "{}"));
     expect(Object.keys(state.comments).sort()).toEqual(
-      ["code", "file:0", "file:1", "overview", "step:0", "step:2", "title", "verification:0"]
+      ["code", "file:0", "file:1", "overview", "step:0", "step:2", "verification:0"]
     );
   });
 
@@ -245,7 +245,7 @@ test.describe("plan webview", () => {
   test("comments survive a reload", async ({ page }) => {
     await openPlan(page, "comments-reload");
     await addComment(page, "step:1", "Please also cover the error path.");
-    await addComment(page, "title", "Shorter title");
+    await addComment(page, "overview", "Shorter summary");
     await page.reload();
     await expect(page.locator(".bubble")).toHaveCount(2);
     const b = block(page, "step:1");
@@ -334,14 +334,14 @@ test.describe("plan webview", () => {
   // Review posts every comment keyed by block id, with the message; Implement posts implementDesign.
   test("Review and Implement post their messages", async ({ page }) => {
     await openPlan(page, "buttons");
-    await addComment(page, "title", "t");
+    await addComment(page, "overview", "t");
     await addComment(page, "step:2", "s");
     await page.locator("button.review").click();
     await page.locator("button.submit-review").click();
     await page.locator("button.implement").click();
     const posted = await postedMessages(page);
     const review = posted.find((m: any) => m.type === "reviewComments");
-    expect(review.comments).toEqual({ title: "t", "step:2": "s" });
+    expect(review.comments).toEqual({ overview: "t", "step:2": "s" });
     expect(review.steps).toEqual(samplePlan.implementationSteps);
     expect(posted.some((m: any) => m.type === "implementDesign")).toBe(true);
   });
@@ -433,7 +433,7 @@ test.describe("plan webview", () => {
   // The Review button opens the Submit comment popover with a message box and collapsible list.
   test("Review popover has a message box, Submit, and a collapsible comment list", async ({ page }) => {
     await openPlan(page, "review-pop");
-    await addComment(page, "title", "first note");
+    await addComment(page, "overview", "first note");
     await addComment(page, "step:2", "second note");
     const pop = page.locator(".review-pop");
     await expect(pop).toBeHidden();
@@ -449,7 +449,7 @@ test.describe("plan webview", () => {
     await expect(pop.locator("summary")).toHaveText("Comments (2)");
     const items = pop.locator("li.comment-item");
     await expect(items).toHaveCount(2);
-    await expect(items.nth(0)).toContainText("title");
+    await expect(items.nth(0)).toContainText("overview");
     await expect(items.nth(0)).toContainText("first note");
     await expect(items.nth(1)).toContainText("second note");
     // Collapsible: clicking the summary hides the list, clicking again shows it.
@@ -465,7 +465,7 @@ test.describe("plan webview", () => {
   // Submit posts reviewComments with the comments and the optional message.
   test("Submit posts reviewComments with the message", async ({ page }) => {
     await openPlan(page, "review-submit");
-    await addComment(page, "title", "t");
+    await addComment(page, "overview", "t");
     await page.locator("button.review").click();
     await page.locator("textarea.review-message").fill("Overall: keep it short.");
     await page.locator("button.submit-review").click();
@@ -474,7 +474,7 @@ test.describe("plan webview", () => {
     const posted = await postedMessages(page);
     const reviews = posted.filter((m: any) => m.type === "reviewComments");
     expect(reviews).toHaveLength(1);
-    expect(reviews[0].comments).toEqual({ title: "t" });
+    expect(reviews[0].comments).toEqual({ overview: "t" });
     expect(reviews[0].message).toBe("Overall: keep it short.");
     expect(reviews[0].title).toBe(samplePlan.title);
     // The buttons stay disabled until the host answers with reviewResult.
@@ -604,7 +604,7 @@ test.describe("plan webview", () => {
       });
       await page.emulateMedia({ colorScheme: scheme });
       await openPlan(page, `popover-${scheme}`);
-      await addComment(page, "title", "note");
+      await addComment(page, "overview", "note");
       await page.locator("button.review").click();
       const pop = await page.locator(".review-pop").evaluate((el) => {
         const cs = getComputedStyle(el);
@@ -639,10 +639,10 @@ test.describe("plan webview", () => {
       }
     });
     await openPlan(page, "console");
-    await addComment(page, "title", "x");
-    await reveal(block(page, "title"));
-    await block(page, "title").getByRole("button", { name: "Edit Comment", exact: true }).click();
-    await block(page, "title").getByRole("button", { name: "Cancel", exact: true }).click();
+    await addComment(page, "overview", "x");
+    await reveal(block(page, "overview"));
+    await block(page, "overview").getByRole("button", { name: "Edit Comment", exact: true }).click();
+    await block(page, "overview").getByRole("button", { name: "Cancel", exact: true }).click();
     await page.locator("button.review").click();
     await page.locator("button.submit-review").click();
     await page.locator("button.kebab").click();
@@ -698,10 +698,10 @@ test.describe("plan webview", () => {
     expect(await overflow()).toBeLessThanOrEqual(0);
 
     // An open comment editor also stays inside the page.
-    await block(page, "title").locator("button.add-comment").click();
-    await expect(block(page, "title").locator("textarea.comment-field")).toBeVisible();
+    await block(page, "overview").locator("button.add-comment").click();
+    await expect(block(page, "overview").locator("textarea.comment-field")).toBeVisible();
     expect(await overflow()).toBeLessThanOrEqual(0);
-    const box = await block(page, "title").locator("textarea.comment-field").boundingBox();
+    const box = await block(page, "overview").locator("textarea.comment-field").boundingBox();
     expect(box!.x + box!.width).toBeLessThanOrEqual(400);
   });
 
@@ -725,7 +725,7 @@ test.describe("plan webview", () => {
       const page = await browser.newPage();
       await page.emulateMedia({ colorScheme: scheme });
       await openPlan(page, `bubble-${scheme}`);
-      await addComment(page, "title", "theme note");
+      await addComment(page, "overview", "theme note");
       const colors = await page.evaluate(() => {
         const marker = document.querySelector(".bubble .marker") as HTMLElement;
         return {

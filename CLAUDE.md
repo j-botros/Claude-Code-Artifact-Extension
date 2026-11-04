@@ -29,6 +29,7 @@
   - `proposedChanges`: `language` (string) and `code` (string: the signature or interface first, with its doc comment)
   - `files`: an array of `{ path, change, isNew }`. `path` is a relative path. `change` is one line. `isNew` is true for new files.
   - `implementationSteps`: an ordered array of short strings, one or two lines each. Reference existing helpers by name instead of re-describing them.
+  - Callout markers (no format change): a text block (`summary`, `outOfScope`, a step, or a verification item) that starts with `NOTE:`, `TIP:`, `IMPORTANT:`, `WARNING:`, or `CAUTION:` (case-sensitive, at the very start) renders as a callout with a coloured left bar and the marker as its label. The marker stays in the saved text.
   - `verification`: an array of strings: how each change is tested, or why it isn't.
   - `proposedFiles` (optional, used only by Implement the Design): an array of `{ path, content }`. `path` is a relative path inside the workspace. `content` is the full new file. Omit the field when no files are proposed. It is not rendered as part of the plan text.
   - The plan prompt for Claude Code must ask for exactly this shape, with `proposedFiles` marked as optional.

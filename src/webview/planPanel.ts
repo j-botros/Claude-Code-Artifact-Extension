@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import { codeLabel, splitCallout } from "../plan/callouts";
 import { Plan, isSafeRelativePath } from "../plan/plan";
 import { applyPlanEdits, planFileName } from "../plan/planEdits";
 import { planMarkdownFileName, planToMarkdown } from "../plan/planMarkdown";
@@ -60,7 +61,31 @@ function renderBlock(id: string, label: string, body: string, extraClass = ""): 
 /** Renders text that turns into a field when clicked. `key` names the edited plan field. */
 function renderEditable(tag: string, key: string, label: string, text: string, placeholder = ""): string {
   const ph = placeholder === "" ? "" : ` data-placeholder="${escapeHtml(placeholder)}"`;
-  return `<${tag} class="editable" data-edit="${escapeHtml(key)}" data-label="${escapeHtml(label)}" tabindex="0" title="Click to edit"${ph}>${escapeHtml(text)}</${tag}>`;
+  return `<${tag} class="editable" data-edit="${escapeHtml(key)}" data-label="${escapeHtml(label)}" tabindex="0"${ph}>${escapeHtml(text)}</${tag}>`;
+}
+
+/**
+ * Renders editable text. When the text starts with a callout marker (NOTE:, TIP:, IMPORTANT:,
+ * WARNING:, CAUTION:), wraps it in a callout with the marker as a label. The editable element
+ * then holds only the body and keeps the removed prefix in `data-marker`, so the script can
+ * put it back when saving.
+ */
+function renderTextBlock(key: string, label: string, text: string, placeholder = ""): string {
+  const callout = splitCallout(text);
+  if (callout === null) {
+    return renderEditable("div", key, label, text, placeholder);
+  }
+  const ph = placeholder === "" ? "" : ` data-placeholder="${escapeHtml(placeholder)}"`;
+  return `<div class="callout ${callout.kind}"><div class="callout-label">${callout.marker}</div><div class="editable" data-edit="${escapeHtml(key)}" data-label="${escapeHtml(label)}" data-marker="${escapeHtml(callout.prefix)}" tabindex="0"${ph}>${escapeHtml(callout.body)}</div></div>`;
+}
+
+/** Renders read-only text, as a callout when it starts with a callout marker. */
+function renderPlainText(className: string, text: string): string {
+  const callout = splitCallout(text);
+  if (callout === null) {
+    return `<div class="${className}">${escapeHtml(text)}</div>`;
+  }
+  return `<div class="callout ${callout.kind}"><div class="callout-label">${callout.marker}</div><div class="${className}">${escapeHtml(callout.body)}</div></div>`;
 }
 
 /** Fixed script (no plan data): click-to-edit, margin comments, saving edits, and review requests. */
@@ -83,17 +108,32 @@ const editEls = {};
 document.querySelectorAll("[data-edit]").forEach((el) => {
   editEls[el.getAttribute("data-edit")] = el;
 });
+function fullText(el) {
+  const marker = el.getAttribute("data-marker") || "";
+  if (marker === "") { return el.textContent; }
+  return el.textContent === "" ? marker.trimEnd() : marker + el.textContent;
+}
+function setFullText(el, text) {
+  const marker = el.getAttribute("data-marker") || "";
+  if (marker !== "" && text.startsWith(marker)) {
+    el.textContent = text.slice(marker.length);
+  } else if (marker !== "" && text === marker.trimEnd()) {
+    el.textContent = "";
+  } else {
+    el.textContent = text;
+  }
+}
 function readEdits() {
   const steps = [];
   let i = 0;
   while (editEls["step:" + i]) {
-    steps.push(editEls["step:" + i].textContent);
+    steps.push(fullText(editEls["step:" + i]));
     i++;
   }
   return {
-    title: editEls.title.textContent,
-    summary: editEls.summary.textContent,
-    outOfScope: editEls.outOfScope.textContent,
+    title: fullText(editEls.title),
+    summary: fullText(editEls.summary),
+    outOfScope: fullText(editEls.outOfScope),
     steps: steps,
   };
 }
@@ -102,12 +142,12 @@ if (resetState) {
 }
 const saved = readState().edits;
 if (saved && typeof saved === "object") {
-  if (typeof saved.title === "string") { editEls.title.textContent = saved.title; }
-  if (typeof saved.summary === "string") { editEls.summary.textContent = saved.summary; }
-  if (typeof saved.outOfScope === "string") { editEls.outOfScope.textContent = saved.outOfScope; }
+  if (typeof saved.title === "string") { setFullText(editEls.title, saved.title); }
+  if (typeof saved.summary === "string") { setFullText(editEls.summary, saved.summary); }
+  if (typeof saved.outOfScope === "string") { setFullText(editEls.outOfScope, saved.outOfScope); }
   if (Array.isArray(saved.steps)) {
     saved.steps.forEach((text, i) => {
-      if (typeof text === "string" && editEls["step:" + i]) { editEls["step:" + i].textContent = text; }
+      if (typeof text === "string" && editEls["step:" + i]) { setFullText(editEls["step:" + i], text); }
     });
   }
 }
@@ -350,6 +390,12 @@ implementBtn.addEventListener("click", () => {
   statusEl.textContent = "Preparing the review...";
   vscode.postMessage({ type: "implementDesign" });
 });
+const copyCodeBtn = document.querySelector("button.copy-code");
+if (copyCodeBtn) {
+  copyCodeBtn.addEventListener("click", () => {
+    vscode.postMessage({ type: "copyCode" });
+  });
+}
 document.querySelectorAll("a.file-link").forEach((link) => {
   link.addEventListener("click", (event) => {
     event.preventDefault();
@@ -408,7 +454,7 @@ function renderSteps(steps: string[]): string {
       renderBlock(
         `step:${i}`,
         `step ${i + 1}`,
-        `<div class="step-row"><span class="num">${i + 1}.</span>${renderEditable("div", `step:${i}`, `step ${i + 1}`, s)}</div>`,
+        `<div class="step-row"><span class="num">${i + 1}.</span>${renderTextBlock(`step:${i}`, `step ${i + 1}`, s)}</div>`,
         "card"
       )
     )
@@ -418,7 +464,7 @@ function renderSteps(steps: string[]): string {
 /** Renders the verification items as read-only, commentable cards. */
 function renderVerification(items: string[]): string {
   return items
-    .map((v, i) => renderBlock(`verification:${i}`, `verification ${i + 1}`, `<div class="verification-item">${escapeHtml(v)}</div>`, "card"))
+    .map((v, i) => renderBlock(`verification:${i}`, `verification ${i + 1}`, renderPlainText("verification-item", v), "card"))
     .join("\n");
 }
 
@@ -432,19 +478,20 @@ export function renderPlanHtml(plan: Plan, nonce: string, options?: { resetState
   const langClass = /^[a-zA-Z0-9+#-]*$/.test(language) && language !== ""
     ? ` class="language-${escapeHtml(language)}"`
     : "";
-  const langLabel = language !== ""
-    ? `<div class="lang-label">${escapeHtml(language)}</div>`
+  const label = codeLabel(language);
+  const langLabel = label !== ""
+    ? `<span class="lang-label">${escapeHtml(label)}</span>`
     : "";
-  const titleBlock = renderBlock("title", "title", renderEditable("h1", "title", "title", plan.title));
+  const titleEl = renderEditable("h1", "title", "title", plan.title);
   const overviewBlock = renderBlock(
     "overview",
     "overview",
-    `<h2>Overview</h2>${renderEditable("div", "summary", "summary", plan.overview.summary)}<h3>Out of scope</h3>${renderEditable("div", "outOfScope", "out of scope", plan.overview.outOfScope ?? "", "Nothing excluded")}`
+    `<h2>Overview</h2>${renderTextBlock("summary", "summary", plan.overview.summary)}<h3>Out of scope</h3>${renderTextBlock("outOfScope", "out of scope", plan.overview.outOfScope ?? "", "Nothing excluded")}`
   );
   const codeBlock = renderBlock(
     "code",
     "code",
-    `<h2>Proposed changes</h2>${langLabel}<pre><code${langClass}>${escapeHtml(plan.proposedChanges.code)}</code></pre>`
+    `<h2>Proposed changes</h2><div class="code-wrap">${langLabel}<button class="copy-code" type="button" aria-label="Copy code" title="Copy code">Copy</button><pre><code${langClass}>${escapeHtml(plan.proposedChanges.code)}</code></pre></div>`
   );
   return `<!DOCTYPE html>
 <html lang="en">
@@ -469,8 +516,16 @@ export function renderPlanHtml(plan: Plan, nonce: string, options?: { resetState
     --link: #6aa5ec;
     --accent: #3376ce;
     --accent-fg: #ffffff;
+    --review: #3376ce;
+    --review-fg: #ffffff;
+    --implement: #3fa34d;
+    --implement-fg: #1f1f1f;
     --info: #3566ce;
+    --note: #3566ce;
+    --tip: #3fa34d;
     --important: #8259dd;
+    --warning: #d9a441;
+    --caution: #d1575a;
     --inline-code: #e2c98e;
     --code-comment: #8693a2;
     --code-keyword: #8ae0f6;
@@ -481,7 +536,7 @@ export function renderPlanHtml(plan: Plan, nonce: string, options?: { resetState
     --font-body: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
     --font-code: ui-monospace, "SF Mono", Menlo, monospace;
     --font-size: 14px;
-    --content-width: 800px;
+    --content-width: 77vw;
     --margin-width: 40px;
     --side-padding: 24px;
   }
@@ -499,8 +554,15 @@ export function renderPlanHtml(plan: Plan, nonce: string, options?: { resetState
       --border: #dcdcdc;
       --link: #1f5fbf;
       --accent: #2a64b8;
+      --review: #2a64b8;
+      --implement: #2b7d37;
+      --implement-fg: #ffffff;
       --info: #2a55b8;
+      --note: #2a55b8;
+      --tip: #2b7d37;
       --important: #6b44c4;
+      --warning: #8a6200;
+      --caution: #b3363a;
       --inline-code: #8a5a00;
       --code-comment: #5d6b7a;
       --code-keyword: #0b6d8c;
@@ -512,11 +574,13 @@ export function renderPlanHtml(plan: Plan, nonce: string, options?: { resetState
   }
   [hidden] { display: none !important; }
   * { box-sizing: border-box; }
-  body { background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: var(--font-size); line-height: 1.5; margin: 0; padding: 1rem var(--side-padding); overflow-wrap: anywhere; }
-  .doc { max-width: var(--content-width); margin: 0 auto; }
-  header.top { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: flex-start; gap: 0.5rem; }
-  button.review { display: inline-flex; align-items: center; gap: 0.4rem; background: var(--btn-secondary); color: var(--heading); border: 0; border-radius: 4px; padding: 0.4rem 0.9rem; font: inherit; cursor: pointer; }
-  button.review.has-comments { background: var(--accent); color: var(--accent-fg); }
+  body { background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: var(--font-size); line-height: 1.5; margin: 0; padding: 0 var(--side-padding) 1rem; overflow-wrap: anywhere; }
+  .doc { width: var(--content-width); max-width: 100%; margin: 0 auto; }
+  header.top { position: sticky; top: 0; z-index: 20; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 0.5rem; padding: 0.6rem 0; background: var(--bg); border-bottom: 1px solid var(--border); }
+  header.top .title-wrap { flex: 1 1 12rem; min-width: 0; }
+  header.top h1 { margin: 0; line-height: 1.25; }
+  .bar-actions { display: flex; align-items: center; gap: 0.5rem; }
+  button.review { display: inline-flex; align-items: center; gap: 0.4rem; background: var(--review); color: var(--review-fg); border: 0; border-radius: 4px; padding: 0.4rem 0.9rem; font: inherit; cursor: pointer; }
   .review-wrap, .kebab-wrap { position: relative; }
   button.kebab { display: inline-flex; align-items: center; justify-content: center; width: 2rem; height: 2rem; padding: 0; background: transparent; color: var(--fg); border: 1px solid var(--border); border-radius: 4px; cursor: pointer; }
   .popover { position: absolute; top: calc(100% + 0.3rem); right: 0; z-index: 10; background: var(--popover); color: var(--fg); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 4px 16px var(--shadow); }
@@ -533,7 +597,7 @@ export function renderPlanHtml(plan: Plan, nonce: string, options?: { resetState
   .comment-item.empty { color: var(--muted); border-top: 0; }
   button.primary { background: var(--accent); color: var(--accent-fg); border: 0; border-radius: 4px; padding: 0.3rem 0.8rem; font: inherit; cursor: pointer; }
   button.submit-review:disabled { opacity: 0.6; cursor: default; }
-  button.implement { background: var(--btn-secondary); color: var(--heading); border: 0; border-radius: 4px; padding: 0.4rem 0.9rem; font: inherit; cursor: pointer; }
+  button.implement { background: var(--implement); color: var(--implement-fg); border: 0; border-radius: 4px; padding: 0.4rem 0.9rem; font: inherit; cursor: pointer; }
   button.review:disabled, button.implement:disabled { opacity: 0.6; cursor: default; }
   .status { color: var(--muted); font-size: 0.85rem; min-height: 1.2em; margin: 0.25rem 0 0.5rem; text-align: right; }
   .block { display: grid; grid-template-columns: minmax(0, 1fr) var(--margin-width); column-gap: 0.5rem; margin: 0.25rem 0; }
@@ -541,16 +605,19 @@ export function renderPlanHtml(plan: Plan, nonce: string, options?: { resetState
   .block.card > .body { background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 0.5rem 0.9rem; }
   .margin { position: relative; padding-top: 0.25rem; }
   h1, h2, h3 { color: var(--heading); }
-  h1 { font-size: 1.5em; margin: 0.5rem 0; }
-  h2 { font-size: 1.2em; margin: 1rem 0 0.4rem; }
-  h3 { font-size: 1em; color: var(--muted); margin: 1rem 0 0.4rem; }
-  .editable { white-space: pre-wrap; border-radius: 4px; cursor: text; }
+  h1 { font-size: 1.8em; margin: 0.5rem 0; }
+  h2 { font-size: 1.4em; margin: 1rem 0 0.4rem; }
+  h3 { font-size: 1.15em; color: var(--muted); margin: 1rem 0 0.4rem; }
+  hr.section-rule { border: 0; border-top: 1px solid var(--border); margin: 1.25rem 0 0; }
+  .editable { position: relative; white-space: pre-wrap; border-radius: 4px; cursor: text; }
   .editable:hover, .editable:focus-visible { outline: 1px dashed var(--border); outline-offset: 2px; }
+  .editable::after { content: "Click to edit"; position: absolute; right: 100%; top: 0; margin-right: 0.6rem; padding: 0.1rem 0.4rem; background: var(--popover); color: var(--muted); border: 1px solid var(--border); border-radius: 4px; font: 12px/1.4 var(--font-body); font-weight: normal; white-space: nowrap; pointer-events: none; opacity: 0; z-index: 4; }
+  .editable:hover::after { opacity: 1; }
   .editable:empty::before { content: attr(data-placeholder); color: var(--muted); font-style: italic; }
   .edit-field { display: block; width: 100%; background: var(--bg); color: var(--fg); border: 1px solid var(--accent); border-radius: 4px; font: inherit; padding: 0.3rem 0.5rem; }
-  .edit-field.edit-title { font-size: 1.5em; font-weight: bold; }
+  .edit-field.edit-title { font-size: 1.8em; font-weight: bold; }
   .step-row { display: flex; gap: 0.5rem; }
-  .step-row .editable, .step-row .edit-field { flex: 1; min-width: 0; }
+  .step-row .editable, .step-row .edit-field, .step-row > .callout { flex: 1; min-width: 0; }
   .num { color: var(--muted); }
   .file-row { display: flex; flex-wrap: wrap; gap: 0.25rem 1rem; }
   .file-path { flex: 0 1 auto; }
@@ -561,13 +628,21 @@ export function renderPlanHtml(plan: Plan, nonce: string, options?: { resetState
   pre code .tok-comment { color: var(--code-comment); }
   pre code .tok-keyword { color: var(--code-keyword); }
   pre code .tok-string { color: var(--code-string); }
-  .callout { border-left: 3px solid var(--info); padding: 0.4rem 0.8rem; border-radius: 4px; background: var(--card); }
-  .callout.info { border-left-color: var(--info); }
-  .callout.important { border-left-color: var(--important); }
-  .lang-label { color: var(--muted); font-size: 0.75rem; margin-bottom: 0.25rem; }
-  pre { background: var(--code-bg); border: 1px solid var(--border); border-radius: 6px; padding: 0.75rem 1rem; overflow-x: auto; margin: 0; }
+  .callout { --callout-color: var(--info); border-left: 3px solid var(--callout-color); padding: 0.4rem 0.8rem; border-radius: 4px; background: var(--card); color: var(--fg); }
+  .callout.info { --callout-color: var(--info); }
+  .callout.note { --callout-color: var(--note); }
+  .callout.tip { --callout-color: var(--tip); }
+  .callout.important { --callout-color: var(--important); }
+  .callout.warning { --callout-color: var(--warning); }
+  .callout.caution { --callout-color: var(--caution); }
+  .callout { border-left-color: var(--callout-color); }
+  .callout-label { color: var(--callout-color); font-weight: 600; font-size: 0.85em; margin-bottom: 0.15rem; }
+  .code-wrap { position: relative; }
+  .lang-label { position: absolute; top: 0.4rem; left: 1rem; color: var(--muted); font-size: 0.75rem; }
+  button.copy-code { position: absolute; top: 0.35rem; right: 0.5rem; background: var(--btn-secondary); color: var(--fg); border: 1px solid var(--border); border-radius: 4px; padding: 0.1rem 0.5rem; font: inherit; font-size: 0.75rem; cursor: pointer; }
+  pre { background: var(--code-bg); border: 1px solid var(--border); border-radius: 6px; padding: 2rem 1rem 0.75rem; overflow-x: auto; margin: 0; }
   .badge { background: var(--badge-bg); color: var(--badge-fg); border-radius: 999px; padding: 0 0.5rem; font-size: 0.75rem; margin-left: 0.25rem; }
-  button.add-comment { display: inline-flex; align-items: center; justify-content: center; width: 1.6rem; height: 1.6rem; padding: 0; background: var(--accent); color: var(--accent-fg); border: 0; border-radius: 4px; font: bold 1.1rem/1 var(--font-body); cursor: pointer; opacity: 0; }
+  button.add-comment { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; padding: 0; background: var(--accent); color: var(--accent-fg); border: 0; border-radius: 4px; font: bold 16px/1 var(--font-body); cursor: pointer; opacity: 0; }
   .block:hover button.add-comment, .block:focus-within button.add-comment, button.add-comment:focus-visible { opacity: 1; }
   .bubble { position: relative; }
   .bubble .marker { display: inline-flex; align-items: center; justify-content: center; width: 1.6rem; height: 1.6rem; color: var(--accent); cursor: pointer; }
@@ -583,7 +658,8 @@ export function renderPlanHtml(plan: Plan, nonce: string, options?: { resetState
     button.add-comment { opacity: 1; }
   }
   @media (max-width: 899px) {
-    :root { --side-padding: 16px; }
+    :root { --side-padding: 16px; --content-width: 100%; }
+    .editable::after { display: none; }
     .block { grid-template-columns: minmax(0, 1fr); }
     .margin { padding-top: 0.25rem; display: flex; flex-wrap: wrap; align-items: flex-start; gap: 0.25rem; }
     .margin .bubbles { flex: 1 1 100%; }
@@ -595,19 +671,24 @@ export function renderPlanHtml(plan: Plan, nonce: string, options?: { resetState
 <body>
 <div class="doc">
 <header class="top">
+<div class="title-wrap">${titleEl}</div>
+<div class="bar-actions">
 <div class="kebab-wrap"><button class="kebab" type="button" aria-label="More actions" aria-haspopup="menu" aria-expanded="false">${KEBAB_ICON}</button>
 <div class="menu popover" role="menu" hidden><button type="button" role="menuitem" data-action="copyMarkdown">Copy</button><button type="button" role="menuitem" data-action="copyPath">Copy Path</button><button type="button" role="menuitem" data-action="exportArtifact">Export Artifact</button></div></div>
 <div class="review-wrap"><button class="review" type="button" aria-haspopup="dialog" aria-expanded="false">${COMMENT_ICON}<span class="review-label">Review &bull; 0</span>${CHEVRON_ICON}</button>
 <div class="review-pop popover" role="dialog" aria-label="Submit comment" hidden><h2>Submit comment</h2><textarea class="review-message comment-field" rows="3" placeholder="Add an optional message" aria-label="Optional message"></textarea><button class="submit-review primary" type="button">Submit</button><details class="comment-list" open><summary>Comments (0)</summary><ul class="comment-items"></ul></details></div></div>
-<button class="implement" type="button">Implement the Design</button></header>
+<button class="implement" type="button">Implement the Design</button></div></header>
 <p class="status" role="status"></p>
-${titleBlock}
 ${overviewBlock}
+<hr class="section-rule">
 ${codeBlock}
+<hr class="section-rule">
 <h2>Files</h2>
 ${renderFiles(plan.files)}
+<hr class="section-rule">
 <h2>Implementation steps</h2>
 ${renderSteps(plan.implementationSteps)}
+<hr class="section-rule">
 <h2>Verification</h2>
 ${renderVerification(plan.verification)}
 </div>
@@ -689,6 +770,8 @@ export class PlanPanel {
         void openWorkspaceFile((msg as { path?: unknown }).path);
       } else if (type === "copyMarkdown" || type === "copyPath" || type === "exportArtifact") {
         this.saveChain = this.saveChain.then(() => this.runAction(type, msg));
+      } else if (type === "copyCode") {
+        this.saveChain = this.saveChain.then(() => this.copyCode());
       } else if (type === "implementDesign") {
         this.saveChain = this.saveChain.then(() => this.implement());
       }
@@ -710,6 +793,19 @@ export class PlanPanel {
       message = `Implement failed: ${err instanceof Error ? err.message : String(err)}`;
     }
     void this.panel.webview.postMessage({ type: "implementResult", ok, message });
+  }
+
+  /**
+   * Copies the plan's proposed code to the clipboard through the extension host (the webview
+   * clipboard may be blocked) and replies with the outcome. Never throws.
+   */
+  private async copyCode(): Promise<void> {
+    try {
+      await vscode.env.clipboard.writeText(this.currentPlan.proposedChanges.code);
+      this.replyAction(true, "Copied the code.");
+    } catch (err) {
+      this.replyAction(false, `Copy failed: ${err instanceof Error ? err.message : String(err)}`);
+    }
   }
 
   /** Posts the outcome of a kebab-menu action (Copy, Copy Path, Export Artifact) to the webview. */
