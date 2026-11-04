@@ -3,10 +3,11 @@ import { codeLabel, splitCallout } from "../plan/callouts";
 import { codeLineCount, codeLineId, codeLineLabel, dropOutOfRangeLineComments, splitCodeLines, splitTokensByLine } from "../plan/codeLines";
 import { highlightsLanguage, tokenizeCode } from "../plan/codeTokens";
 import { splitFileMentions } from "../plan/fileMentions";
+import { lineId, lineLabel, splitTextLines, textLineIds } from "../plan/lineComments";
 import { Plan, isSafeRelativePath } from "../plan/plan";
 import { applyPlanEdits, planFileName } from "../plan/planEdits";
 import { planMarkdownFileName, planToMarkdown } from "../plan/planMarkdown";
-import { dropOutOfRangeQuestionComments, parseReviewComments } from "../plan/reviewComments";
+import { dropOutOfRangeQuestionComments, dropOutOfRangeTextLineComments, parseReviewComments } from "../plan/reviewComments";
 
 /** Asks Claude Code to revise a plan given comments keyed by block id and an optional overall message. */
 export type ReviewHandler = (
@@ -113,16 +114,65 @@ const CHEVRON_ICON =
  * Wraps content in a commentable block: the content, plus a right-margin cell with the
  * comment button (shown on hover or focus) and an empty holder the script fills with bubbles.
  */
-function renderBlock(id: string, label: string, body: string, extraClass = ""): string {
+function renderBlock(id: string, label: string, body: string, extraClass = "", slots?: LineSlot[]): string {
   const cls = extraClass === "" ? "block" : `block ${extraClass}`;
-  return `<div class="${cls}" data-block="${escapeHtml(id)}" data-label="${escapeHtml(label)}"><div class="body">${body}</div><div class="margin"><button class="add-comment" type="button" aria-label="Add inline comment on ${escapeHtml(label)}" title="Add inline comment">${PLUS_ICON}</button><div class="bubbles"></div></div></div>`;
+  const margin = slots === undefined ? renderSlot({ id, label }, true) : slots.map((s) => renderSlot(s, false)).join("");
+  return `<div class="${cls}" data-block="${escapeHtml(id)}" data-label="${escapeHtml(label)}"><div class="body">${body}</div><div class="margin">${margin}</div></div>`;
 }
 
-/** Renders text that turns into a field when clicked. `key` names the edited plan field. */
-function renderEditable(tag: string, key: string, label: string, text: string, placeholder = "", known: readonly string[] | null = null): string {
+/** One commentable line of a block: its id (`step:2#1`) and its readable label (`step 3, line 2`). */
+interface LineSlot {
+  id: string;
+  label: string;
+}
+
+/**
+ * Renders the margin slot of one line: the comment button (shown on hover or focus) and an empty
+ * holder the script fills with the line's bubble. `single` marks a block that is one target
+ * as a whole (file row, code line), so hovering anywhere on the block shows the button.
+ */
+function renderSlot(slot: LineSlot, single: boolean): string {
+  const cls = single ? "slot single" : "slot";
+  return `<div class="${cls}" data-line="${escapeHtml(slot.id)}" data-label="${escapeHtml(slot.label)}"><button class="add-comment" type="button" aria-label="Add inline comment on ${escapeHtml(slot.label)}" title="Add inline comment">${PLUS_ICON}</button><div class="bubbles"></div></div>`;
+}
+
+/**
+ * The margin slots of a text field, one per line from `splitTextLines`. `base` is the line id
+ * prefix (`step:2`). Callout markers are not part of the text, as in `textLineIds`.
+ */
+function textSlots(base: string, label: string, text: string): LineSlot[] {
+  const ids = textLineIds(base, text);
+  return ids.map((id, i) => ({ id, label: lineLabel(label, i, ids.length) }));
+}
+
+/**
+ * Renders a text body as one `tline` span per line (see `splitTextLines`), with file mentions
+ * marked unless `known` is null. The spans hold the exact text, so `textContent` is unchanged.
+ * Whitespace-only text has no lines and is rendered as is.
+ */
+function renderLineSpans(base: string, body: string, known: readonly string[] | null): string {
+  const esc = (t: string): string => (known === null ? escapeHtml(t) : escapeWithMentions(t, known));
+  if (body.trim() === "") {
+    return esc(body);
+  }
+  return splitTextLines(body)
+    .map((piece, i) => `<span class="tline" data-line="${escapeHtml(lineId(base, i))}">${esc(piece)}</span>`)
+    .join("");
+}
+
+/** The attributes that tell the script which line ids a text element holds and how to label them. */
+function lineAttrs(base: string, label: string): string {
+  return ` data-lines="${escapeHtml(base)}" data-lines-label="${escapeHtml(label)}"`;
+}
+
+/**
+ * Renders text that turns into a field when clicked. `key` names the edited plan field and
+ * `lineBase` the line id prefix of its commentable lines.
+ */
+function renderEditable(tag: string, key: string, label: string, text: string, placeholder = "", known: readonly string[] | null = null, lineBase = key): string {
   const ph = placeholder === "" ? "" : ` data-placeholder="${escapeHtml(placeholder)}"`;
-  const inner = known === null ? escapeHtml(text) : escapeWithMentions(text, known);
-  return `<${tag} class="editable" data-edit="${escapeHtml(key)}" data-label="${escapeHtml(label)}" tabindex="0"${ph}>${inner}</${tag}>`;
+  const inner = renderLineSpans(lineBase, text, known);
+  return `<${tag} class="editable" data-edit="${escapeHtml(key)}" data-label="${escapeHtml(label)}"${lineAttrs(lineBase, label)} tabindex="0"${ph}>${inner}</${tag}>`;
 }
 
 /**
@@ -131,28 +181,53 @@ function renderEditable(tag: string, key: string, label: string, text: string, p
  * then holds only the body and keeps the removed prefix in `data-marker`, so the script can
  * put it back when saving.
  */
-function renderTextBlock(key: string, label: string, text: string, placeholder = "", known: readonly string[] = []): string {
+function renderTextBlock(key: string, label: string, text: string, placeholder = "", known: readonly string[] = [], lineBase = key): string {
   const callout = splitCallout(text);
   if (callout === null) {
-    return renderEditable("div", key, label, text, placeholder, known);
+    return renderEditable("div", key, label, text, placeholder, known, lineBase);
   }
   const ph = placeholder === "" ? "" : ` data-placeholder="${escapeHtml(placeholder)}"`;
-  return `<div class="callout ${callout.kind}"><div class="callout-label">${callout.marker}</div><div class="editable" data-edit="${escapeHtml(key)}" data-label="${escapeHtml(label)}" data-marker="${escapeHtml(callout.prefix)}" tabindex="0"${ph}>${escapeWithMentions(callout.body, known)}</div></div>`;
+  return `<div class="callout ${callout.kind}"><div class="callout-label">${callout.marker}</div><div class="editable" data-edit="${escapeHtml(key)}" data-label="${escapeHtml(label)}"${lineAttrs(lineBase, label)} data-marker="${escapeHtml(callout.prefix)}" tabindex="0"${ph}>${renderLineSpans(lineBase, callout.body, known)}</div></div>`;
 }
 
-/** Renders read-only text, as a callout when it starts with a callout marker. File mentions get a background. */
-function renderPlainText(className: string, text: string, known: readonly string[] = []): string {
+/**
+ * Renders read-only text, as a callout when it starts with a callout marker. File mentions get
+ * a background. `lineBase` and `label` name its commentable lines.
+ */
+function renderPlainText(className: string, text: string, known: readonly string[], lineBase: string, label: string): string {
   const callout = splitCallout(text);
+  const attrs = lineAttrs(lineBase, label);
   if (callout === null) {
-    return `<div class="${className}">${escapeWithMentions(text, known)}</div>`;
+    return `<div class="${className}"${attrs}>${renderLineSpans(lineBase, text, known)}</div>`;
   }
-  return `<div class="callout ${callout.kind}"><div class="callout-label">${callout.marker}</div><div class="${className}">${escapeWithMentions(callout.body, known)}</div></div>`;
+  return `<div class="callout ${callout.kind}"><div class="callout-label">${callout.marker}</div><div class="${className}"${attrs}>${renderLineSpans(lineBase, callout.body, known)}</div></div>`;
 }
 
 /** Fixed script (no plan data): click-to-edit, margin comments, saving edits, and review requests. */
 const COMMENT_SCRIPT = `
 const vscode = acquireVsCodeApi();
 const COMMENT_ICON = ${JSON.stringify(COMMENT_ICON)};
+/* Builds the plus glyph with DOM calls only, in the same shape as the server-rendered one. */
+function makePlusGlyph() {
+  const ns = "http://www.w3.org/2000/svg";
+  const glyph = document.createElement("span");
+  glyph.className = "plus-glyph";
+  glyph.setAttribute("aria-hidden", "true");
+  const svg = document.createElementNS(ns, "svg");
+  svg.setAttribute("viewBox", "0 0 10 10");
+  svg.setAttribute("width", "10");
+  svg.setAttribute("height", "10");
+  svg.setAttribute("focusable", "false");
+  const path = document.createElementNS(ns, "path");
+  path.setAttribute("d", "M5 1v8M1 5h8");
+  path.setAttribute("fill", "none");
+  path.setAttribute("stroke", "currentColor");
+  path.setAttribute("stroke-width", "1.6");
+  path.setAttribute("stroke-linecap", "round");
+  svg.appendChild(path);
+  glyph.appendChild(svg);
+  return glyph;
+}
 function readState() {
   const state = vscode.getState();
   return state && typeof state === "object" ? state : {};
@@ -214,8 +289,11 @@ function buildLineBlock(index, segments) {
   const label = "Code line " + (index + 1);
   block.setAttribute("data-block", "code:" + index);
   block.setAttribute("data-label", label);
-  block.querySelector("button.add-comment").setAttribute("aria-label", "Add inline comment on " + label);
-  block.querySelector(".bubbles").textContent = "";
+  const slot = block.querySelector(".slot");
+  slot.setAttribute("data-line", "code:" + index);
+  slot.setAttribute("data-label", label);
+  slot.querySelector("button.add-comment").setAttribute("aria-label", "Add inline comment on " + label);
+  slot.querySelector(".bubbles").textContent = "";
   const codeText = block.querySelector("pre code");
   codeText.textContent = "";
   (Array.isArray(segments) ? segments : []).forEach((segment) => {
@@ -252,9 +330,37 @@ function pruneLineComments(lineCount) {
   }
   return dropped;
 }
+${splitTextLines.toString()}
+function lineIdFor(base, index) {
+  return index === 0 ? base : base + "#" + index;
+}
+function lineLabelFor(label, index, count) {
+  return count > 1 ? label + ", line " + (index + 1) : label;
+}
+/* Fills a text element with one span per line (same rule and ids as the host). Mentions are not re-marked. */
+function relineEl(el) {
+  const base = el.getAttribute("data-lines");
+  const text = el.textContent;
+  el.textContent = "";
+  if (text.trim() === "") {
+    el.textContent = text;
+    return;
+  }
+  splitTextLines(text).forEach((piece, i) => {
+    const span = makeEl("span", "tline", piece);
+    span.setAttribute("data-line", lineIdFor(base, i));
+    el.appendChild(span);
+  });
+}
 let pendingNote = "";
 if (resetState) {
   vscode.setState({});
+}
+const savedTouched = new Set();
+function applySaved(el, text) {
+  setFullText(el, text);
+  relineEl(el);
+  savedTouched.add(el.closest(".block"));
 }
 const saved = readState().edits;
 if (saved && typeof saved === "object") {
@@ -262,17 +368,17 @@ if (saved && typeof saved === "object") {
     rawCode = saved.code;
     requestCodeRender();
   }
-  if (typeof saved.title === "string") { setFullText(editEls.title, saved.title); }
-  if (typeof saved.summary === "string") { setFullText(editEls.summary, saved.summary); }
-  if (typeof saved.outOfScope === "string") { setFullText(editEls.outOfScope, saved.outOfScope); }
+  if (typeof saved.title === "string") { applySaved(editEls.title, saved.title); }
+  if (typeof saved.summary === "string") { applySaved(editEls.summary, saved.summary); }
+  if (typeof saved.outOfScope === "string") { applySaved(editEls.outOfScope, saved.outOfScope); }
   if (Array.isArray(saved.steps)) {
     saved.steps.forEach((text, i) => {
-      if (typeof text === "string" && editEls["step:" + i]) { setFullText(editEls["step:" + i], text); }
+      if (typeof text === "string" && editEls["step:" + i]) { applySaved(editEls["step:" + i], text); }
     });
   }
   if (Array.isArray(saved.questions)) {
     saved.questions.forEach((text, i) => {
-      if (typeof text === "string" && editEls["question:" + i]) { setFullText(editEls["question:" + i], text); }
+      if (typeof text === "string" && editEls["question:" + i]) { applySaved(editEls["question:" + i], text); }
     });
   }
 }
@@ -286,6 +392,7 @@ function startEdit(el) {
   const key = el.getAttribute("data-edit");
   const single = key === "title";
   const isCode = key === "code";
+  const block0 = el.closest(".block");
   const field = document.createElement(single ? "input" : "textarea");
   if (single) { field.type = "text"; } else { field.rows = isCode ? 12 : 3; }
   field.className = single ? "edit-field edit-title" : isCode ? "edit-field edit-code" : "edit-field";
@@ -315,9 +422,16 @@ function startEdit(el) {
         statusEl.textContent = "This field cannot be empty.";
       } else {
         el.textContent = next;
+        relineEl(el);
+        const block = el.closest(".block");
+        const dropped = block ? rebuildSlots(block) : 0;
+        refreshReview();
+        pendingNote = dropped > 0 ? " Dropped " + dropped + " line comment" + (dropped === 1 ? "" : "s") + " that no longer match a line." : "";
+        if (dropped > 0) { statusEl.textContent = pendingNote.trim(); }
         sendEdits();
       }
     }
+    if (block0) { layoutSlots(block0); }
     if (refocus) { el.focus(); }
   }
   field.addEventListener("blur", () => finish(true, false));
@@ -357,12 +471,12 @@ const reviewSummary = reviewPop.querySelector("summary");
 const messageBox = reviewPop.querySelector("textarea.review-message");
 const submitBtn = reviewPop.querySelector("button.submit-review");
 function blockLabelFor(id) {
-  const el = document.querySelector('.block[data-block="' + id + '"]');
+  const el = Array.from(document.querySelectorAll(".slot")).find((s) => s.getAttribute("data-line") === id);
   return el ? el.getAttribute("data-label") : id;
 }
 function refreshReview() {
   const comments = readComments();
-  const ids = Array.from(document.querySelectorAll(".block")).map((b) => b.getAttribute("data-block")).filter((id) => typeof comments[id] === "string" && comments[id] !== "");
+  const ids = Array.from(document.querySelectorAll(".slot")).map((s) => s.getAttribute("data-line")).filter((id) => typeof comments[id] === "string" && comments[id] !== "");
   reviewLabel.textContent = "Review \\u2022 " + ids.length;
   reviewBtn.classList.toggle("has-comments", ids.length > 0);
   reviewSummary.textContent = "Comments (" + ids.length + ")";
@@ -393,11 +507,109 @@ function makeEl(tag, className, text) {
   if (text) { el.textContent = text; }
   return el;
 }
+/* Positions each text-line slot beside its line (the first visual row of its span). Slots of lines
+   that share a row are pushed down so the buttons and bubbles never overlap. */
+function layoutSlots(block) {
+  const margin = block.querySelector(":scope > .margin");
+  if (!margin) { return; }
+  const base = margin.getBoundingClientRect().top;
+  let prev = -1000;
+  Array.from(margin.querySelectorAll(":scope > .slot:not(.single)")).forEach((slot) => {
+    const id = slot.getAttribute("data-line");
+    const span = Array.from(block.querySelectorAll(".tline")).find((s) => s.getAttribute("data-line") === id);
+    const rects = span ? span.getClientRects() : [];
+    if (rects.length === 0) { return; }
+    const top = Math.max(rects[0].top - base, prev + 22);
+    prev = top;
+    slot.style.top = top + "px";
+  });
+}
+/* Rebuilds a block's margin slots from its line spans, drops comments whose line is gone, and
+   returns how many were dropped. */
+function rebuildSlots(block) {
+  const margin = block.querySelector(":scope > .margin");
+  margin.querySelectorAll(":scope > .slot").forEach((s) => s.remove());
+  const bases = [];
+  block.querySelectorAll(":scope > .body [data-lines]").forEach((el) => {
+    const base = el.getAttribute("data-lines");
+    const label = el.getAttribute("data-lines-label");
+    bases.push(base);
+    const spans = el.querySelectorAll(".tline");
+    spans.forEach((span, i) => {
+      const slot = makeEl("div", "slot");
+      slot.setAttribute("data-line", span.getAttribute("data-line"));
+      slot.setAttribute("data-label", lineLabelFor(label, i, spans.length));
+      const btn = makeEl("button", "add-comment");
+      btn.type = "button";
+      btn.title = "Add inline comment";
+      btn.setAttribute("aria-label", "Add inline comment on " + slot.getAttribute("data-label"));
+      btn.appendChild(makePlusGlyph());
+      slot.appendChild(btn);
+      slot.appendChild(makeEl("div", "bubbles"));
+      margin.appendChild(slot);
+      wireSlot(slot);
+    });
+  });
+  const comments = readComments();
+  const next = {};
+  let dropped = 0;
+  Object.keys(comments).forEach((key) => {
+    const owner = key.split("#")[0];
+    const gone = bases.indexOf(owner) !== -1 && !margin.querySelector('.slot[data-line="' + key + '"]');
+    if (gone) { dropped++; } else { next[key] = comments[key]; }
+  });
+  if (dropped > 0) {
+    vscode.setState(Object.assign({}, readState(), { comments: next }));
+  }
+  layoutSlots(block);
+  return dropped;
+}
 function wireBlock(block) {
-  const id = block.getAttribute("data-block");
-  const label = block.getAttribute("data-label");
-  const addBtn = block.querySelector(":scope > .margin > button.add-comment");
-  const holder = block.querySelector(":scope > .margin > .bubbles");
+  /* Comment controls can sit inside an editable area, so stop their clicks here, before the
+     controls detach themselves, to keep them from reaching the editable click handler. */
+  block.querySelector(":scope > .margin").addEventListener("click", (event) => event.stopPropagation());
+  block.querySelectorAll(":scope > .margin > .slot").forEach(wireSlot);
+  layoutSlots(block);
+  if (typeof ResizeObserver === "function") {
+    new ResizeObserver(() => layoutSlots(block)).observe(block);
+  }
+}
+let hotSlot = null;
+function setHot(slot) {
+  if (hotSlot === slot) { return; }
+  if (hotSlot) { hotSlot.classList.remove("hot"); }
+  hotSlot = slot;
+  if (hotSlot) { hotSlot.classList.add("hot"); }
+}
+/* Hovering a block marks the slot of the line level with the pointer (or the nearest line), so
+   the comment button shows beside that line even when the pointer is on empty space in the row. */
+document.addEventListener("mousemove", (event) => {
+  const target = event.target;
+  const block = target && target.closest ? target.closest(".block") : null;
+  if (!block) { setHot(null); return; }
+  if (target.closest(".slot")) { return; }
+  const spans = Array.from(block.querySelectorAll(".tline"));
+  if (spans.length === 0) { setHot(null); return; }
+  let best = null;
+  let bestDist = Infinity;
+  spans.forEach((span) => {
+    Array.from(span.getClientRects()).forEach((r) => {
+      const d = event.clientY < r.top ? r.top - event.clientY : event.clientY > r.bottom ? event.clientY - r.bottom : 0;
+      if (d < bestDist) { best = span; bestDist = d; }
+    });
+  });
+  if (!best) { return; }
+  const id = best.getAttribute("data-line");
+  const slot = Array.from(block.querySelectorAll(":scope > .margin > .slot")).find((s) => s.getAttribute("data-line") === id);
+  setHot(slot || null);
+});
+document.addEventListener("mouseleave", () => setHot(null));
+/* One slot is one comment target: a line id, its button, and the holder for its bubble. */
+function wireSlot(slot) {
+  const id = slot.getAttribute("data-line");
+  const label = slot.getAttribute("data-label");
+  const addBtn = slot.querySelector(":scope > button.add-comment");
+  const holder = slot.querySelector(":scope > .bubbles");
   function buildBubble(text) {
     const bubble = makeEl("div", "bubble");
     bubble.tabIndex = 0;
@@ -475,12 +687,17 @@ function wireBlock(block) {
     }
   }
   addBtn.addEventListener("click", () => show(true));
-  /* Comment controls live inside the editable code area, so stop their clicks here, before the
-     controls detach themselves, to keep them from reaching the editable click handler. */
-  block.querySelector(":scope > .margin").addEventListener("click", (event) => event.stopPropagation());
   show(false);
 }
-document.querySelectorAll(".block").forEach(wireBlock);
+document.querySelectorAll(".block").forEach((block) => {
+  if (savedTouched.has(block)) {
+    block.querySelector(":scope > .margin").addEventListener("click", (event) => event.stopPropagation());
+    rebuildSlots(block);
+    if (typeof ResizeObserver === "function") { new ResizeObserver(() => layoutSlots(block)).observe(block); }
+  } else {
+    wireBlock(block);
+  }
+});
 refreshReview();
 const kebab = document.querySelector("button.kebab");
 const menu = document.querySelector(".menu");
@@ -616,16 +833,25 @@ function renderSteps(steps: string[], known: readonly string[]): string {
         `step:${i}`,
         `step ${i + 1}`,
         `<div class="step-row"><span class="num">${i + 1}.</span>${renderTextBlock(`step:${i}`, `step ${i + 1}`, s, "", known)}</div>`,
-        "card"
+        "card",
+        textSlots(`step:${i}`, `step ${i + 1}`, s)
       )
     )
     .join("\n");
 }
 
-/** Renders the verification items as read-only, commentable cards. */
+/** Renders the verification items as read-only cards, each line commentable. */
 function renderVerification(items: string[], known: readonly string[]): string {
   return items
-    .map((v, i) => renderBlock(`verification:${i}`, `verification ${i + 1}`, renderPlainText("verification-item", v, known), "card"))
+    .map((v, i) =>
+      renderBlock(
+        `verification:${i}`,
+        `verification ${i + 1}`,
+        renderPlainText("verification-item", v, known, `verification:${i}`, `verification ${i + 1}`),
+        "card",
+        textSlots(`verification:${i}`, `verification ${i + 1}`, v)
+      )
+    )
     .join("\n");
 }
 
@@ -640,7 +866,8 @@ function renderQuestions(questions: string[], known: readonly string[]): string 
         `question:${i}`,
         `Open question ${i + 1}`,
         `<div class="step-row"><span class="num">${i + 1}.</span>${renderTextBlock(`question:${i}`, `Open question ${i + 1}`, q, "", known)}</div>`,
-        "card question"
+        "card question",
+        textSlots(`question:${i}`, `Open question ${i + 1}`, q)
       )
     )
     .join("\n");
@@ -667,11 +894,16 @@ export function renderPlanHtml(plan: Plan, nonce: string, options?: { resetState
     ? `<span class="lang-label">${escapeHtml(label)}</span>`
     : "";
   const known = plan.files.map((f) => f.path);
-  const titleEl = renderEditable("h1", "title", "title", plan.title);
+  const titleEl = renderBlock("title", "title", renderEditable("h1", "title", "title", plan.title), "title-block", textSlots("title", "title", plan.title));
   const overviewBlock = renderBlock(
     "overview",
     "overview",
-    `<h2>Overview</h2>${renderTextBlock("summary", "summary", plan.overview.summary, "", known)}<h3>Out of scope</h3>${renderTextBlock("outOfScope", "out of scope", plan.overview.outOfScope ?? "", "Nothing excluded", known)}`
+    `<h2>Overview</h2>${renderTextBlock("summary", "summary", plan.overview.summary, "", known, "overview")}<h3>Out of scope</h3>${renderTextBlock("outOfScope", "out of scope", plan.overview.outOfScope ?? "", "Nothing excluded", known, "scope")}`,
+    "",
+    [
+      ...textSlots("overview", "overview", plan.overview.summary),
+      ...textSlots("scope", "out of scope", plan.overview.outOfScope ?? ""),
+    ]
   );
   const codeLinesHtml = renderCodeLines(plan.proposedChanges.code, language, known);
   const codeBlock = renderBlock(
@@ -805,7 +1037,10 @@ export function renderPlanHtml(plan: Plan, nonce: string, options?: { resetState
   .block { display: grid; grid-template-columns: minmax(0, 1fr) var(--margin-width); column-gap: 0.5rem; margin: 0.25rem 0; }
   .block > .body { min-width: 0; }
   .block.card > .body { background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 0.5rem 0.9rem; }
-  .margin { position: relative; padding-top: 0.25rem; }
+  .margin { position: relative; }
+  .slot { position: absolute; top: 0.25rem; left: 0; right: 0; }
+  .block.title-block { margin: 0; }
+  .tline { border-radius: 2px; }
   h1, h2, h3 { color: var(--heading); }
   h1 { font-size: 1.8em; margin: 0.5rem 0; }
   h2 { font-size: 1.4em; margin: 1rem 0 0.4rem; }
@@ -854,14 +1089,14 @@ export function renderPlanHtml(plan: Plan, nonce: string, options?: { resetState
   .code-lines { white-space: normal; border: 1px solid var(--border); border-radius: 6px; padding: 2rem 0.5rem 0.75rem 1rem; }
   .code-lines.editable::after { top: 1.6rem; }
   .block.code-line { margin: 0; }
-  .code-line > .margin { padding-top: 0; }
+  .code-line > .margin > .slot { top: 0; }
   .code-line pre { border: 0; border-radius: 0; padding: 0; overflow: visible; min-height: 1.5em; white-space: pre-wrap; }
   .edit-field.edit-code { font-family: var(--font-code); font-size: 13px; white-space: pre; overflow-x: auto; }
   .badge { background: var(--badge-bg); color: var(--badge-fg); border-radius: 999px; padding: 0 0.5rem; font-size: 0.75rem; margin-left: 0.25rem; }
   button.add-comment { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; padding: 0; background: var(--accent); color: var(--accent-fg); border: 0; border-radius: 4px; font: bold 10px/1 var(--font-body); cursor: pointer; opacity: 0; }
   button.add-comment .plus-glyph { display: flex; align-items: center; justify-content: center; width: 10px; height: 10px; line-height: 1; }
   button.add-comment .plus-glyph svg { display: block; width: 10px; height: 10px; }
-  .block:hover > .margin > button.add-comment, .block:focus-within > .margin > button.add-comment, button.add-comment:focus-visible { opacity: 1; }
+  .block:hover > .margin > .slot.single > button.add-comment, .block:focus-within > .margin > .slot.single > button.add-comment, .slot.hot > button.add-comment, .slot:hover > button.add-comment, .slot:focus-within > button.add-comment, button.add-comment:focus-visible { opacity: 1; }
   .bubble { position: relative; }
   .bubble .marker { display: inline-flex; align-items: center; justify-content: center; width: 1.6rem; height: 1.6rem; color: var(--accent); cursor: pointer; }
   .bubble .full { display: none; position: absolute; top: 0; right: 0; z-index: 5; width: 18rem; max-width: calc(100vw - 2rem); background: var(--bubble-bg); border: 1px solid var(--bubble-border); border-radius: 6px; padding: 0.5rem 0.75rem; box-shadow: 0 2px 8px var(--shadow); }
@@ -878,15 +1113,12 @@ export function renderPlanHtml(plan: Plan, nonce: string, options?: { resetState
   @media (max-width: 899px) {
     :root { --content-pad: 16px; }
     .editable::after { display: none; }
-    .block { grid-template-columns: minmax(0, 1fr); }
-    .margin { padding-top: 0.25rem; display: flex; flex-wrap: wrap; align-items: flex-start; gap: 0.25rem; }
-    .margin .bubbles { flex: 1 1 100%; }
-    .bubble .full { position: static; width: auto; max-width: none; margin-top: 0.25rem; }
-    .margin:not(:has(.bubble)) { padding-top: 0; }
-    .code-line { position: relative; }
-    .code-line > .body { padding-right: 26px; }
-    .code-line > .margin { position: absolute; top: 0; right: 0; display: block; }
-    .code-line .bubble .full { position: absolute; right: 0; width: min(18rem, calc(100vw - 2rem)); margin-top: 0; z-index: 5; }
+    .block { grid-template-columns: minmax(0, 1fr); position: relative; }
+    .block > .body { padding-right: 26px; }
+    .block.card > .body, .block.file-block > .body { padding-right: 30px; }
+    .block > .margin { position: absolute; top: 0; right: 0; bottom: 0; width: 26px; }
+    .bubble .full { position: absolute; right: 0; width: min(18rem, calc(100vw - 2rem)); margin-top: 0; z-index: 5; }
+    .block.title-block > .margin { right: 0; }
     .code-lines { padding-left: 0.6rem; padding-right: 0.4rem; }
   }
 </style>
@@ -1134,6 +1366,12 @@ export class PlanPanel {
         rawComments = pruned.comments;
         if (pruned.dropped > 0) {
           droppedNote = ` Dropped ${pruned.dropped} question comment${pruned.dropped === 1 ? "" : "s"} that no longer match a question.`;
+        }
+        // Text-line comments (`step:2#1`) past the lines the edited text now has are dropped too.
+        const lines = dropOutOfRangeTextLineComments(rawComments as Record<string, unknown>, edited.plan);
+        rawComments = lines.comments;
+        if (lines.dropped > 0) {
+          droppedNote += ` Dropped ${lines.dropped} line comment${lines.dropped === 1 ? "" : "s"} that no longer match a line.`;
         }
       }
       const parsed = parseReviewComments(rawComments, edited.plan);

@@ -60,7 +60,47 @@ Do not edit `test/`, `TASKS.md`, `STATUS.md`, `README.md`, `CLAUDE.md`, or `pack
 
 ## Development (developer)
 
-_To be filled by the developer._
+### What changed
+
+- `src/plan/lineComments.ts` (new, pure): `splitTextLines`, `commentableBody`, `lineId`, `parseLineId`, `textLineIds`, `lineLabel`.
+- `src/plan/reviewComments.ts`: `blockIdsForPlan` now returns one id per line (title, summary, out of scope, steps, verification items, open questions); `parseReviewComments` accepts the new ids (regex allows an optional `#<n>` suffix, plus the new `scope` block); `blockLabel` labels lines; new `dropOutOfRangeTextLineComments`; `dropOutOfRangeQuestionComments` also drops `question:<i>#<n>`.
+- `src/webview/planPanel.ts`: text is rendered as one `<span class="tline" data-line="...">` per line; each block's margin holds one `.slot` (button plus bubble holder) per line, instead of one button per block; script, CSS and host `review()` updated (see below). The title is now a commentable block (`title-block`) in the sticky bar. `planPrompt.ts` and `extension.ts` needed no change (they call `formatCommentsForPrompt`).
+
+### Line-splitting rule (a rule, not runtime measurement)
+
+Wrapped text is NOT measured in the browser. `splitTextLines(text)` splits on a fixed rule so ids do not change when the panel is resized: a new line starts after a newline, and after a sentence end (`.`, `!`, `?`, optionally followed by `"`, `'`, `)`, `]`) that is followed by whitespace. Trailing whitespace stays on the line before it, so the pieces join back to the exact text. A whitespace-only piece joins its neighbour. Empty text gives `[""]`; `textLineIds` gives no lines for blank text (so an empty Out of scope has no target).
+Limits: one long sentence that wraps onto several visual rows is ONE target (no per-row target); two short sentences on one row are two targets, so their margin slots are pushed down by at least 22 px to avoid overlap (a later slot can sit a little below its line); abbreviations like "e.g. x" split. Callout markers (`NOTE:` ...) are not part of the text, so lines are those of the body. Code lines keep one target per code line (`code:<i>`, no further wrapping split). A file row is one target.
+The same function runs in the webview: its source is copied into the script with `splitTextLines.toString()` (so it must stay self-contained and the compiled `out/` must be used, as the UI tests do), so host and webview cannot drift.
+
+### Line id format
+
+`<blockId>` for line 0 (so every old id still works: `title`, `overview`, `step:2`, `verification:0`, `question:1`, `file:3`, `code`, `code:5`), and `<blockId>#<n>` (n = 1, 2, ...) for later lines, e.g. `step:2#1`. Block ids: `title`, `overview` (summary), `scope` (NEW: the out-of-scope text, previously part of `overview`), `code`, `code:<i>`, `file:<i>`, `step:<i>`, `verification:<i>`, `question:<i>`. The `overview` DOM block still holds both summary and out of scope; its margin has slots for the summary lines (`overview`, `overview#1`, ...) then the out-of-scope lines (`scope`, `scope#1`, ...).
+
+### Comment keying and the "+" button rule
+
+Comments are stored in webview state per line id (`state.comments[lineId]`), so one block can hold several comments. The old "one comment per block" rule is now "one comment per line": the "+" button is hidden for a slot only while that slot has a comment or is being edited (`show()` in `wireSlot`). The button shows on hover: for text blocks, `.slot.hot` (set by a `mousemove` handler to the line level with the pointer, or the nearest line when the pointer is on empty space in the block) or `.slot:hover`/focus-within; for single-target blocks (file rows, code lines, the `code` block) the old rule `.block:hover > .margin > .slot.single > button` still applies. Slots are absolutely positioned in the margin by `layoutSlots` (rect of the line span minus the margin top; re-run on resize through a ResizeObserver and after edits). On phone width all blocks now use the code-line style: margin is an absolute 26 px strip at the right of the block (before, the margin sat below the block).
+After a click-to-edit commit, the field is re-split (`relineEl`), the block's slots are rebuilt (`rebuildSlots`), comments of lines that no longer exist are dropped, and the status line says "Dropped N line comment(s) that no longer match a line." (same wording as code). Comments on lines that still exist stay (keyed by id, so they may now sit on different text if the edit inserted a sentence earlier). The host `review()` also drops out-of-range `#<n>` text-line comments before validation, as a safety net. After a reload, saved edits are re-split and slots rebuilt before wiring. Mention highlighting inside an edited field is lost, as before.
+
+### Review Comments label format
+
+`blockLabel`/`formatCommentsForPrompt`: one `<Label>: <text>` line per comment, in document order. Label is the block label when the block has one line, else `<Block label>, line <n>` (n from 1): `Title`, `Overview` / `Overview, line 2`, `Out of scope` / `Out of scope, line 2`, `Step 3, line 2`, `Verification 1, line 2`, `Open question 2, line 1`, `File <path>`, `Code line <n>`. Webview aria labels and the Review popover list use lower-case labels of the same shape (`step 3, line 2`, `overview, line 1`).
+
+### Results
+
+- `npm run compile`: passes.
+- `npm run test:unit`: 6 failures, all in `test/unit/planRenderer.test.ts`, all old assertions about the old markup (I did not edit test/):
+  1. "renders blocks in the order title, overview, ..." expects the title NOT to be a block; it now is (`title` first).
+  2. "gives every block a comment button with an aria-label" expects buttons == blocks; there are now buttons == slots (overview has one per line plus out of scope).
+  3. "escapes every plan field ..." expects the exact `<h1 class="editable" data-edit="title" data-label="title" tabindex="0">` string; the h1 now also has `data-lines` / `data-lines-label` and its text is inside a `tline` span.
+  4. "renders a callout for a marker ..." and 5. "always renders an empty-capable Out of scope field ..." and 6. "renders steps as numbered editable cards and verification ..." expect the old inner markup of editable text (no `data-lines` attributes, no `tline` spans).
+  The earlier review-script assertions (`innerHTML` appears once) still pass: the "+" glyph for new slots is built with DOM calls, not innerHTML.
+- `npm run test:ui` (run once for information; the tester owns test/): the old tests that fail do so because of the design change, not crashes: (a) several tests click `.block[data-block="overview"] button.add-comment` and hit a strict-mode violation (overview now has 3 slots: use `.slot[data-line="overview"] button`); (b) `layout.spec.ts` "holds title, Review, Implement, kebab in order" explicitly asserts the title has no "+" button and no `[data-block='title']`, which contradicts this brief (the title is a commentable line); (c) a few antigravityStyle tests (accent plus colour, light variant, CSP console) hit the same overview selector. Code-line, open-question, edit-on-click, edit reload, file mention and hover tests pass. `edits survive a reload` failed once in a 5-worker run and passed alone and in later runs; looks like a timing flake in the test, but worth a look.
+
+### Left for the tester
+
+- Unit: `splitTextLines` (single line, several sentences, newlines, blank lines, whitespace, `NOTE:` body, markup-like text such as `<b>`, text with no whitespace after a dot, empty text), `lineId`/`parseLineId` round trip, `textLineIds`, `blockIdsForPlan` with multi-line steps, `parseReviewComments` accepting `step:0#1`, `scope`, and rejecting `step:0#9` and `step:0#01`, `dropOutOfRangeTextLineComments`, `blockLabel` ("Step 3, line 2"), `formatCommentsForPrompt` with several comments on one block, and update the six old assertions above.
+- UI: a comment on the second sentence of the overview summary (`.slot[data-line="overview#1"]`), a file row, and a step; bubbles in the margin; reload keeps them; editing a step so it has fewer lines drops the comment on the removed line with the status note; phone width (slot strip at the right, no horizontal scroll). Margin slot positions are set by JS (`style.top`), so check them in headless Chromium, not in jsdom.
+- Integration: none of the files I touched has an integration test that depends on one comment per block that I could see (not run).
 
 ## Testing (tester)
 
