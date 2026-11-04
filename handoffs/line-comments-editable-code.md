@@ -72,6 +72,15 @@ Commit: `aaebfbd` on `task/line-comments-editable-code`.
 
 **Not verified.** `npm run test:ui` and `npm test` were not run (shell permission was denied for test:ui). The webview script, the phone layout and the light theme were not checked in a browser, and the Playwright tests for line comments and code editing are not written. Existing UI tests that query `pre` or `.block` counts may need updating.
 
+### Development (round 2)
+
+Commit: 4be6d40 (only `src/webview/planPanel.ts`).
+
+1. Line comment buttons opened the code editor. Cause: the comment buttons re-render the margin (`show()` clears the holder), so the button was detached before the click bubbled to `div.editable.code-lines`, and `closest(".margin")` failed. Fix: in `wireBlock`, the block's `.margin` now stops click propagation, so no comment control click reaches the editable handler. The existing `closest(".margin")` check stays as a harmless backup.
+2. Copy button not clickable. Cause: `.code-lines` painted over `button.copy-code`. Fix: `z-index: 6` on `button.copy-code` (already `position: absolute`). Look unchanged.
+
+Results: `npm run compile` clean. `npm run test:unit`: 20 files, 319 passed. `npm run test:ui`: 94 passed, 0 failed (includes the three listed tests).
+
 ## Testing
 Verdict: **FAIL** (two src/ bugs, found by 3 failing UI tests). Test commit: see git log (`test: code line comments and editable code`).
 
