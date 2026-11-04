@@ -67,8 +67,8 @@ suite("Claude Code Artifact extension", () => {
     assert.ok(match, `expected a webview tab; found: ${tabs.map((t) => t.label).join(", ")}`);
   });
 
-  // The diff review opens a diff editor and offers accept and reject CodeLenses, writing nothing.
-  test("diff review opens a diff and offers accept and reject lenses", async () => {
+  // The inline review opens a read-only inline document and offers accept and reject CodeLenses, writing nothing.
+  test("inline review opens an inline document and offers accept and reject lenses", async () => {
     const review = loadReviewModule();
     const folder = vscode.workspace.workspaceFolders?.[0]?.uri;
     assert.ok(folder, "a workspace folder should be open");
@@ -85,15 +85,17 @@ suite("Claude Code Artifact extension", () => {
     const result = await review.startImplementReview(plan, folder);
     assert.strictEqual(result.ok, true, result.message);
 
-    const tab = vscode.window.tabGroups.all
-      .flatMap((g) => g.tabs)
-      .find((t) => t.input instanceof vscode.TabInputTextDiff);
-    assert.ok(tab, "a diff editor tab should be open");
-    const input = tab.input as vscode.TabInputTextDiff;
+    const allTabs = vscode.window.tabGroups.all.flatMap((g) => g.tabs);
+    assert.strictEqual(allTabs.filter((t) => t.input instanceof vscode.TabInputTextDiff).length, 0, "no diff tab");
+    const tab = allTabs.find(
+      (t) => t.input instanceof vscode.TabInputText && t.input.uri.scheme === "claude-artifact-inline"
+    );
+    assert.ok(tab, "an inline review tab should be open");
+    const input = tab.input as vscode.TabInputText;
 
     const lenses = (await vscode.commands.executeCommand(
       "vscode.executeCodeLensProvider",
-      input.modified
+      input.uri
     )) as vscode.CodeLens[];
     const ids = lenses.map((l) => l.command?.command);
     assert.ok(ids.includes("claudeArtifact.acceptHunk"), "accept lens missing");

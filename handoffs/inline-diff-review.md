@@ -81,3 +81,21 @@ Commit: d18c2d6 on `task/inline-diff-review-2`.
 - Integration: inline doc opens with no `vscode.diff`; text contains removed and added lines; accept/reject affect one hunk; text drops added lines after reject (the document reload is asynchronous, so wait for it); apply writes only accepted hunks.
 
 ## Testing (tester)
+
+**Commands run:** `npm run test:unit`, `npm run test:ui`, `npm run test:integration`.
+
+**Results**
+- Unit: 18 files, 284 tests passed, 0 failed (new `test/unit/inlineReview.test.ts`, 12 tests: replace, pure insert, pure delete, multi-line spans, new file, rejected hunk, two hunks with line shift, reject earlier moves later hunk up, reject later leaves earlier spans, all rejected, trailing newline).
+- UI: 75 passed, 0 failed.
+- Integration (VS Code 1.107.0): 33 passed, 0 failed.
+
+**Test changes**
+- `test/integration/extension.test.ts`: the "diff review" case (it looked for a `TabInputTextDiff`, which my first grep missed) now expects an inline tab on `claude-artifact-inline`, no diff tab, and lenses on the inline URI. Renamed.
+- `test/integration/implementFlow.test.ts`: diff-tab helpers replaced by inline-tab helpers; asserts no diff tab.
+- `test/integration/applyFlows.test.ts`: `lensesFor` now uses the `claude-artifact-inline` scheme. New cases: no `vscode.diff` call (spy on `executeCommand`), one inline tab titled with the real name, real file not opened and unchanged; inline text holds removed then added lines of both pending hunks; reject of hunk 1 drops only its added lines and sets only its lens title, accept changes no text and writes nothing; new file inline text equals the proposal with one hunk lens at line 0 and nothing created on disk. All existing Apply cases pass unchanged.
+
+**Limits:** decoration colours cannot be read through the VS Code API, so "every line green" for a new file is verified through the pure mapping (added span covers all lines, unit test) plus the inline text and lens in the host.
+
+**Failing output:** none. 
+
+**Verdict: PASS**

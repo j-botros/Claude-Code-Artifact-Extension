@@ -46,21 +46,23 @@ function writeClaudeStub(dir: string, plan: Plan): void {
   fs.chmodSync(file, 0o755);
 }
 
-/** Returns the diff tabs currently open. */
-function diffTabs(): vscode.Tab[] {
-  return vscode.window.tabGroups.all.flatMap((g) => g.tabs).filter((t) => t.input instanceof vscode.TabInputTextDiff);
+/** Returns the inline review tabs currently open (plain text tabs on the inline scheme). */
+function inlineTabs(): vscode.Tab[] {
+  return vscode.window.tabGroups.all
+    .flatMap((g) => g.tabs)
+    .filter((t) => t.input instanceof vscode.TabInputText && t.input.uri.scheme === "claude-artifact-inline");
 }
 
-/** Waits (polling) until a diff tab for the path exists, and returns it. */
-async function waitForDiff(rel: string): Promise<vscode.Tab> {
+/** Waits (polling) until an inline review tab for the path exists, and returns it. */
+async function waitForInline(rel: string): Promise<vscode.Tab> {
   for (let i = 0; i < 100; i++) {
-    const found = diffTabs().find((t) => (t.input as vscode.TabInputTextDiff).modified.path.includes(rel));
+    const found = inlineTabs().find((t) => (t.input as vscode.TabInputText).uri.path.includes(rel));
     if (found) {
       return found;
     }
     await new Promise((r) => setTimeout(r, 50));
   }
-  assert.fail(`no diff tab for ${rel}; open: ${diffTabs().map((t) => t.label).join(", ")}`);
+  assert.fail(`no inline tab for ${rel}; open: ${inlineTabs().map((t) => t.label).join(", ")}`);
 }
 
 /** Waits (polling) until the fake panel has received a message of the given type. */
@@ -127,9 +129,11 @@ suite("Implement the Design through the panel handler", () => {
     const result = await waitForPosted(posted, "implementResult", 0);
     assert.strictEqual(result.ok, true, `implement failed: ${result.message}`);
     assert.notStrictEqual(result.message, "This plan has no proposed files.");
-    // The sample has two proposed files; diffs open as preview tabs, so the later one can replace the earlier.
-    const tab = await waitForDiff("sample-artifact/");
-    assert.ok(tab, "a diff tab for a sample file should be open");
+    // Inline tabs are not previews, so one tab per reviewed file stays open.
+    const tab = await waitForInline("sample-artifact/");
+    assert.ok(tab, "an inline review tab for a sample file should be open");
+    const diffs = vscode.window.tabGroups.all.flatMap((g) => g.tabs).filter((t) => t.input instanceof vscode.TabInputTextDiff);
+    assert.strictEqual(diffs.length, 0, "no diff editor tab should open");
   });
 
   test("Review Comments with a revised plan that has no proposedFiles: Implement still shows hunks", async () => {
@@ -165,6 +169,6 @@ suite("Implement the Design through the panel handler", () => {
     listener({ type: "implementDesign" });
     const result = await waitForPosted(posted, "implementResult", before);
     assert.strictEqual(result.ok, true, `implement failed after review: ${result.message}`);
-    await waitForDiff("sample-artifact/");
+    await waitForInline("sample-artifact/");
   });
 });
