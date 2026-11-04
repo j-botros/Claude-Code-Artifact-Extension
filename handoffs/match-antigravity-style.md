@@ -68,7 +68,24 @@ Light theme: keep it as a secondary variant. Pick light values that keep contras
 
 ## Development (developer)
 
-_Pending._
+**What changed.** Only `src/webview/planPanel.ts` (CSS block and one script line).
+- `:root` now holds the dark values from the brief as the default, plus new custom properties: `--heading`, `--btn-secondary`, `--popover`, `--code-bg`, `--accent-fg`, `--info`, `--important`, `--inline-code`, `--code-comment`, `--code-keyword`, `--code-string`, `--font-body`, `--font-code`, `--font-size`, `--content-width` (800px), `--margin-width` (40px), `--side-padding` (24px; 16px at max-width 899px). Old names (`--bg`, `--fg`, `--card`, `--border`, `--accent`, ...) are kept.
+- The old `prefers-color-scheme: dark` block is gone. Light is now `@media (prefers-color-scheme: light)`.
+- Body 14px / line-height 1.5; h1 1.5em; h2 1.2em; h3 1em. Code 13px in the mono stack.
+- Review button: secondary background by default; the script toggles a `has-comments` class (accent blue) when comments exist. Implement the Design uses the secondary background. "+" button, Add Comment, Save, and Submit use the accent. Popover and bubble use the popover colour and border.
+- Inline `code` uses `--inline-code`; `pre code` uses body text. Classes `.tok-comment`, `.tok-keyword`, `.tok-string` and `.callout.info` / `.callout.important` are styled, but no current markup emits them (no syntax highlighter or callout content exists in the plan renderer). Tester: test them by injecting elements in the page, or tell the core agent if markup is wanted.
+
+**Notes.**
+- Dark values were sampled from the owner's screenshots. Font sizes are estimates because the screenshot scale is not known.
+- Light values I chose (not sampled): bg `#ffffff`, heading `#1f1f1f`, body `#2b2b2b`, muted `#5f6368`, secondary button `#ececec`, popover/card `#f7f7f7`, code bg `#f3f3f3`, border `#dcdcdc`, accent `#2a64b8`, info `#2a55b8`, important `#6b44c4`, inline code `#8a5a00`, code comment `#5d6b7a`, keyword `#0b6d8c`, string `#3d7a0a`, link `#1f5fbf`.
+- Non-brief values I chose for dark: muted `#9a9a9a`, link `#6aa5ec`, badge green kept.
+- Deviation: the margin is a `var(--margin-width)` column, 40px (was 2.5rem). No `src/plan/` changes.
+
+**Results.** `npm run compile` passes. `npm run test:unit`: 245 pass, 1 fails: `test/unit/planRenderer.test.ts` "supports the dark color scheme" expects the string `prefers-color-scheme: dark`, which no longer exists because dark is the default. The tester should update it (for example, expect `--bg: #1f1f1f` and `prefers-color-scheme: light`). I did not edit `test/`.
+
+Nothing was checked in a browser yet.
+
+Commit: see `git log` on `task/match-antigravity-style` (latest commit, "style: match Antigravity colours and type").
 
 ## Testing (tester)
 

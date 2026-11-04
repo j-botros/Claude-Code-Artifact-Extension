@@ -180,6 +180,7 @@ function refreshReview() {
   const comments = readComments();
   const ids = Array.from(document.querySelectorAll(".block")).map((b) => b.getAttribute("data-block")).filter((id) => typeof comments[id] === "string" && comments[id] !== "");
   reviewLabel.textContent = "Review \\u2022 " + ids.length;
+  reviewBtn.classList.toggle("has-comments", ids.length > 0);
   reviewSummary.textContent = "Comments (" + ids.length + ")";
   reviewList.textContent = "";
   ids.forEach((id) => {
@@ -454,47 +455,74 @@ export function renderPlanHtml(plan: Plan, nonce: string, options?: { resetState
 <title>${escapeHtml(plan.title)}</title>
 <style nonce="${nonce}">
   :root {
-    --bg: #ffffff;
-    --fg: #1f2328;
-    --muted: #57606a;
-    --card: #f6f8fa;
-    --border: #d0d7de;
-    --badge-bg: #1a7f37;
+    --bg: #1f1f1f;
+    --heading: #cccccc;
+    --fg: #d5d5d5;
+    --muted: #9a9a9a;
+    --btn-secondary: #343434;
+    --popover: #232323;
+    --card: #232323;
+    --code-bg: #232323;
+    --border: #292929;
+    --badge-bg: #2ea043;
     --badge-fg: #ffffff;
-    --link: #0969da;
-    --accent: #0969da;
-    --bubble-bg: #fff8c5;
-    --bubble-border: #d4a72c;
-    --shadow: rgba(31, 35, 40, 0.18);
+    --link: #6aa5ec;
+    --accent: #3376ce;
+    --accent-fg: #ffffff;
+    --info: #3566ce;
+    --important: #8259dd;
+    --inline-code: #e2c98e;
+    --code-comment: #8693a2;
+    --code-keyword: #8ae0f6;
+    --code-string: #bbec56;
+    --bubble-bg: #232323;
+    --bubble-border: #292929;
+    --shadow: rgba(0, 0, 0, 0.5);
+    --font-body: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+    --font-code: ui-monospace, "SF Mono", Menlo, monospace;
+    --font-size: 14px;
+    --content-width: 800px;
+    --margin-width: 40px;
+    --side-padding: 24px;
   }
-  @media (prefers-color-scheme: dark) {
+  /* Light variant: secondary; chosen for contrast, not sampled from screenshots. */
+  @media (prefers-color-scheme: light) {
     :root {
-      --bg: #1e1e1e;
-      --fg: #e6e6e6;
-      --muted: #9da5b0;
-      --card: #252526;
-      --border: #3c3c3c;
-      --badge-bg: #2ea043;
-      --badge-fg: #ffffff;
-      --link: #58a6ff;
-      --accent: #58a6ff;
-      --bubble-bg: #3a3320;
-      --bubble-border: #9e7f1c;
-      --shadow: rgba(0, 0, 0, 0.5);
+      --bg: #ffffff;
+      --heading: #1f1f1f;
+      --fg: #2b2b2b;
+      --muted: #5f6368;
+      --btn-secondary: #ececec;
+      --popover: #f7f7f7;
+      --card: #f7f7f7;
+      --code-bg: #f3f3f3;
+      --border: #dcdcdc;
+      --link: #1f5fbf;
+      --accent: #2a64b8;
+      --info: #2a55b8;
+      --important: #6b44c4;
+      --inline-code: #8a5a00;
+      --code-comment: #5d6b7a;
+      --code-keyword: #0b6d8c;
+      --code-string: #3d7a0a;
+      --bubble-bg: #f7f7f7;
+      --bubble-border: #dcdcdc;
+      --shadow: rgba(0, 0, 0, 0.18);
     }
   }
   [hidden] { display: none !important; }
   * { box-sizing: border-box; }
-  body { background: var(--bg); color: var(--fg); font-family: system-ui, sans-serif; margin: 0; padding: 1rem; overflow-wrap: anywhere; }
-  .doc { max-width: 60rem; margin: 0 auto; }
+  body { background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: var(--font-size); line-height: 1.5; margin: 0; padding: 1rem var(--side-padding); overflow-wrap: anywhere; }
+  .doc { max-width: var(--content-width); margin: 0 auto; }
   header.top { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: flex-start; gap: 0.5rem; }
-  button.review { display: inline-flex; align-items: center; gap: 0.4rem; background: var(--badge-bg); color: var(--badge-fg); border: 0; border-radius: 4px; padding: 0.4rem 0.9rem; font: inherit; cursor: pointer; }
+  button.review { display: inline-flex; align-items: center; gap: 0.4rem; background: var(--btn-secondary); color: var(--heading); border: 0; border-radius: 4px; padding: 0.4rem 0.9rem; font: inherit; cursor: pointer; }
+  button.review.has-comments { background: var(--accent); color: var(--accent-fg); }
   .review-wrap, .kebab-wrap { position: relative; }
   button.kebab { display: inline-flex; align-items: center; justify-content: center; width: 2rem; height: 2rem; padding: 0; background: transparent; color: var(--fg); border: 1px solid var(--border); border-radius: 4px; cursor: pointer; }
-  .popover { position: absolute; top: calc(100% + 0.3rem); right: 0; z-index: 10; background: var(--bg); color: var(--fg); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 4px 16px var(--shadow); }
+  .popover { position: absolute; top: calc(100% + 0.3rem); right: 0; z-index: 10; background: var(--popover); color: var(--fg); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 4px 16px var(--shadow); }
   .menu { display: flex; flex-direction: column; min-width: 11rem; padding: 0.25rem; }
   .menu button { background: transparent; color: var(--fg); border: 0; border-radius: 4px; padding: 0.4rem 0.7rem; text-align: left; font: inherit; cursor: pointer; }
-  .menu button:hover, .menu button:focus-visible { background: var(--card); }
+  .menu button:hover, .menu button:focus-visible { background: var(--btn-secondary); }
   .review-pop { width: 22rem; max-width: calc(100vw - 2rem); padding: 0.75rem; }
   .review-pop h2 { margin: 0 0 0.5rem; }
   .review-pop .comment-field { margin-bottom: 0.5rem; }
@@ -503,23 +531,24 @@ export function renderPlanHtml(plan: Plan, nonce: string, options?: { resetState
   .comment-items { list-style: none; margin: 0.4rem 0 0; padding: 0; max-height: 12rem; overflow-y: auto; }
   .comment-item { padding: 0.3rem 0; border-top: 1px solid var(--border); font-size: 0.9rem; }
   .comment-item.empty { color: var(--muted); border-top: 0; }
-  button.primary { background: var(--accent); color: #ffffff; border: 0; border-radius: 4px; padding: 0.3rem 0.8rem; font: inherit; cursor: pointer; }
+  button.primary { background: var(--accent); color: var(--accent-fg); border: 0; border-radius: 4px; padding: 0.3rem 0.8rem; font: inherit; cursor: pointer; }
   button.submit-review:disabled { opacity: 0.6; cursor: default; }
-  button.implement { background: var(--card); color: var(--fg); border: 1px solid var(--border); border-radius: 4px; padding: 0.4rem 0.9rem; font: inherit; cursor: pointer; }
+  button.implement { background: var(--btn-secondary); color: var(--heading); border: 0; border-radius: 4px; padding: 0.4rem 0.9rem; font: inherit; cursor: pointer; }
   button.review:disabled, button.implement:disabled { opacity: 0.6; cursor: default; }
   .status { color: var(--muted); font-size: 0.85rem; min-height: 1.2em; margin: 0.25rem 0 0.5rem; text-align: right; }
-  .block { display: grid; grid-template-columns: minmax(0, 1fr) 2.5rem; column-gap: 0.5rem; margin: 0.25rem 0; }
+  .block { display: grid; grid-template-columns: minmax(0, 1fr) var(--margin-width); column-gap: 0.5rem; margin: 0.25rem 0; }
   .block > .body { min-width: 0; }
   .block.card > .body { background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 0.5rem 0.9rem; }
   .margin { position: relative; padding-top: 0.25rem; }
-  h1 { font-size: 1.7rem; margin: 0.5rem 0; }
-  h2 { font-size: 1.05rem; margin: 1rem 0 0.4rem; }
-  h3 { font-size: 0.95rem; color: var(--muted); margin: 1rem 0 0.4rem; }
+  h1, h2, h3 { color: var(--heading); }
+  h1 { font-size: 1.5em; margin: 0.5rem 0; }
+  h2 { font-size: 1.2em; margin: 1rem 0 0.4rem; }
+  h3 { font-size: 1em; color: var(--muted); margin: 1rem 0 0.4rem; }
   .editable { white-space: pre-wrap; border-radius: 4px; cursor: text; }
   .editable:hover, .editable:focus-visible { outline: 1px dashed var(--border); outline-offset: 2px; }
   .editable:empty::before { content: attr(data-placeholder); color: var(--muted); font-style: italic; }
   .edit-field { display: block; width: 100%; background: var(--bg); color: var(--fg); border: 1px solid var(--accent); border-radius: 4px; font: inherit; padding: 0.3rem 0.5rem; }
-  .edit-field.edit-title { font-size: 1.7rem; font-weight: bold; }
+  .edit-field.edit-title { font-size: 1.5em; font-weight: bold; }
   .step-row { display: flex; gap: 0.5rem; }
   .step-row .editable, .step-row .edit-field { flex: 1; min-width: 0; }
   .num { color: var(--muted); }
@@ -527,11 +556,18 @@ export function renderPlanHtml(plan: Plan, nonce: string, options?: { resetState
   .file-path { flex: 0 1 auto; }
   .file-change { flex: 1 1 14rem; color: var(--muted); }
   a.file-link { color: var(--link); }
-  code { overflow-wrap: anywhere; }
+  code { font-family: var(--font-code); font-size: 13px; color: var(--inline-code); overflow-wrap: anywhere; }
+  pre code { color: var(--fg); }
+  pre code .tok-comment { color: var(--code-comment); }
+  pre code .tok-keyword { color: var(--code-keyword); }
+  pre code .tok-string { color: var(--code-string); }
+  .callout { border-left: 3px solid var(--info); padding: 0.4rem 0.8rem; border-radius: 4px; background: var(--card); }
+  .callout.info { border-left-color: var(--info); }
+  .callout.important { border-left-color: var(--important); }
   .lang-label { color: var(--muted); font-size: 0.75rem; margin-bottom: 0.25rem; }
-  pre { background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 0.75rem 1rem; overflow-x: auto; margin: 0; }
+  pre { background: var(--code-bg); border: 1px solid var(--border); border-radius: 6px; padding: 0.75rem 1rem; overflow-x: auto; margin: 0; }
   .badge { background: var(--badge-bg); color: var(--badge-fg); border-radius: 999px; padding: 0 0.5rem; font-size: 0.75rem; margin-left: 0.25rem; }
-  button.add-comment { display: inline-flex; align-items: center; justify-content: center; width: 1.6rem; height: 1.6rem; padding: 0; background: var(--accent); color: #ffffff; border: 0; border-radius: 4px; font: bold 1.1rem/1 system-ui, sans-serif; cursor: pointer; opacity: 0; }
+  button.add-comment { display: inline-flex; align-items: center; justify-content: center; width: 1.6rem; height: 1.6rem; padding: 0; background: var(--accent); color: var(--accent-fg); border: 0; border-radius: 4px; font: bold 1.1rem/1 var(--font-body); cursor: pointer; opacity: 0; }
   .block:hover button.add-comment, .block:focus-within button.add-comment, button.add-comment:focus-visible { opacity: 1; }
   .bubble { position: relative; }
   .bubble .marker { display: inline-flex; align-items: center; justify-content: center; width: 1.6rem; height: 1.6rem; color: var(--accent); cursor: pointer; }
@@ -540,13 +576,14 @@ export function renderPlanHtml(plan: Plan, nonce: string, options?: { resetState
   .bubble.editing .marker { display: none; }
   .bubble .text { margin: 0 0 0.4rem; white-space: pre-wrap; }
   .bubble .actions { display: flex; justify-content: flex-end; gap: 0.5rem; }
-  .bubble .actions button.primary { background: var(--accent); color: #ffffff; border-color: var(--accent); }
-  .bubble .actions button { background: var(--card); color: var(--fg); border: 1px solid var(--border); border-radius: 4px; padding: 0.15rem 0.6rem; font: inherit; font-size: 0.85rem; cursor: pointer; }
+  .bubble .actions button.primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+  .bubble .actions button { background: var(--btn-secondary); color: var(--fg); border: 1px solid var(--border); border-radius: 4px; padding: 0.15rem 0.6rem; font: inherit; font-size: 0.85rem; cursor: pointer; }
   .comment-field { display: block; width: 100%; background: var(--bg); color: var(--fg); border: 1px solid var(--border); border-radius: 4px; font: inherit; margin-bottom: 0.4rem; }
   @media (hover: none), (max-width: 899px) {
     button.add-comment { opacity: 1; }
   }
   @media (max-width: 899px) {
+    :root { --side-padding: 16px; }
     .block { grid-template-columns: minmax(0, 1fr); }
     .margin { padding-top: 0.25rem; display: flex; flex-wrap: wrap; align-items: flex-start; gap: 0.25rem; }
     .margin .bubbles { flex: 1 1 100%; }
