@@ -536,9 +536,9 @@ export function renderPlanHtml(plan: Plan, nonce: string, options?: { resetState
     --font-body: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
     --font-code: ui-monospace, "SF Mono", Menlo, monospace;
     --font-size: 14px;
-    --content-width: 77vw;
+    --content-pad: max(9vw, 16px);
+    --bar-pad: 1.4vw;
     --margin-width: 40px;
-    --side-padding: 24px;
   }
   /* Light variant: secondary; chosen for contrast, not sampled from screenshots. */
   @media (prefers-color-scheme: light) {
@@ -574,15 +574,16 @@ export function renderPlanHtml(plan: Plan, nonce: string, options?: { resetState
   }
   [hidden] { display: none !important; }
   * { box-sizing: border-box; }
-  body { background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: var(--font-size); line-height: 1.5; margin: 0; padding: 0 var(--side-padding) 1rem; overflow-wrap: anywhere; }
-  .doc { width: var(--content-width); max-width: 100%; margin: 0 auto; }
-  header.top { position: sticky; top: 0; z-index: 20; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 0.5rem; padding: 0.6rem 0; background: var(--bg); border-bottom: 1px solid var(--border); }
+  body { background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: var(--font-size); line-height: 1.5; margin: 0; padding: 0 0 1rem; overflow-wrap: anywhere; }
+  .doc { width: 100%; }
+  .content { padding-inline: var(--content-pad); }
+  header.top { position: sticky; top: 0; z-index: 20; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 0.5rem; padding: 0.6rem 0; padding-inline: var(--bar-pad); background: var(--bg); border-bottom: 1px solid var(--border); }
   header.top .title-wrap { flex: 1 1 12rem; min-width: 0; }
   header.top h1 { margin: 0; line-height: 1.25; }
   .bar-actions { display: flex; align-items: center; gap: 0.5rem; }
-  button.review { display: inline-flex; align-items: center; gap: 0.4rem; background: var(--review); color: var(--review-fg); border: 0; border-radius: 4px; padding: 0.4rem 0.9rem; font: inherit; cursor: pointer; }
+  button.review { display: inline-flex; align-items: center; gap: 0.4rem; background: var(--review); color: var(--review-fg); border: 0; border-radius: 4px; height: 30px; padding: 0 12px; font: inherit; font-size: 13px; cursor: pointer; }
   .review-wrap, .kebab-wrap { position: relative; }
-  button.kebab { display: inline-flex; align-items: center; justify-content: center; width: 2rem; height: 2rem; padding: 0; background: transparent; color: var(--fg); border: 1px solid var(--border); border-radius: 4px; cursor: pointer; }
+  button.kebab { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; padding: 0; background: transparent; color: var(--fg); border: 1px solid var(--border); border-radius: 4px; cursor: pointer; }
   .popover { position: absolute; top: calc(100% + 0.3rem); right: 0; z-index: 10; background: var(--popover); color: var(--fg); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 4px 16px var(--shadow); }
   .menu { display: flex; flex-direction: column; min-width: 11rem; padding: 0.25rem; }
   .menu button { background: transparent; color: var(--fg); border: 0; border-radius: 4px; padding: 0.4rem 0.7rem; text-align: left; font: inherit; cursor: pointer; }
@@ -597,7 +598,7 @@ export function renderPlanHtml(plan: Plan, nonce: string, options?: { resetState
   .comment-item.empty { color: var(--muted); border-top: 0; }
   button.primary { background: var(--accent); color: var(--accent-fg); border: 0; border-radius: 4px; padding: 0.3rem 0.8rem; font: inherit; cursor: pointer; }
   button.submit-review:disabled { opacity: 0.6; cursor: default; }
-  button.implement { background: var(--implement); color: var(--implement-fg); border: 0; border-radius: 4px; padding: 0.4rem 0.9rem; font: inherit; cursor: pointer; }
+  button.implement { background: var(--implement); color: var(--implement-fg); border: 0; border-radius: 4px; height: 30px; padding: 0 12px; font: inherit; font-size: 13px; cursor: pointer; }
   button.review:disabled, button.implement:disabled { opacity: 0.6; cursor: default; }
   .status { color: var(--muted); font-size: 0.85rem; min-height: 1.2em; margin: 0.25rem 0 0.5rem; text-align: right; }
   .block { display: grid; grid-template-columns: minmax(0, 1fr) var(--margin-width); column-gap: 0.5rem; margin: 0.25rem 0; }
@@ -642,7 +643,7 @@ export function renderPlanHtml(plan: Plan, nonce: string, options?: { resetState
   button.copy-code { position: absolute; top: 0.35rem; right: 0.5rem; background: var(--btn-secondary); color: var(--fg); border: 1px solid var(--border); border-radius: 4px; padding: 0.1rem 0.5rem; font: inherit; font-size: 0.75rem; cursor: pointer; }
   pre { background: var(--code-bg); border: 1px solid var(--border); border-radius: 6px; padding: 2rem 1rem 0.75rem; overflow-x: auto; margin: 0; }
   .badge { background: var(--badge-bg); color: var(--badge-fg); border-radius: 999px; padding: 0 0.5rem; font-size: 0.75rem; margin-left: 0.25rem; }
-  button.add-comment { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; padding: 0; background: var(--accent); color: var(--accent-fg); border: 0; border-radius: 4px; font: bold 16px/1 var(--font-body); cursor: pointer; opacity: 0; }
+  button.add-comment { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; padding: 0; background: var(--accent); color: var(--accent-fg); border: 0; border-radius: 4px; font: bold 12px/1 var(--font-body); cursor: pointer; opacity: 0; }
   .block:hover button.add-comment, .block:focus-within button.add-comment, button.add-comment:focus-visible { opacity: 1; }
   .bubble { position: relative; }
   .bubble .marker { display: inline-flex; align-items: center; justify-content: center; width: 1.6rem; height: 1.6rem; color: var(--accent); cursor: pointer; }
@@ -658,7 +659,7 @@ export function renderPlanHtml(plan: Plan, nonce: string, options?: { resetState
     button.add-comment { opacity: 1; }
   }
   @media (max-width: 899px) {
-    :root { --side-padding: 16px; --content-width: 100%; }
+    :root { --content-pad: 16px; }
     .editable::after { display: none; }
     .block { grid-template-columns: minmax(0, 1fr); }
     .margin { padding-top: 0.25rem; display: flex; flex-wrap: wrap; align-items: flex-start; gap: 0.25rem; }
@@ -673,11 +674,12 @@ export function renderPlanHtml(plan: Plan, nonce: string, options?: { resetState
 <header class="top">
 <div class="title-wrap">${titleEl}</div>
 <div class="bar-actions">
-<div class="kebab-wrap"><button class="kebab" type="button" aria-label="More actions" aria-haspopup="menu" aria-expanded="false">${KEBAB_ICON}</button>
-<div class="menu popover" role="menu" hidden><button type="button" role="menuitem" data-action="copyMarkdown">Copy</button><button type="button" role="menuitem" data-action="copyPath">Copy Path</button><button type="button" role="menuitem" data-action="exportArtifact">Export Artifact</button></div></div>
 <div class="review-wrap"><button class="review" type="button" aria-haspopup="dialog" aria-expanded="false">${COMMENT_ICON}<span class="review-label">Review &bull; 0</span>${CHEVRON_ICON}</button>
 <div class="review-pop popover" role="dialog" aria-label="Submit comment" hidden><h2>Submit comment</h2><textarea class="review-message comment-field" rows="3" placeholder="Add an optional message" aria-label="Optional message"></textarea><button class="submit-review primary" type="button">Submit</button><details class="comment-list" open><summary>Comments (0)</summary><ul class="comment-items"></ul></details></div></div>
-<button class="implement" type="button">Implement the Design</button></div></header>
+<button class="implement" type="button">Implement the Design</button>
+<div class="kebab-wrap"><button class="kebab" type="button" aria-label="More actions" aria-haspopup="menu" aria-expanded="false">${KEBAB_ICON}</button>
+<div class="menu popover" role="menu" hidden><button type="button" role="menuitem" data-action="copyMarkdown">Copy</button><button type="button" role="menuitem" data-action="copyPath">Copy Path</button><button type="button" role="menuitem" data-action="exportArtifact">Export Artifact</button></div></div></div></header>
+<div class="content">
 <p class="status" role="status"></p>
 ${overviewBlock}
 <hr class="section-rule">
@@ -691,6 +693,7 @@ ${renderSteps(plan.implementationSteps)}
 <hr class="section-rule">
 <h2>Verification</h2>
 ${renderVerification(plan.verification)}
+</div>
 </div>
 <script nonce="${nonce}">${resetLine}${COMMENT_SCRIPT}</script>
 </body>

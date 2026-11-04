@@ -165,26 +165,27 @@ test.describe("Antigravity style (other)", () => {
     expect(await css(page, "button.review", "background-color")).toBe("rgb(42, 100, 184)");
   });
 
-  // Phone width: 16px side padding and no sideways scroll.
+  // Phone width: 16px content side padding and no sideways scroll.
   test("phone width has 16px side padding and no horizontal scroll", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 800 });
     await openPlan(page, "ag-phone");
-    expect(await css(page, "body", "padding-left")).toBe("16px");
-    expect(await css(page, "body", "padding-right")).toBe("16px");
+    expect(await css(page, ".content", "padding-left")).toBe("16px");
+    expect(await css(page, ".content", "padding-right")).toBe("16px");
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth
     );
     expect(overflow).toBeLessThanOrEqual(0);
   });
 
-  // Desktop width: 24px side padding, the column is 77% of the window and centred, no scroll.
-  test("desktop width gives a centred 77% column and no horizontal scroll", async ({ page }) => {
+  // Desktop width: the content has 9vw side padding (144px at 1600px), the doc is full width, no scroll.
+  test("desktop width gives 9vw content padding and no horizontal scroll", async ({ page }) => {
     await page.setViewportSize({ width: 1600, height: 900 });
     await openPlan(page, "ag-desktop");
-    expect(await css(page, "body", "padding-left")).toBe("24px");
+    expect(await css(page, ".content", "padding-left")).toBe("144px");
+    expect(await css(page, ".content", "padding-right")).toBe("144px");
     const box = await page.locator(".doc").boundingBox();
-    expect(box!.width).toBeCloseTo(1232, 0);
-    expect(box!.x).toBeCloseTo((1600 - box!.width) / 2, 0);
+    expect(box!.width).toBeCloseTo(1600, 0);
+    expect(box!.x).toBeCloseTo(0, 0);
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth
     );

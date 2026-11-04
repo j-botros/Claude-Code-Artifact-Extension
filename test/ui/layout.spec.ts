@@ -127,11 +127,11 @@ test.describe("sticky bar", () => {
     await expect(page.locator("button.implement")).toBeInViewport();
   });
 
-  // The bar holds the title, kebab, Review, and Implement, left to right in that order.
-  test("holds title, kebab, Review, Implement in order", async ({ page }) => {
+  // The bar holds the title, Review, Implement, and kebab, left to right in that order.
+  test("holds title, Review, Implement, kebab in order", async ({ page }) => {
     await openPlan(page, "lay-order");
     const xs: number[] = [];
-    for (const sel of ["header.top h1", "button.kebab", "button.review", "button.implement"]) {
+    for (const sel of ["header.top h1", "button.review", "button.implement", "button.kebab"]) {
       const box = await page.locator(sel).boundingBox();
       expect(box, sel).not.toBeNull();
       xs.push(box!.x);
@@ -392,6 +392,114 @@ test.describe("click to edit tooltip and widths", () => {
     const doc = await page.locator(".doc").boundingBox();
     const padding = parseFloat(await css(page, "body", "padding-left"));
     expect(doc!.width).toBeCloseTo(800 - 2 * padding, 0);
+    // The content area keeps its 16px phone padding.
+    expect(await css(page, ".content", "padding-left")).toBe("16px");
+  });
+});
+
+test.describe("Antigravity sizes at 2000px", () => {
+  test.use({ colorScheme: "dark", viewport: { width: 2000, height: 900 } });
+
+  // The content's text column spans about 9% to 87% of the window width.
+  test("content starts at 9% and the blocks end at 91% (symmetric 9vw padding)", async ({ page }) => {
+    await openPlan(page, "sz-edges");
+    expect(await css(page, ".content", "padding-left")).toBe("180px");
+    expect(await css(page, ".content", "padding-right")).toBe("180px");
+    const box = await page.locator(".content").boundingBox();
+    expect(box!.x).toBeCloseTo(0, 0);
+    expect(box!.width).toBeCloseTo(2000, 0);
+    // The commentable blocks start at the left padding edge and end at 91% (right padding 9%).
+    const first = await page.locator(".block").first().boundingBox();
+    expect(first!.x).toBeCloseTo(180, 0);
+    expect(first!.x + first!.width).toBeCloseTo(1820, 0);
+    // Reference: the screenshots show 185/2000 (9.25%) on the left and 1735/2000 (86.75%) text end.
+    expect(first!.x / 2000).toBeGreaterThan(0.08);
+    expect(first!.x / 2000).toBeLessThan(0.1);
+  });
+
+  // The phone minimum: padding never drops below 16px.
+  test("content padding is at least 16px on a narrow window", async ({ page }) => {
+    await page.setViewportSize({ width: 320, height: 700 });
+    await openPlan(page, "sz-min");
+    expect(await css(page, ".content", "padding-left")).toBe("16px");
+  });
+
+  // The top bar has 1.4vw side padding, so the title sits about 28px from the left at 2000px.
+  test("top bar padding is 1.4vw and the title is offset by it", async ({ page }) => {
+    await openPlan(page, "sz-bar");
+    expect(await css(page, "header.top", "padding-left")).toBe("28px");
+    expect(await css(page, "header.top", "padding-right")).toBe("28px");
+    const h1 = await page.locator("header.top h1").boundingBox();
+    expect(h1!.x).toBeCloseTo(28, 0);
+    const bar = await page.locator("header.top").boundingBox();
+    expect(bar!.width).toBeCloseTo(2000, 0);
+  });
+
+  // Review and Implement are 30px high with 12px padding, 13px font, and a 4px radius.
+  for (const sel of ["button.review", "button.implement"]) {
+    test(`${sel} is 30px high, 12px padding, 13px font, 4px radius`, async ({ page }) => {
+      await openPlan(page, `sz-${sel.split(".")[1]}`);
+      const box = await page.locator(sel).boundingBox();
+      expect(box!.height).toBeCloseTo(30, 0);
+      expect(await css(page, sel, "padding-left")).toBe("12px");
+      expect(await css(page, sel, "padding-right")).toBe("12px");
+      expect(await css(page, sel, "font-size")).toBe("13px");
+      expect(await css(page, sel, "border-radius")).toBe("4px");
+    });
+  }
+
+  // The kebab sits to the right of Implement the Design, and the bar order is title, Review, Implement, kebab.
+  test("kebab is to the right of Implement and matches the button height", async ({ page }) => {
+    await openPlan(page, "sz-kebab");
+    const impl = await page.locator("button.implement").boundingBox();
+    const kebab = await page.locator("button.kebab").boundingBox();
+    expect(kebab!.x).toBeGreaterThanOrEqual(impl!.x + impl!.width);
+    expect(kebab!.height).toBeCloseTo(30, 0);
+    const review = await page.locator("button.review").boundingBox();
+    expect(impl!.x).toBeGreaterThanOrEqual(review!.x + review!.width);
+    // All three buttons share a vertical centre line (they line up in the bar).
+    expect(kebab!.y + kebab!.height / 2).toBeCloseTo(impl!.y + impl!.height / 2, 0);
+  });
+
+  // The "+" button is 24px square and its glyph is 12px.
+  test("the plus button is 24px square with a 12px glyph", async ({ page }) => {
+    await openPlan(page, "sz-plus");
+    const b = page.locator(".block[data-block='step:0']");
+    await b.hover();
+    const box = await b.locator("button.add-comment").boundingBox();
+    expect(box!.width).toBeCloseTo(24, 0);
+    expect(box!.height).toBeCloseTo(24, 0);
+    expect(await css(page, "button.add-comment", "font-size")).toBe("12px");
+  });
+
+  // The bar stays at the top after scrolling, at the new width.
+  test("sticky bar stays at the top after scrolling", async ({ page }) => {
+    await page.setViewportSize({ width: 2000, height: 400 });
+    await openPlan(page, "sz-sticky", calloutPlan);
+    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+    expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(100);
+    const box = await page.locator("header.top").boundingBox();
+    expect(box!.y).toBeCloseTo(0, 0);
+    await expect(page.locator("button.review")).toBeInViewport();
+    await expect(page.locator("button.kebab")).toBeInViewport();
+  });
+
+  // Colours, callouts and the CSP are unchanged by the size work.
+  test("colours, callouts and CSP are kept", async ({ page }) => {
+    const problems: string[] = [];
+    page.on("pageerror", (e) => problems.push(e.message));
+    page.on("console", (m) => {
+      if (m.type() === "error" || /content security policy|refused to|violat/i.test(m.text())) {
+        problems.push(m.text());
+      }
+    });
+    await openPlan(page, "sz-colours", calloutPlan);
+    expect(await css(page, "button.review", "background-color")).toBe("rgb(51, 118, 206)");
+    expect(await css(page, "button.implement", "background-color")).toBe("rgb(63, 163, 77)");
+    await expect(page.locator(".callout")).not.toHaveCount(0);
+    await expect(page.locator(".step-row .callout.warning .callout-label").first()).toHaveText("WARNING");
+    expect(await page.locator("[style]").count()).toBe(0);
+    expect(problems).toEqual([]);
   });
 });
 
