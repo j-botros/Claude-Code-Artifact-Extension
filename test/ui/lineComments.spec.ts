@@ -214,6 +214,32 @@ test.describe("every line is commentable", () => {
     expect(await savedComments(page)).toEqual({ overview: "first line note" });
   });
 
+  // Editing a step so it has fewer lines drops the comment on the removed line and says so.
+  test("editing a step to fewer lines drops the comment on the removed line", async ({ page }) => {
+    await openPlan(page, "lc-step-drop");
+    await commentOnLine(page, "step:0#2", "third line of step");
+    await commentOnLine(page, "step:0", "first line of step");
+    await page.locator("[data-edit='step:0']").click();
+    const field = page.locator(".edit-field").first();
+    await field.fill("Only one line now");
+    await field.press("Enter");
+    await expect(page.locator("p.status")).toContainText("Dropped 1 line comment");
+    expect(await savedComments(page)).toEqual({ "step:0": "first line of step" });
+    await expect(page.locator('.slot[data-line="step:0#2"]')).toHaveCount(0);
+  });
+
+  // At phone width the slot strip is at the right edge of the block.
+  test("phone width puts the slot strip at the right of the block", async ({ page }) => {
+    await page.setViewportSize({ width: 400, height: 800 });
+    await openPlan(page, "lc-phone-strip");
+    const block = await page.locator('.block[data-block="step:1"]').boundingBox();
+    const slot = await page.locator('.slot[data-line="step:1"]').boundingBox();
+    expect(slot!.x + slot!.width).toBeGreaterThan(block!.x + block!.width - 40);
+    expect(slot!.x).toBeGreaterThan(block!.x + block!.width / 2);
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    expect(overflow).toBeLessThanOrEqual(0);
+  });
+
   // At phone width the page does not scroll sideways and line slots stay inside the viewport.
   test("phone width keeps line slots inside the page", async ({ page }) => {
     await page.setViewportSize({ width: 400, height: 800 });

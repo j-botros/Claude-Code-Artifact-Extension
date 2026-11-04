@@ -110,4 +110,34 @@ Results: `npm run compile` passes; `npm run test:unit` 368 passed (22 files); `n
 
 ## Testing (tester)
 
-_To be filled by the tester._
+**Verdict: FAIL** (one UI test fails because of a real src bug).
+
+### Commands and results
+
+- `npm run compile`: passes.
+- `npm run test:unit`: 22 files, 368 passed, 0 failed.
+- `npm run test:ui`: 116 passed, 1 failed.
+- `npm run test:integration`: 33 passing, 0 failing. No integration test depends on one comment per block.
+
+### Test files
+
+- Added: `test/unit/lineComments.test.ts` (splitTextLines: single line, empty, several sentences, wrapped/long text, newlines, blank lines, no whitespace after a dot, quotes/brackets, markup-like text; commentableBody; textLineIds; lineId/parseLineId round trip; lineLabel; blockIdsForPlan with multi-line steps; parseReviewComments accepting `step:0#1`, `scope`, rejecting `step:0#9`, `step:0#01`, `step:0#`; dropOutOfRangeTextLineComments; dropOutOfRangeQuestionComments; blockLabel "Step 1, line 2"; formatCommentsForPrompt with several comments per block).
+- Added: `test/ui/lineComments.spec.ts` (overview `overview#1` bubble in the margin, file row, step, title, multi-sentence step line, reload keeps three comments, Review posts line ids, summary edit to fewer lines drops the comment with the status note, phone width no horizontal scroll). This run I added: step edit to fewer lines drops the comment (FAILS, see below), and phone width slot strip at the right of the block (passes).
+- Updated by the previous tester run: `test/unit/planRenderer.test.ts`, `test/ui/layout.spec.ts`, `test/ui/planPanel.spec.ts`, `test/ui/antigravityStyle.spec.ts`.
+- All six old planRenderer assertions the developer listed were updated: (1) block order now starts with `title`; (2) buttons == blocks + 1 (slots), with title and out-of-scope aria labels; (3) the escaped-fields test uses `tline` spans and no longer expects the exact h1 string; (4) callout test uses a regex and `</span></div>` endings; (5) the empty-capable Out of scope regex allows the `tline` span; (6) steps and verification assertions expect `tline` spans.
+
+### Failing test
+
+`test/ui/lineComments.spec.ts:218` "editing a step to fewer lines drops the comment on the removed line". Step 1 ("Do one. Then do two. Then three.") is a short card with three lines. Clicking "+" on slot `step:0#2` fails because the next block's slot sits on top of it:
+
+```
+<path fill="none" d="M5 1v8M1 5h8" ...></path> from <div class="block card" data-block="step:1" data-label="step 2">…</div> subtree intercepts pointer events
+at commentOnLine (test/ui/lineComments.spec.ts:89:44)
+```
+
+Cause (src bug, not fixed by me): `layoutSlots` pushes later slots down by at least 22 px, so the third slot of a short three-sentence step lands in the margin of the next step, where step 2's own slot (z-index 7, later in DOM) wins hit-testing. The round 2 fix handles `step:0#1` but not a third line (or any case where the pushed slot reaches the next block's slot). So the third and later lines of short blocks are not reachable by mouse. Suggested fix direction for the developer: give short blocks a minimum height of lines x 22 px, or stop later slots overlapping the next block's slot.
+
+### Not checked
+
+- Real VS Code or Antigravity webview (only headless Chromium, with an `acquireVsCodeApi` stub backed by sessionStorage).
+- Margin and slot positions are checked only in headless Chromium at 1000 px and 400 px widths, not in other browsers or at other widths.
