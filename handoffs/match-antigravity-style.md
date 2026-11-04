@@ -89,4 +89,28 @@ Commit: see `git log` on `task/match-antigravity-style` (latest commit, "style: 
 
 ## Testing (tester)
 
-_Pending._
+**Verdict: PASS.**
+
+Commands (each run on its own):
+- `npm run compile`: passes.
+- `npm run test:unit`: 246 passed, 0 failed (15 files).
+- `npm run test:ui`: 43 passed, 0 failed (headless Chromium).
+- `npm run test:integration`: 28 passed, 0 failed (VS Code 1.107.0).
+
+Test changes (test/ only):
+- `test/unit/planRenderer.test.ts`: "supports the dark color scheme" replaced by a test that asserts the dark default `:root` variables (all brief colours, 800px content width, 40px margin), `prefers-color-scheme: light` present, `prefers-color-scheme: dark` absent, and the 16px phone side padding.
+- `test/ui/planPanel.spec.ts`: three old-CSS assertions updated: plus button accent (light `rgb(42, 100, 184)`; Playwright defaults to light), dark `--bg` `#1f1f1f`, bubble marker colours (light `rgb(42, 100, 184)`, dark `rgb(51, 118, 206)`), and popover/menu background now equals the `--popover` colour (it no longer equals the page background).
+- New `test/ui/antigravityStyle.spec.ts` (8 tests).
+
+Checked in headless Chromium only (via `getComputedStyle`; no real VS Code webview, no screenshot pixel sampling):
+- Dark default: body background rgb(31,31,31), h1 #cccccc, body text #d5d5d5, 14px / line-height 21px, h1 21px, code 13px in the mono stack; Review and Implement buttons #343434; pre, card, Review popover, kebab menu #232323; borders #292929.
+- Accent #3376ce on the "+" button, the Review button once a comment exists (`has-comments`), Add Comment, and Submit.
+- Light variant: white page, #1f1f1f heading, #2b2b2b body, #ececec Review, #f3f3f3 code block, accent #2a64b8 on Review with a comment.
+- Phone width 390px: 16px left and right body padding, no horizontal scroll. Desktop 1600px: 24px padding, title block no wider than 840px, no horizontal scroll.
+- No console errors, page errors, or CSP violations in dark and light while loading, adding a comment, and opening the Review popover.
+
+Injected elements (the renderer emits none of these, as the developer noted): inline `code` #e2c98e, `.tok-comment` #8693a2, `.tok-keyword` #8ae0f6, `.tok-string` #bbec56, `.callout.info` border #3566ce, `.callout.important` border #8259dd. Only the CSS rules are verified, not that any real content uses them.
+
+Notes:
+- Chromium rewrites `BlinkMacSystemFont` in the computed `font-family` to `"system-ui"`, so the font test checks for `SF Pro Text` instead.
+- Not verified: the 800px content column width as a CSS value (only that the title block is at most 840px at 1600px viewport); the real Antigravity or VS Code webview look.

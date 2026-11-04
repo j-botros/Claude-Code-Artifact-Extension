@@ -189,8 +189,30 @@ describe("renderPlanHtml", () => {
     expect(html).not.toContain("javascript:");
   });
 
-  it("supports the dark color scheme", () => {
-    expect(renderPlanHtml(makePlan(), NONCE)).toContain("prefers-color-scheme: dark");
+  it("uses the dark Antigravity palette by default and a light variant", () => {
+    const html = renderPlanHtml(makePlan(), NONCE);
+    for (const v of [
+      "--bg: #1f1f1f;",
+      "--heading: #cccccc;",
+      "--fg: #d5d5d5;",
+      "--btn-secondary: #343434;",
+      "--popover: #232323;",
+      "--border: #292929;",
+      "--accent: #3376ce;",
+      "--info: #3566ce;",
+      "--important: #8259dd;",
+      "--inline-code: #e2c98e;",
+      "--code-comment: #8693a2;",
+      "--code-keyword: #8ae0f6;",
+      "--code-string: #bbec56;",
+      "--content-width: 800px;",
+      "--margin-width: 40px;",
+    ]) {
+      expect(html).toContain(v);
+    }
+    expect(html).toContain("prefers-color-scheme: light");
+    expect(html).not.toContain("prefers-color-scheme: dark");
+    expect(html).toContain("--side-padding: 16px;");
   });
 
   it("adds a language class only for safe values", () => {
