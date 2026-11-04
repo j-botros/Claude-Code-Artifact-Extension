@@ -13,6 +13,17 @@ Owned by the core agent only. Keep the latest run first. Keep only the last few 
 
 ## Run log
 
+### Run 32 (2026-11-04)
+- Task: `line-comments-editable-code` (developer, then tester, then developer round 2, then core agent test run). Branch `task/line-comments-editable-code`. Brief commit `fc1d1db`. PR #78 into `dev`, opened after tests passed.
+- Round 1: developer (`aaebfbd`, `85e4abf`) added `src/plan/codeLines.ts`, per-line blocks `code:<i>` labelled `Code line N`, click-to-edit code with an optional `code` in `applyPlanEdits`, and dropping out-of-range line comments on a code save. Tester (`2ed4e3b`, `6e09bf1`) updated 5 old unit tests and added code-line unit and UI tests. Verdict FAIL: 3 UI failures from two bugs in `planPanel.ts`. Line comment buttons opened the code editor, and the Copy button was covered by the code lines.
+- Round 2: developer fixed both (`4be6d40`, `9f6952b`): margin clicks stop propagation, and `button.copy-code` has `z-index: 6`. The tester could not run commands (shell denied), so the core agent ran `npm test` on the branch: exit 0, unit 319 (20 files), UI 94, integration 33 (VS Code 1.107.0).
+- Core agent: README updated for line comments and the editable code (`7a36f82`). Merged into `dev` once tests passed.
+- Not verified: real VS Code or Antigravity window. The tester's round 2 "Testing" section was not written because its shell was denied. The round 2 verdict is the core agent's `npm test` run, not the tester's.
+- Process notes:
+  - The tester could not run `npm` commands in round 2 (shell denied). Owner: check whether the tester's allow list is missing `npm test` and `npm run test:*`.
+  - Developer's round 1 could not run `npm run test:ui` or `npm test` either, so the round 1 result was from the tester's run only.
+- Next: `open-questions-section` (developer, then tester) is the next `todo` in table order.
+
 ### Run 31 (2026-11-04)
 - Task: `highlight-file-mentions` (developer, then tester). Branch `task/highlight-file-mentions`. Brief commit `a732ac0`.
 - Developer (commit `ddded21`): the gray came from two whole-block backgrounds, not per-line rules: `.block.card > .body` (used by the Files rows) and `pre`. Files rows now use a `file-block` class with no background, and `pre` is transparent. Mention rule in `src/plan/fileMentions.ts` (`splitFileMentions`): text equal to a `files[].path`, or a relative path with a known extension. The Files path cell gets the background; the row does not. Colours: `--mention-bg` `#282828` dark, `#f3f3f3` light.
