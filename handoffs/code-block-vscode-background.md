@@ -45,7 +45,17 @@ Do not edit `TASKS.md`, `STATUS.md`, `README.md`, `CLAUDE.md`, or `package.json`
 
 ## Development (developer)
 
-_Not yet written._
+**Cause.** Taken from the owner's note in TASKS.md, not re-read from the VS Code 1.107.0 install (outside the repo). It was not verified in the stylesheet.
+
+**Changes in `src/webview/planPanel.ts` (artifact CSS).**
+- Line 1074, `pre code`: added `background: transparent; padding: 0; border-radius: 0;` (keeps `color: var(--fg)`). This overrides the base `code` rule inside code blocks.
+- Line 1075 (new), `.code-line, .code-line > .body`: `background: transparent; border-radius: 0;`. No padding reset on purpose: `.block > .body` has `padding-right: 26px` in the narrow media query (line ~1128) to leave room for the comment button, and a reset would remove it.
+- The bare `code` rule (line 1073) is unchanged, so inline `code` keeps its colour. `.file-mention`, `--mention-bg`, and `pre` (transparent) are unchanged.
+- No existing rule gave `.code-line` or `.code-line .body` a background, padding, or radius, except `.code-line pre` (padding 0, already set).
+
+**Results.** `npm run compile` passes. `npm run test:unit` passes: 22 files, 368 tests. No old assertion broke.
+
+**Tester should check.** With the red `--vscode-textPreformat-background` fixture, every `pre code` and `.code-line` (including hovered) computes `rgba(0, 0, 0, 0)` in dark and light. `.file-mention` keeps `rgb(40, 40, 40)` dark and `rgb(243, 243, 243)` light. Inline `code` outside blocks still gets the fixture background from the base rule, which is expected (only code blocks change).
 
 ## Testing (tester)
 
