@@ -5,7 +5,7 @@ Do this run:
 1. Read CLAUDE.md, STATUS.md, and TASKS.md.
 2. If a PAUSE file exists in the repo root, stop and make no changes.
 3. Pick the first task in TASKS.md with status `todo` whose owner is developer or tester. Skip tasks whose owner is "owner". If there is none, stop.
-4. Branch from the latest dev. The runner has already fetched it, so do not run `git fetch`. Run `git checkout -b task/<id> origin/dev`. Never push to main or dev.
+4. Branch from the latest dev. The runner has already fetched it, so do not run `git fetch`. Run `git checkout -b task/<id> origin/dev`. If `task/<id>` already exists (locally or on origin, for example after an interrupted run), do not recreate it: run `git checkout task/<id>` and continue from its commits, starting with the step the commits show as unfinished. Never push to main or dev.
 
 Shell rules for this run:
 - Run one shell command per call. Do not chain commands with `&&`, `;`, or `|`. Chained commands are refused.
