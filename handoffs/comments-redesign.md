@@ -57,7 +57,36 @@
 
 ## Development (developer)
 
-_To be filled in by the developer._
+**Commit:** `bf713fc` on `task/comments-redesign-2`.
+
+**Part 1, reproduction (by reading, not running).**
+- Sample path: does not reproduce. `samplePlan` has a `proposedFiles` entry, `PlanPanel.show` gets `samplePlan`, and `implement()` passes `currentPlan`. `applyPlanEdits` also copies `proposedFiles`, so saving an edit does not drop it. The message was probably seen before `9d269a4`. The tester's integration test is the real check.
+- Review path cause: `buildReviewPrompt` sent the plan, but `SHAPE_RULES` calls `proposedFiles` optional and nothing said to keep it. A revised plan without it replaced `currentPlan` in `PlanPanel.review`, so the next Implement click hit the "no proposed files" branch of `startImplementReview`.
+- Fix (both, each a few lines): (1) `buildReviewPrompt` now says to keep `proposedFiles` unchanged unless a comment asks to change it. (2) `PlanPanel.review` copies the sent plan's `proposedFiles` onto the revised plan when the revised plan has none. I added (2) because a prompt is advisory. If you want only the smaller fix, drop (2).
+
+**What changed (all in scope; no test/ edits).**
+- `src/plan/reviewComments.ts`: comments are `Record<string, string>` keyed by block id (`title`, `overview`, `code`, `file:<i>`, `step:<i>`, `verification:<i>`). `parseReviewComments(input, plan)` now takes the plan (was `stepCount`) and rejects unknown forms and out-of-range indexes. New exports `blockIdsForPlan`, `blockLabel`. `formatCommentsForPrompt(comments, plan)` writes `Title:`, `Overview:`, `Code:`, `File <path>:`, `Step <n>:`, `Verification <n>:` lines in document order; newlines in a comment fold to spaces.
+- `src/plan/planPrompt.ts`: `buildReviewPrompt` takes string-keyed comments, keeps `proposedFiles`, and describes the new labels.
+- `src/extension.ts`: only the `reviewPlan` comments type.
+- `src/webview/planPanel.ts`: new document markup and script. `renderPlanHtml(plan, nonce, options)` and `PlanPanel.lastRenderedHtml` keep their names and signatures. `ReviewHandler` comments type changed to `Record<string, string>`. Empty review message is now "Add a comment first."
+- Markup: toolbar (Review Comments, Implement the Design), status line, then blocks. Each block is `div.block[data-block][data-label]` with `.body` and a `.margin` cell holding `button.add-comment` (aria-label "Comment on <label>", inline SVG) and `.bubbles`. Editable text is `.editable[data-edit]` (`title`, `summary`, `outOfScope`, `step:<i>`) with `tabindex=0`. Click or Enter swaps it for an `input.edit-field` (title) or `textarea.edit-field`; blur or Enter saves through `savePlan`, Shift+Enter is a newline, Escape reverts. Files are rows (no table); steps and verification are cards. `code`, `files`, `verification` are read-only.
+- Bubbles are built by the script into `.bubbles`: `div.bubble[tabindex=0]` with a `.marker` and a `.full` (text, Edit and Delete buttons). `.full` shows on hover, focus, and focus-within. Editor is `div.bubble.editing` with `textarea.comment-field`, Save and Cancel (Escape cancels, Ctrl or Cmd+Enter saves). One comment per block. Comments live in webview state under `comments`; edits under `edits` (unchanged shape).
+- Layout: two-column grid at 900px and wider (2.5rem margin column; expanded bubble 18rem, overlays the content). Below 900px bubbles sit under their block and the comment button is always visible. Also always visible on `hover: none`. Light and dark via CSS custom properties. CSP unchanged: `default-src 'none'`, one nonce for one style and one script, no `unsafe-inline`.
+
+**Tests.** `npm run compile` passes. `npm run test:unit`: 23 failures in 5 files, all from markup or type changes; I did not edit them:
+- `test/unit/planRenderer.test.ts` (10): section order, escaping check, out-of-scope textarea, table header and file rows, new badge, `ol`/`ul` lists, step comment textareas, `step-text` textareas, edit-field aria-labels, zero-steps case. All assert the old textarea and table markup.
+- `test/unit/reviewComments.test.ts` (9): old numeric keys, `stepCount` argument, `Step <n>` formatting.
+- `test/unit/reviewPrompt.test.ts` (2): `Record<number,string>` comments and the `<comments>` content; the closing-tag escape test also uses numeric keys.
+- `test/unit/planRendererReview.test.ts` (1): review button is now in `header.top` with a different layout than the old regex expects.
+- `test/unit/plan.test.ts` (1): "renders an empty out-of-scope textarea when outOfScope is null" (this file was not in the brief's list; it asserts `textarea.edit-outofscope`).
+- Passing: everything else in `test/unit`. `test/ui/planPanel.spec.ts` was not run by me; it will need updating too.
+
+**Not done / left.** Nothing from the seven parts is skipped on the src side. Playwright tests and the integration test are the tester's. I did not run the UI in a browser, so layout and the phone-width no-scroll check are unverified.
+
+**Tester should check.**
+- Integration: sample plan, post `implementDesign`, hunk review opens. Also a review whose revised plan omits `proposedFiles` still lets Implement open the hunk review (the panel fallback).
+- Playwright: hover shows the comment button; click opens the editor; Save makes a marker; hover or focus expands it; Edit and Delete work; comments survive reload (state); edits to title, summary, out of scope, and a step save and survive reload; Escape reverts; no horizontal scroll at 400px; light and dark both render; CSP has no `unsafe-inline`.
+- Possible rough edges: `:has()` is used in one narrow-width rule (fine in current Chromium and VS Code); the expanded bubble overlays content at wide widths.
 
 ## Testing (tester)
 
