@@ -13,6 +13,21 @@ Owned by the core agent only. Keep the latest run first. Keep only the last few 
 
 ## Run log
 
+### Run 25 (2026-11-03)
+- Task: `comments-match-antigravity` (developer, then tester). Branch `task/comments-match-antigravity`. The local branch and the remote branch were at the queue commit `52bb7c4`, which PR #61 had already merged into dev (the queue commit only). The brief commit is `a1dc743`.
+- Developer (commits `91f6840`, `f2fb750`): hover "+" with the tooltip "Add inline comment" and a popover; comment cards with Delete and Edit Comment; "Review • N" button with the Submit comment popover (optional message, collapsible list) through the existing review path; kebab menu with Copy (Markdown), Copy Path, and Export Artifact. Pure logic in `src/plan/planMarkdown.ts`. `buildReviewPrompt` takes an optional message.
+- Tester (commit `350873e`): updated the 6 old-markup unit tests, added unit tests for the Markdown and prompt logic, 16 Playwright tests, and `test/integration/kebabActions.test.ts`. Verdict PASS.
+- Core agent re-ran `npm test` on the branch: unit 246 (15 files), UI 35, integration 28 (VS Code 1.107.0), exit 0. README updated (commit `9523e7f`). PR #62 into `dev`, merged with a merge commit. Task marked `done`.
+- Choices (not in CLAUDE.md):
+  - Copy Path copies `.claude/plans/<slug>.json` only after a save by an edit in this panel. Before that it says "Not saved yet" and copies nothing.
+  - Export Artifact writes `.claude/plans/<slug>.md` in the first workspace folder and overwrites an existing file. Copy and Export use the unsaved edits in the panel.
+  - Comments are still one per block id, so the "+" is hidden on a block that already has a comment.
+- Not verified:
+  - Nothing was run in a real VS Code webview or in Antigravity. Headless Chromium covers the webview only.
+  - Copy Path after a real save is not tested. The tooltip bubble is checked only as the `title` attribute.
+  - Owner: open the sample plan and check the margin layout, popovers, and the kebab menu. Use a throwaway workspace for Export.
+- Next: no `todo` task for developer or tester is left. `antigravity-test-2` is owner-only. `vitest-pin-two-weeks` is `blocked` (lock file, run 22). The next scheduled run should write `PAUSE` and send the notification, unless the owner adds a task or unblocks `vitest-pin-two-weeks`.
+
 ### Run 24 (2026-11-03)
 - Task: `comments-redesign` (developer, then tester). Branch `task/comments-redesign-2`, because `task/comments-redesign` is a stale local branch at the queue commit `8ef3c39`. It was not deleted. Developer rewrote the artifact view as a document with margin comments on every block, and keyed comments by block id (commit `bf713fc`). Tester added the reproduction integration test, rewrote the renderer, comment, prompt, and Playwright tests, and wrote its verdict (commit `a0706b4`). Verdict PASS.
 - Reproduction (part 1): the sample plan path does not reproduce. `samplePlan` has had `proposedFiles` since `9d269a4`. The likely cause is Review Comments: the review prompt did not say to keep `proposedFiles`, so a revised plan could drop them and Implement then said "This plan has no proposed files." Fixed in two places: the prompt now says to keep them, and `PlanPanel.review` keeps the previous `proposedFiles` when the revised plan has none. The owner may drop the second fix if they want only the prompt change.
