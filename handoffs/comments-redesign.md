@@ -90,4 +90,30 @@
 
 ## Testing (tester)
 
-_To be filled in by the tester._
+**Verdict: PASS.** Round 1. No src/ bugs found.
+
+**Commands, in order, all on `task/comments-redesign-2`:**
+- `npm run compile`: clean.
+- `npm run test:unit`: 14 files, 227 passed, 0 failed.
+- `npm run test:ui`: 19 passed, 0 failed (headless Chromium).
+- `npm run test:integration` (VS Code 1.107.0): 23 passed, 0 failed.
+- `npm test`: unit 227/0, ui 19/0, integration 23/0. All clean.
+
+**Part 1 reproduction (integration, `test/integration/implementFlow.test.ts`).**
+- No src/ test seam exists for posting webview messages, so the test replaces `vscode.window.createWebviewPanel` with a fake panel that captures the `onDidReceiveMessage` listener the real `PlanPanel` registers. It then posts `{ type: "implementDesign" }` exactly as the webview script does. `startImplementReview` is never called directly.
+- Sample path: does NOT reproduce. `claudeArtifact.openSamplePlan`, then `implementDesign`, gives `implementResult` with `ok: true` (message is not "This plan has no proposed files."), and a diff tab for `sample-artifact/greet.ts` opens. This matches the developer's reading.
+- Review path: a stub `claude` returns a revised plan with no `proposedFiles`. The test posts `reviewComments` (comment on `title`), waits for the panel to re-render, then posts `implementDesign`. Result is `ok: true` and the diff tab opens. This passes because of the panel fallback (fix 2). The test does not isolate fix 1 (the prompt wording), which is covered by a unit test on the prompt text only. I did not run the test with the fallback removed.
+
+**Test changes.**
+- New: `test/integration/implementFlow.test.ts` (2 tests).
+- `test/integration/planFlows.test.ts`: three `reviewPlan` calls now use string block-id keys. One edited to `"step:0"`; the other two still pass `{ 0: "note" }` (the numeric key is only formatted into a prompt, never validated there).
+- `test/unit/planRenderer.test.ts`: rewritten for the new markup. Kept: section order (now by block id), escaping of every field, one nonce script, no inline handlers, CSP with nonce, dark scheme, language class, script has no plan text, no innerHTML, script at end of body, zero-steps case. Added: only title/summary/outOfScope/steps editable, every block has a comment button with aria-label, `unsafe-inline` absent, hostile path in attributes.
+- `test/unit/reviewComments.test.ts`: rewritten for block ids. New tests for `blockIdsForPlan`, `blockLabel`, `parseReviewComments` (unknown and out-of-range keys, trim, drop empties), `formatCommentsForPrompt` (document order, labels, newline folding).
+- `test/unit/reviewPrompt.test.ts`: string keys, plus tests that the prompt keeps `proposedFiles` and labels comments by block.
+- `test/unit/planRendererReview.test.ts`: one assertion removed on purpose: that `header.top` contains `class="edit-title"`. The title is no longer in the header; it is now the `title` block. The review button, implement button, and no-inline-handler checks are kept.
+- `test/unit/plan.test.ts`: out-of-scope null case now checks for an empty `data-edit="outOfScope"` element instead of an empty textarea.
+- `test/ui/planPanel.spec.ts`: rewritten, 19 tests. Covers render order, CSP and no script errors, comment button on hover, add, every block, expand on hover and focus, edit, cancel, delete, comments survive reload, click-to-edit with Enter and Escape, read-only blocks, edits survive reload, edits plus comments survive reload, the review and implement messages (comments keyed by block id), light and dark themes, no horizontal scroll at 400px (including with an open bubble and editor), margin placement at 1280px. The old "step comments" textarea test is gone because step comment textareas no longer exist.
+
+**Notes for the core agent.**
+- Playwright can not hover the bubble marker once the expanded bubble covers it (the `.full` overlay sits over the marker at wide width). Real hovering stays within the bubble so this is not a user bug; the spec moves the mouse directly instead.
+- Layout checks ran in headless Chromium only, not in an Antigravity or VS Code webview.
