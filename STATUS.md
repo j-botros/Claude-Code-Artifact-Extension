@@ -6,12 +6,28 @@ Owned by the core agent only. Keep the latest run first. Keep only the last few 
 - Stage: early idea, with a working scaffold. `Claude Artifact: Open Sample Plan` opens a webview with a sample plan. The owner confirmed it renders in Antigravity.
 - Branches: `main` and `dev` exist on GitHub. `dev` includes PRs #1 through #6, #12, #18, #23, and #26.
 - Packaging: `npm run package` produces a `.vsix` that installs in Antigravity 1.107.0. `engines.vscode` is `^1.107.0` and `@types/vscode` is pinned to `1.107.0`. Latest stable VS Code is 1.144.0 (published 2026-10-28, checked 2026-11-03).
-- Compile: `npm run compile` passes. `npm test` passes (unit 214, UI 4, integration 4) as of run 19 (PR #49).
+- Compile: `npm run compile` passes. `npm test` passes (unit 227, UI 19, integration 23) as of run 24 (PR #60).
 - `.vscode/launch.json` exists.
 - Agent setup: `.claude/agents/developer.md`, `.claude/agents/tester.md`, and `.claude/settings.json` are committed.
 - Scheduler (as of 2026-11-03): the launchd job `com.j-botros.claude-artifact-agent` is installed and loaded. It runs back to back, up to 12 runs per chain, and writes `PAUSE` when the queue is empty.
 
 ## Run log
+
+### Run 24 (2026-11-03)
+- Task: `comments-redesign` (developer, then tester). Branch `task/comments-redesign-2`, because `task/comments-redesign` is a stale local branch at the queue commit `8ef3c39`. It was not deleted. Developer rewrote the artifact view as a document with margin comments on every block, and keyed comments by block id (commit `bf713fc`). Tester added the reproduction integration test, rewrote the renderer, comment, prompt, and Playwright tests, and wrote its verdict (commit `a0706b4`). Verdict PASS.
+- Reproduction (part 1): the sample plan path does not reproduce. `samplePlan` has had `proposedFiles` since `9d269a4`. The likely cause is Review Comments: the review prompt did not say to keep `proposedFiles`, so a revised plan could drop them and Implement then said "This plan has no proposed files." Fixed in two places: the prompt now says to keep them, and `PlanPanel.review` keeps the previous `proposedFiles` when the revised plan has none. The owner may drop the second fix if they want only the prompt change.
+- Checks: core agent re-ran `npm test` on the branch: unit 227 (14 files), UI 19, integration 23 (VS Code 1.107.0), exit 0.
+- PR #60 into `dev`. Merged with a merge commit once the tests passed. Task marked `done`. README updated for the document view and margin comments (commit `445422f`).
+- Decisions (not in CLAUDE.md):
+  - Only title, summary, out-of-scope, and step text are click-to-edit, because those are the fields the existing edit path saves. `code`, `files`, and `verification` are read-only. Extending the edit path is a later task.
+  - Comment block ids: `title`, `overview` (summary and out-of-scope together), `code`, `file:<i>`, `step:<i>`, `verification:<i>`. The review prompt labels each comment with its block.
+- Not verified:
+  - Layout and themes were checked in headless Chromium only, not in a VS Code or Antigravity webview. Owner: open the sample plan and check the margin layout and the dark theme.
+  - `test/integration/planFlows.test.ts` still passes two numeric comment keys (`{ 0: "note" }`). The prompt formatter drops them silently. This is a test-hygiene follow-up, not a behaviour bug.
+  - The prompt-level fix is covered only by a unit test on the prompt text. The integration test passes because of the panel fallback.
+- Process notes:
+  - The developer's and tester's commits use the Haiku 5.5 trailer from the brief.
+- Next: no `todo` task for developer or tester is left. `antigravity-test-2` is owner-only. `vitest-pin-two-weeks` is `blocked` (lock file, run 22). The next scheduled run should write `PAUSE` and send the notification, unless the owner adds a task or unblocks `vitest-pin-two-weeks`.
 
 ### Run 23 (2026-11-03)
 - Task: `login-check-tighten` (developer, then tester). Developer changed `looksLikeAuthProblem` in `src/claude/claudeRunner.ts` (commit `84fc1cf`) to `/not logged in|please run \/login|invalid api key/i`, with a doc comment that lists the phrases and the excluded wording. Tester updated `test/unit/streamParser.test.ts` (commit `b3d4cc7`): the three old assertions moved to the new behaviour, a positive test for each phrase, and false-positive tests (for example "Failed to parse the login page component", "catalog in the registry"). Verdict PASS.
