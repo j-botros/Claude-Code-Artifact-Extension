@@ -1,12 +1,14 @@
 import * as vscode from "vscode";
 import { Plan, isSafeRelativePath } from "../plan/plan";
 import { applyPlanEdits, planFileName } from "../plan/planEdits";
+import { planMarkdownFileName, planToMarkdown } from "../plan/planMarkdown";
 import { parseReviewComments } from "../plan/reviewComments";
 
-/** Asks Claude Code to revise a plan given comments keyed by block id. */
+/** Asks Claude Code to revise a plan given comments keyed by block id and an optional overall message. */
 export type ReviewHandler = (
   plan: Plan,
-  comments: Record<string, string>
+  comments: Record<string, string>,
+  message?: string
 ) => Promise<{ ok: true; plan: Plan } | { ok: false; message: string }>;
 
 /** Starts the hunk review for a plan's proposed files. Must not write files. */
@@ -38,13 +40,21 @@ function makeNonce(): string {
 const COMMENT_ICON =
   '<svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><path d="M2 2.5h12v8H6.5L3.5 13.5v-3H2z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>';
 
+/** The kebab (three vertical dots) icon for the more-actions menu. */
+const KEBAB_ICON =
+  '<svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><circle cx="8" cy="3" r="1.4" fill="currentColor"/><circle cx="8" cy="8" r="1.4" fill="currentColor"/><circle cx="8" cy="13" r="1.4" fill="currentColor"/></svg>';
+
+/** The small downward chevron shown on the Review button. */
+const CHEVRON_ICON =
+  '<svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true" focusable="false"><path d="M3 6l5 5 5-5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
 /**
  * Wraps content in a commentable block: the content, plus a right-margin cell with the
  * comment button (shown on hover or focus) and an empty holder the script fills with bubbles.
  */
 function renderBlock(id: string, label: string, body: string, extraClass = ""): string {
   const cls = extraClass === "" ? "block" : `block ${extraClass}`;
-  return `<div class="${cls}" data-block="${escapeHtml(id)}" data-label="${escapeHtml(label)}"><div class="body">${body}</div><div class="margin"><button class="add-comment" type="button" aria-label="Comment on ${escapeHtml(label)}" title="Comment">${COMMENT_ICON}</button><div class="bubbles"></div></div></div>`;
+  return `<div class="${cls}" data-block="${escapeHtml(id)}" data-label="${escapeHtml(label)}"><div class="body">${body}</div><div class="margin"><button class="add-comment" type="button" aria-label="Add inline comment on ${escapeHtml(label)}" title="Add inline comment">+</button><div class="bubbles"></div></div></div>`;
 }
 
 /** Renders text that turns into a field when clicked. `key` names the edited plan field. */
@@ -56,6 +66,7 @@ function renderEditable(tag: string, key: string, label: string, text: string, p
 /** Fixed script (no plan data): click-to-edit, margin comments, saving edits, and review requests. */
 const COMMENT_SCRIPT = `
 const vscode = acquireVsCodeApi();
+const COMMENT_ICON = ${JSON.stringify(COMMENT_ICON)};
 function readState() {
   const state = vscode.getState();
   return state && typeof state === "object" ? state : {};
@@ -154,6 +165,33 @@ document.querySelectorAll(".editable").forEach((el) => {
     }
   });
 });
+const reviewBtn = document.querySelector("button.review");
+const reviewLabel = reviewBtn.querySelector(".review-label");
+const reviewPop = document.querySelector(".review-pop");
+const reviewList = reviewPop.querySelector(".comment-items");
+const reviewSummary = reviewPop.querySelector("summary");
+const messageBox = reviewPop.querySelector("textarea.review-message");
+const submitBtn = reviewPop.querySelector("button.submit-review");
+function blockLabelFor(id) {
+  const el = document.querySelector('.block[data-block="' + id + '"]');
+  return el ? el.getAttribute("data-label") : id;
+}
+function refreshReview() {
+  const comments = readComments();
+  const ids = Array.from(document.querySelectorAll(".block")).map((b) => b.getAttribute("data-block")).filter((id) => typeof comments[id] === "string" && comments[id] !== "");
+  reviewLabel.textContent = "Review \\u2022 " + ids.length;
+  reviewSummary.textContent = "Comments (" + ids.length + ")";
+  reviewList.textContent = "";
+  ids.forEach((id) => {
+    const item = makeEl("li", "comment-item");
+    item.appendChild(makeEl("strong", "", blockLabelFor(id)));
+    item.appendChild(makeEl("span", "", " " + comments[id]));
+    reviewList.appendChild(item);
+  });
+  if (ids.length === 0) {
+    reviewList.appendChild(makeEl("li", "comment-item empty", "No comments yet."));
+  }
+}
 function setComment(id, text) {
   const next = Object.assign({}, readComments());
   if (text === "") {
@@ -162,6 +200,7 @@ function setComment(id, text) {
     next[id] = text;
   }
   vscode.setState(Object.assign({}, readState(), { comments: next }));
+  refreshReview();
 }
 function makeEl(tag, className, text) {
   const el = document.createElement(tag);
@@ -181,21 +220,22 @@ document.querySelectorAll(".block").forEach((block) => {
     bubble.setAttribute("aria-label", "Comment on " + label);
     const marker = makeEl("span", "marker");
     marker.setAttribute("aria-hidden", "true");
+    marker.innerHTML = COMMENT_ICON;
     const full = makeEl("div", "full");
     full.appendChild(makeEl("p", "text", text));
     const actions = makeEl("div", "actions");
-    const editBtn = makeEl("button", "", "Edit");
-    editBtn.type = "button";
-    editBtn.addEventListener("click", () => show(true));
-    const delBtn = makeEl("button", "", "Delete");
+    const delBtn = makeEl("button", "delete-comment", "Delete");
     delBtn.type = "button";
     delBtn.addEventListener("click", () => {
       setComment(id, "");
       show(false);
       addBtn.focus();
     });
-    actions.appendChild(editBtn);
+    const editBtn = makeEl("button", "edit-comment", "Edit Comment");
+    editBtn.type = "button";
+    editBtn.addEventListener("click", () => show(true));
     actions.appendChild(delBtn);
+    actions.appendChild(editBtn);
     full.appendChild(actions);
     bubble.appendChild(marker);
     bubble.appendChild(full);
@@ -211,9 +251,9 @@ document.querySelectorAll(".block").forEach((block) => {
     box.placeholder = "Add a comment";
     box.setAttribute("aria-label", "Comment on " + label);
     const actions = makeEl("div", "actions");
-    const saveBtn = makeEl("button", "", "Save");
+    const saveBtn = makeEl("button", "save-comment primary", text === "" ? "Add Comment" : "Save Comment");
     saveBtn.type = "button";
-    const cancelBtn = makeEl("button", "", "Cancel");
+    const cancelBtn = makeEl("button", "cancel-comment", "Cancel");
     cancelBtn.type = "button";
     function save() {
       setComment(id, box.value.trim());
@@ -230,8 +270,8 @@ document.querySelectorAll(".block").forEach((block) => {
         save();
       }
     });
-    actions.appendChild(saveBtn);
     actions.appendChild(cancelBtn);
+    actions.appendChild(saveBtn);
     full.appendChild(box);
     full.appendChild(actions);
     bubble.appendChild(full);
@@ -252,12 +292,56 @@ document.querySelectorAll(".block").forEach((block) => {
   addBtn.addEventListener("click", () => show(true));
   show(false);
 });
-const reviewBtn = document.querySelector("button.review");
+refreshReview();
+const kebab = document.querySelector("button.kebab");
+const menu = document.querySelector(".menu");
+function closePopovers() {
+  reviewPop.hidden = true;
+  reviewBtn.setAttribute("aria-expanded", "false");
+  menu.hidden = true;
+  kebab.setAttribute("aria-expanded", "false");
+}
 reviewBtn.addEventListener("click", () => {
+  const open = reviewPop.hidden;
+  closePopovers();
+  if (open) {
+    reviewPop.hidden = false;
+    reviewBtn.setAttribute("aria-expanded", "true");
+    messageBox.focus();
+  }
+});
+kebab.addEventListener("click", () => {
+  const open = menu.hidden;
+  closePopovers();
+  if (open) {
+    menu.hidden = false;
+    kebab.setAttribute("aria-expanded", "true");
+  }
+});
+document.addEventListener("click", (event) => {
+  if (!event.target.closest(".review-wrap") && !event.target.closest(".kebab-wrap")) { closePopovers(); }
+});
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") { closePopovers(); }
+});
+submitBtn.addEventListener("click", () => {
+  if (Object.keys(readComments()).length === 0) {
+    statusEl.textContent = "Add a comment first.";
+    return;
+  }
   const edits = readEdits();
+  submitBtn.disabled = true;
   reviewBtn.disabled = true;
+  closePopovers();
   statusEl.textContent = "Asking Claude Code to review...";
-  vscode.postMessage({ type: "reviewComments", title: edits.title, summary: edits.summary, outOfScope: edits.outOfScope, steps: edits.steps, comments: readComments() });
+  vscode.postMessage({ type: "reviewComments", title: edits.title, summary: edits.summary, outOfScope: edits.outOfScope, steps: edits.steps, comments: readComments(), message: messageBox.value });
+});
+menu.querySelectorAll("button[data-action]").forEach((item) => {
+  item.addEventListener("click", () => {
+    const edits = readEdits();
+    closePopovers();
+    vscode.postMessage({ type: item.getAttribute("data-action"), title: edits.title, summary: edits.summary, outOfScope: edits.outOfScope, steps: edits.steps });
+  });
 });
 const implementBtn = document.querySelector("button.implement");
 implementBtn.addEventListener("click", () => {
@@ -278,8 +362,13 @@ window.addEventListener("message", (event) => {
     statusEl.textContent = typeof msg.message === "string" ? msg.message : "";
     return;
   }
+  if (msg && msg.type === "actionResult") {
+    statusEl.textContent = typeof msg.message === "string" ? msg.message : "";
+    return;
+  }
   if (msg && msg.type === "reviewResult") {
     reviewBtn.disabled = false;
+    submitBtn.disabled = false;
     statusEl.textContent = typeof msg.message === "string" ? msg.message : "";
     return;
   }
@@ -398,8 +487,24 @@ export function renderPlanHtml(plan: Plan, nonce: string, options?: { resetState
   * { box-sizing: border-box; }
   body { background: var(--bg); color: var(--fg); font-family: system-ui, sans-serif; margin: 0; padding: 1rem; overflow-wrap: anywhere; }
   .doc { max-width: 60rem; margin: 0 auto; }
-  header.top { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.5rem; }
-  button.review { background: var(--badge-bg); color: var(--badge-fg); border: 0; border-radius: 4px; padding: 0.4rem 0.9rem; font: inherit; cursor: pointer; }
+  header.top { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: flex-start; gap: 0.5rem; }
+  button.review { display: inline-flex; align-items: center; gap: 0.4rem; background: var(--badge-bg); color: var(--badge-fg); border: 0; border-radius: 4px; padding: 0.4rem 0.9rem; font: inherit; cursor: pointer; }
+  .review-wrap, .kebab-wrap { position: relative; }
+  button.kebab { display: inline-flex; align-items: center; justify-content: center; width: 2rem; height: 2rem; padding: 0; background: transparent; color: var(--fg); border: 1px solid var(--border); border-radius: 4px; cursor: pointer; }
+  .popover { position: absolute; top: calc(100% + 0.3rem); right: 0; z-index: 10; background: var(--bg); color: var(--fg); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 4px 16px var(--shadow); }
+  .menu { display: flex; flex-direction: column; min-width: 11rem; padding: 0.25rem; }
+  .menu button { background: transparent; color: var(--fg); border: 0; border-radius: 4px; padding: 0.4rem 0.7rem; text-align: left; font: inherit; cursor: pointer; }
+  .menu button:hover, .menu button:focus-visible { background: var(--card); }
+  .review-pop { width: 22rem; max-width: calc(100vw - 2rem); padding: 0.75rem; }
+  .review-pop h2 { margin: 0 0 0.5rem; }
+  .review-pop .comment-field { margin-bottom: 0.5rem; }
+  .review-pop .comment-list { margin-top: 0.6rem; }
+  .review-pop summary { cursor: pointer; color: var(--muted); }
+  .comment-items { list-style: none; margin: 0.4rem 0 0; padding: 0; max-height: 12rem; overflow-y: auto; }
+  .comment-item { padding: 0.3rem 0; border-top: 1px solid var(--border); font-size: 0.9rem; }
+  .comment-item.empty { color: var(--muted); border-top: 0; }
+  button.primary { background: var(--accent); color: #ffffff; border: 0; border-radius: 4px; padding: 0.3rem 0.8rem; font: inherit; cursor: pointer; }
+  button.submit-review:disabled { opacity: 0.6; cursor: default; }
   button.implement { background: var(--card); color: var(--fg); border: 1px solid var(--border); border-radius: 4px; padding: 0.4rem 0.9rem; font: inherit; cursor: pointer; }
   button.review:disabled, button.implement:disabled { opacity: 0.6; cursor: default; }
   .status { color: var(--muted); font-size: 0.85rem; min-height: 1.2em; margin: 0.25rem 0 0.5rem; text-align: right; }
@@ -426,16 +531,16 @@ export function renderPlanHtml(plan: Plan, nonce: string, options?: { resetState
   .lang-label { color: var(--muted); font-size: 0.75rem; margin-bottom: 0.25rem; }
   pre { background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 0.75rem 1rem; overflow-x: auto; margin: 0; }
   .badge { background: var(--badge-bg); color: var(--badge-fg); border-radius: 999px; padding: 0 0.5rem; font-size: 0.75rem; margin-left: 0.25rem; }
-  button.add-comment { display: inline-flex; align-items: center; justify-content: center; width: 1.9rem; height: 1.9rem; padding: 0; background: var(--card); color: var(--muted); border: 1px solid var(--border); border-radius: 6px; cursor: pointer; opacity: 0; }
+  button.add-comment { display: inline-flex; align-items: center; justify-content: center; width: 1.6rem; height: 1.6rem; padding: 0; background: var(--accent); color: #ffffff; border: 0; border-radius: 4px; font: bold 1.1rem/1 system-ui, sans-serif; cursor: pointer; opacity: 0; }
   .block:hover button.add-comment, .block:focus-within button.add-comment, button.add-comment:focus-visible { opacity: 1; }
-  button.add-comment:hover { color: var(--accent); border-color: var(--accent); }
   .bubble { position: relative; }
-  .bubble .marker { display: block; width: 1.5rem; height: 1.5rem; background: var(--bubble-bg); border: 1px solid var(--bubble-border); border-radius: 50% 50% 50% 0; cursor: pointer; }
+  .bubble .marker { display: inline-flex; align-items: center; justify-content: center; width: 1.6rem; height: 1.6rem; color: var(--accent); cursor: pointer; }
   .bubble .full { display: none; position: absolute; top: 0; right: 0; z-index: 5; width: 18rem; max-width: calc(100vw - 2rem); background: var(--bubble-bg); border: 1px solid var(--bubble-border); border-radius: 6px; padding: 0.5rem 0.75rem; box-shadow: 0 2px 8px var(--shadow); }
   .bubble:hover .full, .bubble:focus .full, .bubble:focus-within .full, .bubble.editing .full { display: block; }
   .bubble.editing .marker { display: none; }
   .bubble .text { margin: 0 0 0.4rem; white-space: pre-wrap; }
-  .bubble .actions { display: flex; gap: 0.5rem; }
+  .bubble .actions { display: flex; justify-content: flex-end; gap: 0.5rem; }
+  .bubble .actions button.primary { background: var(--accent); color: #ffffff; border-color: var(--accent); }
   .bubble .actions button { background: var(--card); color: var(--fg); border: 1px solid var(--border); border-radius: 4px; padding: 0.15rem 0.6rem; font: inherit; font-size: 0.85rem; cursor: pointer; }
   .comment-field { display: block; width: 100%; background: var(--bg); color: var(--fg); border: 1px solid var(--border); border-radius: 4px; font: inherit; margin-bottom: 0.4rem; }
   @media (hover: none), (max-width: 899px) {
@@ -452,7 +557,12 @@ export function renderPlanHtml(plan: Plan, nonce: string, options?: { resetState
 </head>
 <body>
 <div class="doc">
-<header class="top"><button class="review" type="button">Review Comments</button><button class="implement" type="button">Implement the Design</button></header>
+<header class="top">
+<div class="kebab-wrap"><button class="kebab" type="button" aria-label="More actions" aria-haspopup="menu" aria-expanded="false">${KEBAB_ICON}</button>
+<div class="menu popover" role="menu" hidden><button type="button" role="menuitem" data-action="copyMarkdown">Copy</button><button type="button" role="menuitem" data-action="copyPath">Copy Path</button><button type="button" role="menuitem" data-action="exportArtifact">Export Artifact</button></div></div>
+<div class="review-wrap"><button class="review" type="button" aria-haspopup="dialog" aria-expanded="false">${COMMENT_ICON}<span class="review-label">Review &bull; 0</span>${CHEVRON_ICON}</button>
+<div class="review-pop popover" role="dialog" aria-label="Submit comment" hidden><h2>Submit comment</h2><textarea class="review-message comment-field" rows="3" placeholder="Add an optional message" aria-label="Optional message"></textarea><button class="submit-review primary" type="button">Submit</button><details class="comment-list" open><summary>Comments (0)</summary><ul class="comment-items"></ul></details></div></div>
+<button class="implement" type="button">Implement the Design</button></header>
 <p class="status" role="status"></p>
 ${titleBlock}
 ${overviewBlock}
@@ -513,6 +623,9 @@ export class PlanPanel {
   /** The plan as last saved (or as first shown). */
   private currentPlan: Plan;
 
+  /** File name under .claude/plans/ once the plan has been saved by an edit; undefined before. */
+  private savedName: string | undefined;
+
   /** Tail of the save queue, so saves run one at a time. */
   private saveChain: Promise<void> = Promise.resolve();
 
@@ -537,6 +650,8 @@ export class PlanPanel {
         this.saveChain = this.saveChain.then(() => this.review(msg));
       } else if (type === "openFile") {
         void openWorkspaceFile((msg as { path?: unknown }).path);
+      } else if (type === "copyMarkdown" || type === "copyPath" || type === "exportArtifact") {
+        this.saveChain = this.saveChain.then(() => this.runAction(type, msg));
       } else if (type === "implementDesign") {
         this.saveChain = this.saveChain.then(() => this.implement());
       }
@@ -558,6 +673,55 @@ export class PlanPanel {
       message = `Implement failed: ${err instanceof Error ? err.message : String(err)}`;
     }
     void this.panel.webview.postMessage({ type: "implementResult", ok, message });
+  }
+
+  /** Posts the outcome of a kebab-menu action (Copy, Copy Path, Export Artifact) to the webview. */
+  private replyAction(ok: boolean, message: string): void {
+    void this.panel.webview.postMessage({ type: "actionResult", ok, message });
+  }
+
+  /**
+   * Handles a kebab-menu action. Copy puts the plan (with the webview's unsaved edits)
+   * on the clipboard as Markdown. Copy Path puts `.claude/plans/<file>.json` on the
+   * clipboard when the plan was saved, else says it is not saved yet. Export Artifact
+   * writes `.claude/plans/<slug>.md` in the first workspace folder. Never throws.
+   */
+  private async runAction(kind: string, input: unknown): Promise<void> {
+    try {
+      if (kind === "copyPath") {
+        if (this.savedName === undefined) {
+          this.replyAction(false, "Not saved yet. Edit the plan to save it, or use Export Artifact.");
+          return;
+        }
+        const relative = `.claude/plans/${this.savedName}`;
+        await vscode.env.clipboard.writeText(relative);
+        this.replyAction(true, `Copied ${relative}`);
+        return;
+      }
+      const edited = applyPlanEdits(this.currentPlan, input);
+      if (!edited.ok) {
+        this.replyAction(false, edited.error);
+        return;
+      }
+      const markdown = planToMarkdown(edited.plan);
+      if (kind === "copyMarkdown") {
+        await vscode.env.clipboard.writeText(markdown);
+        this.replyAction(true, "Copied the plan as Markdown.");
+        return;
+      }
+      const folder = vscode.workspace.workspaceFolders?.[0];
+      if (!folder) {
+        this.replyAction(false, "Open a folder to export the artifact.");
+        return;
+      }
+      const dir = vscode.Uri.joinPath(folder.uri, ".claude", "plans");
+      const name = planMarkdownFileName(edited.plan.title);
+      await vscode.workspace.fs.createDirectory(dir);
+      await vscode.workspace.fs.writeFile(vscode.Uri.joinPath(dir, name), new TextEncoder().encode(markdown));
+      this.replyAction(true, `Exported to .claude/plans/${name}`);
+    } catch (err) {
+      this.replyAction(false, `Action failed: ${err instanceof Error ? err.message : String(err)}`);
+    }
   }
 
   /** Posts a review result to the webview. */
@@ -588,7 +752,9 @@ export class PlanPanel {
         this.replyReview("Add a comment first.");
         return;
       }
-      const result = await this.onReview(edited.plan, parsed.comments);
+      const rawMessage = (input as { message?: unknown }).message;
+      const note = typeof rawMessage === "string" ? rawMessage.trim().slice(0, 4000) : "";
+      const result = await this.onReview(edited.plan, parsed.comments, note === "" ? undefined : note);
       if (!result.ok) {
         this.replyReview(result.message);
         return;
@@ -598,6 +764,7 @@ export class PlanPanel {
         revised.proposedFiles = edited.plan.proposedFiles.map((f) => ({ path: f.path, content: f.content }));
       }
       this.currentPlan = revised;
+      this.savedName = undefined;
       this.panel.title = revised.title;
       this.panel.webview.html = renderPlanHtml(revised, makeNonce(), { resetState: true });
       PlanPanel.lastRenderedHtml = this.panel.webview.html;
@@ -632,6 +799,7 @@ export class PlanPanel {
         new TextEncoder().encode(JSON.stringify(result.plan, null, 2) + "\n")
       );
       this.currentPlan = result.plan;
+      this.savedName = name;
       this.reply(true, `Saved to .claude/plans/${name}`);
     } catch (err) {
       this.reply(false, `Could not save: ${err instanceof Error ? err.message : String(err)}`);

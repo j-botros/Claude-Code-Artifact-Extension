@@ -92,15 +92,16 @@ describe("renderPlanHtml", () => {
     const buttons = html.match(/<button class="add-comment"[^>]*>/g) ?? [];
     expect(buttons).toHaveLength(ids.length);
     for (const b of buttons) {
-      expect(b).toMatch(/aria-label="Comment on [^"]+"/);
+      expect(b).toMatch(/aria-label="Add inline comment on [^"]+"/);
+      expect(b).toContain('title="Add inline comment"');
       expect(b).toContain('type="button"');
     }
     // Each block has its own margin cell and bubble holder.
     expect(html.split('<div class="bubbles"></div>').length - 1).toBe(ids.length);
-    expect(html).toContain('aria-label="Comment on title"');
-    expect(html).toContain('aria-label="Comment on step 2"');
-    expect(html).toContain('aria-label="Comment on verification 1"');
-    expect(html).toContain('aria-label="Comment on file src/old.ts"');
+    expect(html).toContain('aria-label="Add inline comment on title"');
+    expect(html).toContain('aria-label="Add inline comment on step 2"');
+    expect(html).toContain('aria-label="Add inline comment on verification 1"');
+    expect(html).toContain('aria-label="Add inline comment on file src/old.ts"');
   });
 
   it("escapes every plan field, with one nonce script and no raw script tag", () => {
@@ -129,8 +130,8 @@ describe("renderPlanHtml", () => {
     expect(html).toContain(`<div class="verification-item">${ESCAPED}</div>`);
     expect(html).toContain(`tabindex="0" title="Click to edit">${ESCAPED}</div></div>`);
     // The hostile path in aria-label and data-label attributes is escaped too.
-    expect(html).toContain(`aria-label="Comment on file ${ESCAPED}"`);
-    expect(html).not.toContain('aria-label="Comment on file <');
+    expect(html).toContain(`aria-label="Add inline comment on file ${ESCAPED}"`);
+    expect(html).not.toContain('aria-label="Add inline comment on file <');
   });
 
   it("escapes attribute-breaking characters in file paths", () => {
@@ -215,7 +216,7 @@ describe("renderPlanHtml", () => {
   it("keeps the status line and review and implement buttons", () => {
     const html = renderPlanHtml(makePlan(), NONCE);
     expect(html).toContain('<p class="status" role="status"></p>');
-    expect(html).toContain('<button class="review" type="button">Review Comments</button>');
+    expect(html).toMatch(/<button class="review" type="button"[^>]*>[\s\S]*?<span class="review-label">Review &bull; 0<\/span>[\s\S]*?<\/button>/);
     expect(html).toContain('<button class="implement" type="button">Implement the Design</button>');
   });
 
@@ -241,7 +242,9 @@ describe("renderPlanHtml", () => {
     expect(code).toContain("savePlan");
     expect(code).toContain("saveResult");
     expect(code).toContain("textContent");
-    expect(code).not.toContain("innerHTML");
+    // The only innerHTML write is the fixed comment icon constant, never plan or comment text.
+    expect(code.split("innerHTML").length - 1).toBe(1);
+    expect(code).toContain("innerHTML = COMMENT_ICON");
   });
 
   it("uses the same nonce for the script and the CSP script-src", () => {
