@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import { codeLabel, splitCallout } from "../plan/callouts";
+import { codeLineCount, codeLineId, codeLineLabel, dropOutOfRangeLineComments, splitCodeLines, splitTokensByLine } from "../plan/codeLines";
 import { highlightsLanguage, tokenizeCode } from "../plan/codeTokens";
 import { splitFileMentions } from "../plan/fileMentions";
 import { Plan, isSafeRelativePath } from "../plan/plan";
@@ -36,15 +37,50 @@ function escapeWithMentions(text: string, known: readonly string[]): string {
     .join("");
 }
 
-/** Renders code as escaped HTML, wrapping each coloured token in a `tok-<kind>` span and file mentions in `file-mention` spans. */
-function renderHighlighted(code: string, known: readonly string[] = []): string {
-  return tokenizeCode(code)
-    .map((t) =>
-      t.kind === "plain"
-        ? escapeWithMentions(t.text, known)
-        : `<span class="tok-${t.kind}">${escapeWithMentions(t.text, known)}</span>`
-    )
+/**
+ * Renders the code as one commentable block per line (`code:<i>`), each with its own margin
+ * button. Tokens that span lines are cut per line so every line keeps its colour. The lines
+ * come from `splitCodeLines`, the same split `blockIdsForPlan` uses.
+ */
+export function renderCodeLines(code: string, language: string, known: readonly string[] = []): string {
+  const langClass = /^[a-zA-Z0-9+#-]*$/.test(language) && language !== ""
+    ? ` class="language-${escapeHtml(language)}"`
+    : "";
+  return codeLineSegments(code, language, known)
+    .map((segments, i) => {
+      const html = segments
+        .map((s) => {
+          const inner = s.parts
+            .map((p) => (p.mention ? `<span class="file-mention">${escapeHtml(p.text)}</span>` : escapeHtml(p.text)))
+            .join("");
+          return s.kind === "plain" ? inner : `<span class="tok-${s.kind}">${inner}</span>`;
+        })
+        .join("");
+      return renderBlock(codeLineId(i), codeLineLabel(i), `<pre><code${langClass}>${html}</code></pre>`, "code-line");
+    })
     .join("");
+}
+
+/** One coloured piece of a code line; `parts` split it into plain text and file mentions. */
+export interface CodeSegment {
+  kind: string;
+  parts: { text: string; mention: boolean }[];
+}
+
+/**
+ * Splits code into lines of coloured segments (kind "plain" for uncoloured text), with file
+ * mentions marked. Used both for the server-side HTML and for the data sent to the webview
+ * after a code edit, so the webview can build the lines without parsing HTML.
+ */
+export function codeLineSegments(code: string, language: string, known: readonly string[] = []): CodeSegment[][] {
+  const toSegment = (kind: string, text: string): CodeSegment => ({
+    kind,
+    parts: splitFileMentions(text, known).map((s) => ({ text: s.text, mention: s.mention })),
+  });
+  if (!highlightsLanguage(codeLabel(language))) {
+    return splitCodeLines(code).map((line) => (line === "" ? [] : [toSegment("plain", line)]));
+  }
+  return splitTokensByLine(tokenizeCode(code)).map((tokens) => tokens.map((t) => toSegment(t.kind, t.text)));
 }
 
 /** Creates a random nonce for the Content-Security-Policy. */
@@ -148,6 +184,8 @@ function setFullText(el, text) {
     el.textContent = text;
   }
 }
+const codeEl = editEls.code;
+let rawCode = codeEl.getAttribute("data-raw") || "";
 function readEdits() {
   const steps = [];
   let i = 0;
@@ -160,13 +198,63 @@ function readEdits() {
     summary: fullText(editEls.summary),
     outOfScope: fullText(editEls.outOfScope),
     steps: steps,
+    code: rawCode,
   };
 }
+const lineTemplate = codeEl.querySelector(".code-line").cloneNode(true);
+function buildLineBlock(index, segments) {
+  const block = lineTemplate.cloneNode(true);
+  const label = "Code line " + (index + 1);
+  block.setAttribute("data-block", "code:" + index);
+  block.setAttribute("data-label", label);
+  block.querySelector("button.add-comment").setAttribute("aria-label", "Add inline comment on " + label);
+  block.querySelector(".bubbles").textContent = "";
+  const codeText = block.querySelector("pre code");
+  codeText.textContent = "";
+  (Array.isArray(segments) ? segments : []).forEach((segment) => {
+    const parts = Array.isArray(segment.parts) ? segment.parts : [];
+    const holder = segment.kind === "plain" ? codeText : makeEl("span", "tok-" + String(segment.kind).replace(/[^a-z]/g, ""));
+    parts.forEach((part) => {
+      if (part.mention) {
+        holder.appendChild(makeEl("span", "file-mention", part.text));
+      } else {
+        holder.appendChild(document.createTextNode(part.text));
+      }
+    });
+    if (holder !== codeText) { codeText.appendChild(holder); }
+  });
+  return block;
+}
+function requestCodeRender() {
+  vscode.postMessage({ type: "renderCode", code: rawCode });
+}
+function countLines(code) {
+  const lines = code.split("\\n");
+  return lines.length > 1 && lines[lines.length - 1] === "" ? lines.length - 1 : lines.length;
+}
+function pruneLineComments(lineCount) {
+  const comments = readComments();
+  const next = {};
+  let dropped = 0;
+  Object.keys(comments).forEach((id) => {
+    const m = /^code:(0|[1-9][0-9]*)$/.exec(id);
+    if (m && Number(m[1]) >= lineCount) { dropped++; } else { next[id] = comments[id]; }
+  });
+  if (dropped > 0) {
+    vscode.setState(Object.assign({}, readState(), { comments: next }));
+  }
+  return dropped;
+}
+let pendingNote = "";
 if (resetState) {
   vscode.setState({});
 }
 const saved = readState().edits;
 if (saved && typeof saved === "object") {
+  if (typeof saved.code === "string" && saved.code.trim() !== "" && saved.code !== rawCode) {
+    rawCode = saved.code;
+    requestCodeRender();
+  }
   if (typeof saved.title === "string") { setFullText(editEls.title, saved.title); }
   if (typeof saved.summary === "string") { setFullText(editEls.summary, saved.summary); }
   if (typeof saved.outOfScope === "string") { setFullText(editEls.outOfScope, saved.outOfScope); }
@@ -179,16 +267,17 @@ if (saved && typeof saved === "object") {
 let lastSent = null;
 function sendEdits() {
   lastSent = readEdits();
-  vscode.postMessage({ type: "savePlan", title: lastSent.title, summary: lastSent.summary, outOfScope: lastSent.outOfScope, steps: lastSent.steps });
+  vscode.postMessage({ type: "savePlan", title: lastSent.title, summary: lastSent.summary, outOfScope: lastSent.outOfScope, steps: lastSent.steps, code: lastSent.code });
 }
 function startEdit(el) {
   if (el.hidden) { return; }
   const key = el.getAttribute("data-edit");
   const single = key === "title";
+  const isCode = key === "code";
   const field = document.createElement(single ? "input" : "textarea");
-  if (single) { field.type = "text"; } else { field.rows = 3; }
-  field.className = single ? "edit-field edit-title" : "edit-field";
-  field.value = el.textContent;
+  if (single) { field.type = "text"; } else { field.rows = isCode ? 12 : 3; }
+  field.className = single ? "edit-field edit-title" : isCode ? "edit-field edit-code" : "edit-field";
+  field.value = isCode ? rawCode : el.textContent;
   field.setAttribute("aria-label", "Edit " + el.getAttribute("data-label"));
   let done = false;
   function finish(commit, refocus) {
@@ -197,7 +286,19 @@ function startEdit(el) {
     const next = field.value;
     field.remove();
     el.hidden = false;
-    if (commit && next !== el.textContent) {
+    if (commit && isCode) {
+      const trimmed = next.replace(/\\s+$/, "");
+      if (trimmed.trim() === "") {
+        statusEl.textContent = "This field cannot be empty.";
+      } else if (trimmed !== rawCode.replace(/\\s+$/, "")) {
+        rawCode = trimmed;
+        const dropped = pruneLineComments(countLines(rawCode));
+        pendingNote = dropped > 0 ? " Dropped " + dropped + " line comment" + (dropped === 1 ? "" : "s") + " that no longer match a line." : "";
+        if (dropped > 0) { statusEl.textContent = pendingNote.trim(); }
+        requestCodeRender();
+        sendEdits();
+      }
+    } else if (commit && next !== el.textContent) {
       if (next.trim() === "" && key !== "outOfScope") {
         statusEl.textContent = "This field cannot be empty.";
       } else {
@@ -212,7 +313,10 @@ function startEdit(el) {
     if (event.key === "Escape") {
       event.preventDefault();
       finish(false, true);
-    } else if (event.key === "Enter" && !event.shiftKey) {
+    } else if (event.key === "Enter" && isCode && (event.metaKey || event.ctrlKey)) {
+      event.preventDefault();
+      finish(true, true);
+    } else if (event.key === "Enter" && !isCode && !event.shiftKey) {
       event.preventDefault();
       finish(true, true);
     }
@@ -222,9 +326,12 @@ function startEdit(el) {
   field.focus();
 }
 document.querySelectorAll(".editable").forEach((el) => {
-  el.addEventListener("click", () => startEdit(el));
+  el.addEventListener("click", (event) => {
+    if (event.target.closest(".margin")) { return; }
+    startEdit(el);
+  });
   el.addEventListener("keydown", (event) => {
-    if (event.key === "Enter") {
+    if (event.key === "Enter" && event.target === el) {
       event.preventDefault();
       startEdit(el);
     }
@@ -274,11 +381,11 @@ function makeEl(tag, className, text) {
   if (text) { el.textContent = text; }
   return el;
 }
-document.querySelectorAll(".block").forEach((block) => {
+function wireBlock(block) {
   const id = block.getAttribute("data-block");
   const label = block.getAttribute("data-label");
-  const addBtn = block.querySelector("button.add-comment");
-  const holder = block.querySelector(".bubbles");
+  const addBtn = block.querySelector(":scope > .margin > button.add-comment");
+  const holder = block.querySelector(":scope > .margin > .bubbles");
   function buildBubble(text) {
     const bubble = makeEl("div", "bubble");
     bubble.tabIndex = 0;
@@ -357,7 +464,8 @@ document.querySelectorAll(".block").forEach((block) => {
   }
   addBtn.addEventListener("click", () => show(true));
   show(false);
-});
+}
+document.querySelectorAll(".block").forEach(wireBlock);
 refreshReview();
 const kebab = document.querySelector("button.kebab");
 const menu = document.querySelector(".menu");
@@ -400,13 +508,13 @@ submitBtn.addEventListener("click", () => {
   reviewBtn.disabled = true;
   closePopovers();
   statusEl.textContent = "Asking Claude Code to review...";
-  vscode.postMessage({ type: "reviewComments", title: edits.title, summary: edits.summary, outOfScope: edits.outOfScope, steps: edits.steps, comments: readComments(), message: messageBox.value });
+  vscode.postMessage({ type: "reviewComments", title: edits.title, summary: edits.summary, outOfScope: edits.outOfScope, steps: edits.steps, code: edits.code, comments: readComments(), message: messageBox.value });
 });
 menu.querySelectorAll("button[data-action]").forEach((item) => {
   item.addEventListener("click", () => {
     const edits = readEdits();
     closePopovers();
-    vscode.postMessage({ type: item.getAttribute("data-action"), title: edits.title, summary: edits.summary, outOfScope: edits.outOfScope, steps: edits.steps });
+    vscode.postMessage({ type: item.getAttribute("data-action"), title: edits.title, summary: edits.summary, outOfScope: edits.outOfScope, steps: edits.steps, code: edits.code });
   });
 });
 const implementBtn = document.querySelector("button.implement");
@@ -444,8 +552,21 @@ window.addEventListener("message", (event) => {
     statusEl.textContent = typeof msg.message === "string" ? msg.message : "";
     return;
   }
+  if (msg && msg.type === "codeRendered") {
+    if (msg.code === rawCode && Array.isArray(msg.lines)) {
+      codeEl.textContent = "";
+      msg.lines.forEach((segments, i) => {
+        const block = buildLineBlock(i, segments);
+        codeEl.appendChild(block);
+        wireBlock(block);
+      });
+      refreshReview();
+    }
+    return;
+  }
   if (!msg || msg.type !== "saveResult") { return; }
-  statusEl.textContent = typeof msg.message === "string" ? msg.message : "";
+  statusEl.textContent = (typeof msg.message === "string" ? msg.message : "") + pendingNote;
+  pendingNote = "";
   if (msg.ok === true && lastSent) {
     vscode.setState({ comments: readComments(), edits: lastSent });
   }
@@ -500,9 +621,6 @@ function renderVerification(items: string[], known: readonly string[]): string {
 export function renderPlanHtml(plan: Plan, nonce: string, options?: { resetState: boolean }): string {
   const resetLine = `const resetState = ${options?.resetState === true ? "true" : "false"};\n`;
   const language = plan.proposedChanges.language;
-  const langClass = /^[a-zA-Z0-9+#-]*$/.test(language) && language !== ""
-    ? ` class="language-${escapeHtml(language)}"`
-    : "";
   const label = codeLabel(language);
   const langLabel = label !== ""
     ? `<span class="lang-label">${escapeHtml(label)}</span>`
@@ -514,11 +632,11 @@ export function renderPlanHtml(plan: Plan, nonce: string, options?: { resetState
     "overview",
     `<h2>Overview</h2>${renderTextBlock("summary", "summary", plan.overview.summary, "", known)}<h3>Out of scope</h3>${renderTextBlock("outOfScope", "out of scope", plan.overview.outOfScope ?? "", "Nothing excluded", known)}`
   );
-  const codeHtml = highlightsLanguage(label) ? renderHighlighted(plan.proposedChanges.code, known) : escapeWithMentions(plan.proposedChanges.code, known);
+  const codeLinesHtml = renderCodeLines(plan.proposedChanges.code, language, known);
   const codeBlock = renderBlock(
     "code",
     "code",
-    `<h2>Proposed changes</h2><div class="code-wrap">${langLabel}<button class="copy-code" type="button" aria-label="Copy code" title="Copy code">Copy</button><pre><code${langClass}>${codeHtml}</code></pre></div>`
+    `<h2>Proposed changes</h2><div class="code-wrap">${langLabel}<button class="copy-code" type="button" aria-label="Copy code" title="Copy code">Copy</button><div class="editable code-lines" data-edit="code" data-label="code" data-raw="${escapeHtml(plan.proposedChanges.code)}" tabindex="0">${codeLinesHtml}</div></div>`
   );
   return `<!DOCTYPE html>
 <html lang="en">
@@ -692,11 +810,18 @@ export function renderPlanHtml(plan: Plan, nonce: string, options?: { resetState
   .file-mention { background: var(--mention-bg); border-radius: 3px; padding: 0 0.15em; }
   .block.file-block > .body { padding: 0.5rem 0.9rem; }
   pre { background: transparent; border: 1px solid var(--border); border-radius: 6px; padding: 2rem 1rem 0.75rem; overflow-x: auto; margin: 0; }
+  .code-lines { white-space: normal; border: 1px solid var(--border); border-radius: 6px; padding: 2rem 0.5rem 0.75rem 1rem; }
+  .code-lines.editable::after { top: 1.6rem; }
+  .block.code-line { margin: 0; }
+  .code-line > .margin { padding-top: 0; }
+  .code-line pre { border: 0; border-radius: 0; padding: 0; overflow: visible; min-height: 1.5em; white-space: pre-wrap; }
+  .code-line:hover > .body { background: var(--mention-bg); border-radius: 3px; }
+  .edit-field.edit-code { font-family: var(--font-code); font-size: 13px; white-space: pre; overflow-x: auto; }
   .badge { background: var(--badge-bg); color: var(--badge-fg); border-radius: 999px; padding: 0 0.5rem; font-size: 0.75rem; margin-left: 0.25rem; }
   button.add-comment { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; padding: 0; background: var(--accent); color: var(--accent-fg); border: 0; border-radius: 4px; font: bold 10px/1 var(--font-body); cursor: pointer; opacity: 0; }
   button.add-comment .plus-glyph { display: flex; align-items: center; justify-content: center; width: 10px; height: 10px; line-height: 1; }
   button.add-comment .plus-glyph svg { display: block; width: 10px; height: 10px; }
-  .block:hover button.add-comment, .block:focus-within button.add-comment, button.add-comment:focus-visible { opacity: 1; }
+  .block:hover > .margin > button.add-comment, .block:focus-within > .margin > button.add-comment, button.add-comment:focus-visible { opacity: 1; }
   .bubble { position: relative; }
   .bubble .marker { display: inline-flex; align-items: center; justify-content: center; width: 1.6rem; height: 1.6rem; color: var(--accent); cursor: pointer; }
   .bubble .full { display: none; position: absolute; top: 0; right: 0; z-index: 5; width: 18rem; max-width: calc(100vw - 2rem); background: var(--bubble-bg); border: 1px solid var(--bubble-border); border-radius: 6px; padding: 0.5rem 0.75rem; box-shadow: 0 2px 8px var(--shadow); }
@@ -718,6 +843,11 @@ export function renderPlanHtml(plan: Plan, nonce: string, options?: { resetState
     .margin .bubbles { flex: 1 1 100%; }
     .bubble .full { position: static; width: auto; max-width: none; margin-top: 0.25rem; }
     .margin:not(:has(.bubble)) { padding-top: 0; }
+    .code-line { position: relative; }
+    .code-line > .body { padding-right: 26px; }
+    .code-line > .margin { position: absolute; top: 0; right: 0; display: block; }
+    .code-line .bubble .full { position: absolute; right: 0; width: min(18rem, calc(100vw - 2rem)); margin-top: 0; z-index: 5; }
+    .code-lines { padding-left: 0.6rem; padding-right: 0.4rem; }
   }
 </style>
 </head>
@@ -821,6 +951,8 @@ export class PlanPanel {
         this.saveChain = this.saveChain.then(() => this.save(msg));
       } else if (type === "reviewComments") {
         this.saveChain = this.saveChain.then(() => this.review(msg));
+      } else if (type === "renderCode") {
+        this.renderCode((msg as { code?: unknown }).code);
       } else if (type === "openFile") {
         void openWorkspaceFile((msg as { path?: unknown }).path);
       } else if (type === "copyMarkdown" || type === "copyPath" || type === "exportArtifact") {
@@ -831,6 +963,19 @@ export class PlanPanel {
         this.saveChain = this.saveChain.then(() => this.implement());
       }
     });
+  }
+
+  /**
+   * Splits edited code into coloured line segments and posts them back to the webview,
+   * which builds the line blocks from them with textContent. Stateless: nothing is saved. Ignores non-string or blank code.
+   */
+  private renderCode(code: unknown): void {
+    if (typeof code !== "string" || code.trim() === "") {
+      return;
+    }
+    const known = this.currentPlan.files.map((f) => f.path);
+    const lines = codeLineSegments(code, this.currentPlan.proposedChanges.language, known);
+    void this.panel.webview.postMessage({ type: "codeRendered", code, lines });
   }
 
   /**
@@ -930,7 +1075,15 @@ export class PlanPanel {
         this.replyReview(edited.error);
         return;
       }
-      const rawComments = (input as { comments?: unknown }).comments;
+      let rawComments = (input as { comments?: unknown }).comments;
+      if (typeof rawComments === "object" && rawComments !== null && !Array.isArray(rawComments)) {
+        // Safety net: the webview already drops and reports line comments past the edited code;
+        // this only covers a message that raced the code edit.
+        rawComments = dropOutOfRangeLineComments(
+          rawComments as Record<string, unknown>,
+          codeLineCount(edited.plan.proposedChanges.code)
+        ).comments;
+      }
       const parsed = parseReviewComments(rawComments, edited.plan);
       if (!parsed.ok) {
         this.replyReview(parsed.error);

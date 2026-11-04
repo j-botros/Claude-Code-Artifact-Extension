@@ -6,6 +6,8 @@ export interface PlanEdits {
   summary: string;
   outOfScope: string | null;
   steps: string[];
+  /** The proposed code; when absent the current code is kept. */
+  code?: string;
 }
 
 /** Builds a safe file name (ending in .json) from a plan title. */
@@ -76,12 +78,24 @@ export function applyPlanEdits(current: Plan, input: unknown): ParseResult {
     }
     steps.push(trimmed);
   }
+  let code = current.proposedChanges.code;
+  if (input.code !== undefined) {
+    if (typeof input.code !== "string") {
+      return { ok: false, error: "code must be a string" };
+    }
+    // Trailing whitespace is trimmed; the inner text stays exact.
+    const trimmedCode = input.code.trimEnd();
+    if (trimmedCode.trim() === "") {
+      return { ok: false, error: "code must not be empty" };
+    }
+    code = trimmedCode;
+  }
   const plan: Plan = {
     title,
     overview: { summary, outOfScope },
     proposedChanges: {
       language: current.proposedChanges.language,
-      code: current.proposedChanges.code,
+      code,
     },
     files: current.files.map((f) => ({ path: f.path, change: f.change, isNew: f.isNew })),
     implementationSteps: steps,
