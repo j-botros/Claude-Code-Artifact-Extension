@@ -36,4 +36,7 @@
 
 ## Testing (tester)
 
-_(to be written by the tester)_
+- **Verdict:** PASS
+- **Test file:** `test/unit/designPlanCommand.test.ts` (6 tests: plans folder, slug rule, required fields, optional fields plus omit rule, callout markers, no chat answer / no source edits).
+- **Commands and counts:** `npm run compile` OK. `npm run test:unit`: 23 files, 374 tests passed. `npm test`: unit 374 passed; UI 128 passed; integration 33 passing. No failures.
+- **Not verified:** Antigravity showing `/design-plan` in the chat. The tests check the command file text only, not how Claude follows it.
