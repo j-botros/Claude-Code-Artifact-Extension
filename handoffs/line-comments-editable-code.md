@@ -73,4 +73,21 @@ Commit: `aaebfbd` on `task/line-comments-editable-code`.
 **Not verified.** `npm run test:ui` and `npm test` were not run (shell permission was denied for test:ui). The webview script, the phone layout and the light theme were not checked in a browser, and the Playwright tests for line comments and code editing are not written. Existing UI tests that query `pre` or `.block` counts may need updating.
 
 ## Testing
-(tester writes here)
+Verdict: **FAIL** (two src/ bugs, found by 3 failing UI tests). Test commit: see git log (`test: code line comments and editable code`).
+
+**Commands and results.**
+- `npm run compile`: clean.
+- `npm run test:unit`: 20 files, 319 passed, 0 failed.
+- `npm run test:ui`: 94 tests, 91 passed, 3 failed (below).
+- `npm run test:integration`: 33 passing, exit 0 (VS Code 1.107.0).
+- `npm test` was not run as one command, because `test:ui` fails and `npm test` stops there. The three parts were run separately.
+
+**Tests changed.** `test/unit/planRenderer.test.ts` (block order now has `code:0`; editable keys now `title, summary, outOfScope, code, step:*`; the read-only list no longer holds `code`; zero-steps test sees `code`). `test/unit/reviewComments.test.ts` (both `blockIdsForPlan` lists have `code:<i>`). `test/ui/planPanel.spec.ts` (`pre code` replaced by `[data-edit='code']`; `addComment` and the cancel test use the block's own `:scope > .margin`, since the outer `code` block now contains the line blocks; the read-only test no longer includes the code). `test/ui/antigravityStyle.spec.ts` (code border is now on `.code-lines`, `pre` border is 0). `test/ui/layout.spec.ts` (copy-button count and box use `.code-lines`).
+
+**Tests added.** `test/unit/codeLines.test.ts` (split incl. trailing newline and empty code; id and label; `codeLineIndex`; `splitTokensByLine`; `dropOutOfRangeLineComments`; `blockIdsForPlan`, `parseReviewComments` in and out of range; `formatCommentsForPrompt` gives `Code line N`; `applyPlanEdits` code absent, valid with trim, blank, non-string). `test/ui/codeLines.spec.ts` (one block per line; comment on one line; line comment survives reload; edit by click shows new lines and `savePlan` carries `code`; Escape cancels; blank rejected; margin plus does not start an edit; edited code survives reload; dropping lines drops out-of-range comments and reports it; no code editor opens after save, cancel or delete of a line comment).
+
+**Failing tests (src/ bugs, not fixed).**
+1. `codeLines.spec.ts` "saving, cancelling, and deleting a line comment do not open the code editor": after clicking "Add Comment" on a code line, `textarea.edit-code` exists (expected 0). Cause: the click handler on `div.editable.code-lines` skips clicks whose `event.target.closest(".margin")` matches, but Add Comment, Cancel, Delete and Edit Comment remove their own button from the page (`holder.textContent = ""` in `show()`) before the event reaches the editable div. The detached target no longer has a `.margin` ancestor, so `startEdit` opens the code editor, hiding the code and stealing focus. Fix idea: check `event.composedPath()` or test the target's `.margin` before the handler removes it (for example, a capture-phase listener, or `stopPropagation` in the comment buttons).
+2. `layout.spec.ts:346` "the copy button posts copyCode and carries no code text" and `layout.spec.ts:554` "no CSP violations with callouts, copy, and edit": clicking `button.copy-code` times out. Playwright log: `<div ... class="editable code-lines" data-edit="code"> intercepts pointer events`. The `.code-lines` div (positioned, later in the DOM) now paints over the absolutely positioned Copy button, so the Copy button cannot be clicked with a mouse. Fix idea: give `button.copy-code` a `z-index` above `.code-lines`.
+
+**Not verified.** Real VS Code or Antigravity UI (integration tests only exercise the host messages); the phone layout and light theme for the new line blocks beyond the existing UI tests; the `codeRendered` reply is simulated in the Playwright stub (plain segments), so colour-per-line rendering is covered only by the unit test of `splitTokensByLine`. The vitest version in use is 5.1.0 (the CLAUDE.md pin note says 5.0.5); not touched.
