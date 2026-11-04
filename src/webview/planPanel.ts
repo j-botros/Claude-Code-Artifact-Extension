@@ -512,8 +512,10 @@ function makeEl(tag, className, text) {
 function layoutSlots(block) {
   const margin = block.querySelector(":scope > .margin");
   if (!margin) { return; }
+  block.style.minHeight = "";
   const base = margin.getBoundingClientRect().top;
   let prev = -1000;
+  let lastTop = -1;
   Array.from(margin.querySelectorAll(":scope > .slot:not(.single)")).forEach((slot) => {
     const id = slot.getAttribute("data-line");
     const span = Array.from(block.querySelectorAll(".tline")).find((s) => s.getAttribute("data-line") === id);
@@ -521,8 +523,15 @@ function layoutSlots(block) {
     if (rects.length === 0) { return; }
     const top = Math.max(rects[0].top - base, prev + 22);
     prev = top;
+    lastTop = top;
     slot.style.top = top + "px";
   });
+  /* Grow a short block so every pushed slot (22px tall) stays inside it and never lies over the next block. */
+  if (lastTop >= 0) {
+    const rect = block.getBoundingClientRect();
+    const needed = lastTop + 22 + (base - rect.top);
+    if (needed > rect.height) { block.style.minHeight = needed + "px"; }
+  }
 }
 /* Rebuilds a block's margin slots from its line spans, drops comments whose line is gone, and
    returns how many were dropped. */

@@ -108,6 +108,12 @@ Cause: margin slots are absolutely positioned and `layoutSlots` can push a later
 Fix (CSS only, `src/webview/planPanel.ts`): `.slot` now has `z-index: 7` (above the Copy button at 6 and the bubble popover at 5 inside it), and `.block:has(.bubble.editing)` gets `position: relative; z-index: 8` so an open editor sits above neighbouring blocks' slots.
 Results: `npm run compile` passes; `npm run test:unit` 368 passed (22 files); `npm run test:ui` 115 passed, 0 failed. The test expectations were right; no test edits.
 
+### Round 3 (last round)
+
+Cause: `layoutSlots` pushes each later slot at least 22 px below the previous one, so the third slot of a short block fell on the next block's own slot area.
+Fix (`src/webview/planPanel.ts`, `layoutSlots`): after positioning, the block gets an inline `min-height` so its bottom edge is at least the last slot's top + 22 px (reset first on every layout, so it shrinks again after edits). Chosen over clamping because clamping would stack slots on top of each other; growing the block keeps every slot separate and inside its own block on desktop and phone width, with the CSP unchanged (inline style set through the DOM, not markup).
+Results: compile passes; unit 368 passed (22 files); UI 117 passed, 0 failed (including lineComments.spec.ts:218); integration 33 passing, 0 failing.
+
 ## Testing (tester)
 
 **Verdict: FAIL** (one UI test fails because of a real src bug).
