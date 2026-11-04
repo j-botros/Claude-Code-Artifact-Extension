@@ -85,7 +85,7 @@ async function css(page: Page, selector: string, prop: string): Promise<string> 
 async function addComment(page: Page, id: string): Promise<void> {
   const b = page.locator(`.block[data-block='${id}']`);
   await b.hover();
-  await b.locator("button.add-comment").click();
+  await b.locator(".slot").first().locator("button.add-comment").click();
   await b.locator("textarea.comment-field").fill("note");
   await b.getByRole("button", { name: "Add Comment", exact: true }).click();
   await expect(b.locator(".bubble")).toHaveCount(1);
@@ -139,10 +139,10 @@ test.describe("sticky bar", () => {
     expect([...xs].sort((a, b) => a - b)).toEqual(xs);
     expect(new Set(xs).size).toBe(4);
     await expect(page.locator("header.top h1")).toHaveText(samplePlan.title);
-    // The title is the only h1 and has no margin "+" button.
+    // The title is the only h1 and is itself a commentable block with one "+" button.
     await expect(page.locator("h1")).toHaveCount(1);
-    await expect(page.locator("header.top button.add-comment")).toHaveCount(0);
-    await expect(page.locator(".block[data-block='title']")).toHaveCount(0);
+    await expect(page.locator("header.top button.add-comment")).toHaveCount(1);
+    await expect(page.locator(".block[data-block='title']")).toHaveCount(1);
   });
 
   // The title stays editable through the sticky bar and saves through savePlan.
@@ -409,7 +409,8 @@ test.describe("Antigravity sizes at 2000px", () => {
     expect(box!.x).toBeCloseTo(0, 0);
     expect(box!.width).toBeCloseTo(2000, 0);
     // The commentable blocks start at the left padding edge and end at 91% (right padding 9%).
-    const first = await page.locator(".block").first().boundingBox();
+    // (The title block in the sticky bar uses the bar padding, so look at the content blocks only.)
+    const first = await page.locator(".content .block").first().boundingBox();
     expect(first!.x).toBeCloseTo(180, 0);
     expect(first!.x + first!.width).toBeCloseTo(1820, 0);
     // Reference: the screenshots show 185/2000 (9.25%) on the left and 1735/2000 (86.75%) text end.
@@ -530,7 +531,8 @@ test.describe("Antigravity sizes at 2000px", () => {
     expect(await css(page, "button.implement", "background-color")).toBe("rgb(63, 163, 77)");
     await expect(page.locator(".callout")).not.toHaveCount(0);
     await expect(page.locator(".step-row .callout.warning .callout-label").first()).toHaveText("WARNING");
-    expect(await page.locator("[style]").count()).toBe(0);
+    // Only margin slots carry a style attribute: the script sets `style.top` through the CSSOM, which the CSP allows.
+    expect(await page.locator("[style]:not(.slot)").count()).toBe(0);
     expect(problems).toEqual([]);
   });
 });
@@ -575,7 +577,7 @@ test.describe("console", () => {
       expect(problems, scheme).toEqual([]);
       const csp = await page.locator("meta[http-equiv='Content-Security-Policy']").getAttribute("content");
       expect(csp).not.toContain("unsafe-inline");
-      expect(await page.locator("[style]").count(), "no inline style attributes").toBe(0);
+      expect(await page.locator("[style]:not(.slot)").count(), "no inline style attributes outside margin slots").toBe(0);
       await page.close();
     }
   });

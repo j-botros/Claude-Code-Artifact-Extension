@@ -94,7 +94,8 @@ async function addComment(page: Page, id: string, text: string): Promise<void> {
   // The whole-code block contains the per-line blocks, so use only its own margin cell.
   const b = block(page, id).locator(":scope > .margin");
   await block(page, id).hover();
-  await b.locator("button.add-comment").click();
+  // A text block has one slot per line; this comments on the first line.
+  await b.locator(".slot").first().locator("button.add-comment").click();
   await b.locator("textarea.comment-field").fill(text);
   await b.getByRole("button", { name: "Add Comment", exact: true }).click();
   await expect(b.locator(".bubble")).toHaveCount(1);
@@ -144,7 +145,7 @@ test.describe("plan webview", () => {
     expect(csp).not.toContain("unsafe-inline");
     // The script ran: it wired the comment button, which then opens an editor.
     await block(page, "overview").hover();
-    await block(page, "overview").locator("button.add-comment").click();
+    await block(page, "overview").locator(".slot[data-line='overview'] button.add-comment").click();
     await expect(block(page, "overview").locator("textarea.comment-field")).toBeVisible();
     expect(errors).toEqual([]);
   });
@@ -315,6 +316,17 @@ test.describe("plan webview", () => {
 
     const posted = await page.evaluate(() => (window as any).__posted);
     expect(posted.filter((m: any) => m.type === "savePlan").length).toBeGreaterThanOrEqual(4);
+    // The status text was already "Saved" from the earlier edits, so it proves nothing about the
+    // last save. The webview stores the edits in its state only when the save result arrives, so
+    // wait for that before reloading (reloading earlier races with the async save result).
+    await expect
+      .poll(() =>
+        page.evaluate(() => {
+          const state = JSON.parse(sessionStorage.getItem("vscodeState") || "{}");
+          return state.edits && state.edits.steps ? state.edits.steps[2] : null;
+        })
+      )
+      .toContain("Edited step three.");
     await page.reload();
     await expect(page.locator("h1.editable")).toHaveText("Edited Plan Title");
     await expect(page.locator("[data-edit='summary']")).toHaveText("Edited summary.");
@@ -703,7 +715,7 @@ test.describe("plan webview", () => {
     expect(await overflow()).toBeLessThanOrEqual(0);
 
     // An open comment editor also stays inside the page.
-    await block(page, "overview").locator("button.add-comment").click();
+    await block(page, "overview").locator(".slot[data-line='overview'] button.add-comment").click();
     await expect(block(page, "overview").locator("textarea.comment-field")).toBeVisible();
     expect(await overflow()).toBeLessThanOrEqual(0);
     const box = await block(page, "overview").locator("textarea.comment-field").boundingBox();

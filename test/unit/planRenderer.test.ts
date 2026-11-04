@@ -45,8 +45,9 @@ function editKeys(html: string): string[] {
 describe("renderPlanHtml", () => {
   it("renders blocks in the order title, overview, code, files, steps, verification", () => {
     const html = renderPlanHtml(makePlan(), NONCE);
-    // The title lives in the sticky bar, so it is not a commentable block.
+    // The title lives in the sticky bar and is a commentable block too.
     expect(blockIds(html)).toEqual([
+      "title",
       "overview",
       "code",
       "code:0",
@@ -91,16 +92,18 @@ describe("renderPlanHtml", () => {
     const html = renderPlanHtml(makePlan(), NONCE);
     const ids = blockIds(html);
     const buttons = html.match(/<button class="add-comment"[^>]*>/g) ?? [];
-    expect(buttons).toHaveLength(ids.length);
+    // One slot (button plus bubble holder) per line; the default plan has one overview line
+    // plus one out-of-scope line, so one more slot than blocks.
+    expect(ids).toContain("title");
+    expect(buttons).toHaveLength(ids.length + 1);
     for (const b of buttons) {
       expect(b).toMatch(/aria-label="Add inline comment on [^"]+"/);
       expect(b).toContain('title="Add inline comment"');
       expect(b).toContain('type="button"');
     }
-    // Each block has its own margin cell and bubble holder.
-    expect(html.split('<div class="bubbles"></div>').length - 1).toBe(ids.length);
-    expect(html).not.toContain('aria-label="Add inline comment on title"');
-    expect(html).not.toContain('data-block="title"');
+    expect(html.split('<div class="bubbles"></div>').length - 1).toBe(buttons.length);
+    expect(html).toContain('aria-label="Add inline comment on title"');
+    expect(html).toContain('aria-label="Add inline comment on out of scope"');
     expect(html).toContain('aria-label="Add inline comment on step 2"');
     expect(html).toContain('aria-label="Add inline comment on verification 1"');
     expect(html).toContain('aria-label="Add inline comment on file src/old.ts"');
@@ -122,18 +125,20 @@ describe("renderPlanHtml", () => {
     expect(html.split("<script").length - 1).toBe(1);
     expect(html.split("</script>").length - 1).toBe(1);
     expect(html).toContain(`<title>${ESCAPED}</title>`);
-    expect(html).toContain(`<h1 class="editable" data-edit="title" data-label="title" tabindex="0">${ESCAPED}</h1>`);
     // The hostile string is also a files[].path, so each text mention is wrapped in a span, still escaped.
     const M = `<span class="file-mention">${ESCAPED}</span>`;
-    expect(html).toContain(`data-edit="summary" data-label="summary" tabindex="0">${M}</div>`);
+    const L = (id: string) => `<span class="tline" data-line="${id}">${M}</span>`;
+    // The title is not scanned for file mentions, so its line holds the escaped text directly.
+    expect(html).toContain(`<span class="tline" data-line="title">${ESCAPED}</span></h1>`);
+    expect(html).toContain(`${L("overview")}</div>`);
     expect(html).not.toContain('title="Click to edit"');
-    expect(html).toContain(`data-placeholder="Nothing excluded">${M}</div>`);
+    expect(html).toContain(`${L("scope")}</div>`);
     expect(html).toContain(`<span class="lang-label">${ESCAPED}</span>`);
     expect(html).toContain(`<code>${M}</code></pre>`);
     expect(html).toContain(`<code class="file-mention">${ESCAPED}</code> <span class="badge">new</span>`);
     expect(html).toContain(`<div class="file-change">${M}</div>`);
-    expect(html).toContain(`<div class="verification-item">${M}</div>`);
-    expect(html).toContain(`tabindex="0">${M}</div></div>`);
+    expect(html).toContain(`${L("verification:0")}</div>`);
+    expect(html).toContain(`${L("step:0")}</div></div>`);
     // The hostile path in aria-label and data-label attributes is escaped too.
     expect(html).toContain(`aria-label="Add inline comment on file ${ESCAPED}"`);
     expect(html).not.toContain('aria-label="Add inline comment on file <');
@@ -153,10 +158,12 @@ describe("renderPlanHtml", () => {
     expect(html).toContain("&lt;b&gt;x&lt;/b&gt;");
     expect(html).toContain('<div class="callout warning"><div class="callout-label">WARNING</div>');
     expect(html).toContain('data-marker="NOTE:"');
-    expect(html).toContain('<div class="callout tip"><div class="callout-label">TIP</div><div class="verification-item">check it</div>');
+    expect(html).toMatch(
+      /<div class="callout tip"><div class="callout-label">TIP<\/div><div class="verification-item"[^>]*><span class="tline" data-line="verification:0">check it<\/span><\/div>/
+    );
     // Lowercase and mid-text markers stay plain text.
-    expect(html).toContain(">note: lower</div>");
-    expect(html).toContain(">Mid NOTE: text</div>");
+    expect(html).toContain(">note: lower</span></div>");
+    expect(html).toContain(">Mid NOTE: text</span></div>");
     expect(html.split('class="callout-label"').length - 1).toBe(4);
   });
 
@@ -207,7 +214,7 @@ describe("renderPlanHtml", () => {
     expect(none).toContain("<h3>Out of scope</h3>");
     expect(none).toMatch(/data-edit="outOfScope"[^>]*data-placeholder="Nothing excluded"><\/div>/);
     const some = renderPlanHtml(makePlan(), NONCE);
-    expect(some).toMatch(/data-edit="outOfScope"[^>]*>Scope text<\/div>/);
+    expect(some).toMatch(/data-edit="outOfScope"[^>]*>(?:<span class="tline"[^>]*>)?Scope text(?:<\/span>)?<\/div>/);
   });
 
   it("shows No files. and no file blocks for an empty file list", () => {
@@ -290,10 +297,10 @@ describe("renderPlanHtml", () => {
     const html = renderPlanHtml(makePlan(), NONCE);
     expect(html).toContain('<span class="num">1.</span>');
     expect(html).toContain('<span class="num">2.</span>');
-    expect(html).toMatch(/data-edit="step:0"[^>]*>Step one<\/div>/);
-    expect(html).toMatch(/data-edit="step:1"[^>]*>Step two<\/div>/);
-    expect(html).toContain('<div class="verification-item">Check one</div>');
-    expect(html).toContain('<div class="verification-item">Check two</div>');
+    expect(html).toMatch(/data-edit="step:0"[^>]*><span class="tline" data-line="step:0">Step one<\/span><\/div>/);
+    expect(html).toMatch(/data-edit="step:1"[^>]*><span class="tline" data-line="step:1">Step two<\/span><\/div>/);
+    expect(html).toMatch(/<div class="verification-item"[^>]*><span class="tline" data-line="verification:0">Check one<\/span><\/div>/);
+    expect(html).toMatch(/<div class="verification-item"[^>]*><span class="tline" data-line="verification:1">Check two<\/span><\/div>/);
   });
 
   it("keeps the status line and review and implement buttons", () => {
