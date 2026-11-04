@@ -44,7 +44,32 @@ Do not edit `test/`, `TASKS.md`, `STATUS.md`, or `README.md`. If you need a file
 
 ## Development (developer)
 
-_Pending._
+**Code commit:** 91f6840 on `task/comments-match-antigravity`.
+
+**What changed.**
+- `src/plan/planMarkdown.ts` (new, pure): `countComments(comments)`, `planToMarkdown(plan)`, `planMarkdownFileName(title)`.
+- `src/plan/planPrompt.ts`: `buildReviewPrompt(plan, comments, message?)`; a non-empty message adds a `<message>` block (angle brackets escaped). Without a message the output is unchanged.
+- `src/extension.ts`: `reviewPlan` takes and forwards the optional message.
+- `src/webview/planPanel.ts`: hover "+" (title and aria-label "Add inline comment ..."), popover with text box, Cancel, "Add Comment" (becomes "Save Comment" when editing); comment icon marker with a card (Delete, Edit Comment); header with kebab menu, "Review • N" button (comment icon, chevron) and the "Submit comment" popover (optional message, Submit, collapsible `details` list of comments); Implement the Design kept. New webview messages: `copyMarkdown`, `copyPath`, `exportArtifact` (host replies `actionResult`); `reviewComments` now carries `message`. Strict nonce CSP unchanged (no inline style attributes added).
+- Comments are still one per block id (the existing model); "+" is hidden on a block that already has a comment.
+
+**Choices.**
+- Copy Path: copies the relative path `.claude/plans/<slug>.json` to the clipboard if the plan was saved by an edit in this panel. Otherwise it shows "Not saved yet. Edit the plan to save it, or use Export Artifact." and copies nothing. A review round that replaces the plan resets this to "not saved".
+- Export Artifact: writes `.claude/plans/<slug>.md` in the first workspace folder (same slug as the JSON save, `.md` extension), overwriting an existing file, and shows "Exported to .claude/plans/<slug>.md". With no folder open it shows "Open a folder to export the artifact." Copy and Export use the webview's current (unsaved) edits.
+- Copy uses `vscode.env.clipboard` on the host, not `navigator.clipboard` in the webview.
+
+**Tests.** `npm run compile` passes. `npm run test:unit`: 6 failures in 2 files, all asserting the old markup (I did not touch test/):
+- `test/unit/planRenderer.test.ts`: "gives every block a comment button with an aria-label" (expects `aria-label="Comment on ..."`, now `Add inline comment on ...`); "escapes every plan field..." (same aria-label for the hostile path); "keeps the status line and review and implement buttons" (expects `<button class="review" type="button">Review Comments</button>`); "script handles savePlan and saveResult, writing text with textContent" (not inspected closely; likely a script-text assertion).
+- `test/unit/planRendererReview.test.ts`: "renders one Review Comments button in the header, with no inline handler"; "script posts reviewComments and handles reviewResult".
+The tester needs to update these. Everything else passes.
+
+**Verification status per item.** None of items 1 to 5 was run in a browser or in VS Code. I only compiled and ran unit tests. So all five are not checked at all (not even headless Chromium); item 4's host side (clipboard, file write) is also not checked in an Extension Development Host.
+
+**What the tester should check.**
+- Playwright: "+" appears on hover, tooltip, popover Cancel and "Add Comment"; card shows text, Delete, Edit Comment, and edit and delete update the card and the count; "Review • N" count; Review popover (message box, Submit posts `reviewComments` with `message`, collapsible list); kebab menu posts `copyMarkdown`, `copyPath`, `exportArtifact` and shows `actionResult` text; Escape and outside click close popovers; light and dark themes; CSP has no inline-style violations (watch the console).
+- Unit: `countComments`, `planToMarkdown` (code fence longer than backticks in the code, no files, null outOfScope), `planMarkdownFileName`, `buildReviewPrompt` with and without a message.
+- Integration: Copy, Copy Path, Export in an Extension Development Host.
+- Possible rough spots: the popovers are `position: absolute` and not checked at narrow widths; the comment card on a narrow layout uses the existing static layout.
 
 ## Testing (tester)
 
