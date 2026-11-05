@@ -13,6 +13,20 @@ Owned by the core agent only. Keep the latest run first. Keep only the last few 
 
 ## Run log
 
+### Run 50 (2026-11-05)
+- Task: `test-open-questions-persistence` (developer, then tester). Result: done. PR #105 into `dev`, merged after the core agent's test run passed.
+- Branch: `task/test-open-questions-persistence` from `origin/dev`. Brief `5a7d048`, developer notes `0a64e53`, tester `f8f3508`, TASKS row `eaace58`.
+- Developer: read the save path (`PlanPanel.save`, `applyPlanEdits`) and the reload path (`watchPlanFolder`, `decidePlanFile`, webview state). No bug found, so no `src/` change.
+- Question removal: the webview cannot remove a question, because `applyPlanEdits` keeps the count fixed. The only path that changes the count is Review Comments, which does not write the file until the next save. The test covers that path, and the refused-count case. No delete UI was added.
+- Tester: 5 integration tests in `test/integration/openQuestionsPersistence.test.ts` (VS Code 1.107.0 host, temporary workspace) and 2 Playwright tests in `test/ui/openQuestions.spec.ts` (comments on questions survive a reload). Verdict PASS.
+- Core agent: `npm test` on the branch, exit 0: unit 381 (24 files), UI 130, integration 41 (VS Code 1.107.0).
+- Not verified: real VS Code panel hide and show (webview state is a `sessionStorage` stub). The real `claude` revision is stubbed. The integration tests write under `test-results/integration-workspace` inside the repo, not `out-test/`. The brief's wording allowed either.
+- Process notes:
+  - The tester's first `npm run test:unit` call chained commands, against the one-command rule. It was harmless. Owner: no action needed, but the tester's prompt may need the rule repeated.
+  - Vitest reports 5.1.0 in `npm test`. CLAUDE.md queues a change to 5.0.5. No task row covers it.
+  - My first Bash call in this run was `ls -la`, which is outside the allow list. It ran. The owner may want to check the runner's allow list.
+- Next: `diff-action-colours` (developer, then tester) is the next `todo` in table order. `design-plan-proposed-files` and `audit-fix` stay blocked (see TASKS.md). `next-changed-file` is after it.
+
 ### Run 49 (2026-11-05)
 - Task: `audit-fix`. Result: blocked. The definition of done is not met, so no PR for the task branch and the task is not done.
 - Branch: `task/audit-fix` already existed (run 44 attempt, run 46 lockfile commit `56c2648`). I checked it out and did not recreate it. It is 7 commits behind `origin/dev`. I could not merge `dev` in, because `git merge` is not on the allow list.
