@@ -5,6 +5,7 @@ import { Decision, setDecision, summarizeDecisions } from "../plan/hunkDecisions
 import { InlineView, LineSpan, buildInlineView } from "../plan/inlineReview";
 import { ACCEPT_MARKER, REJECT_MARKER } from "../plan/decisionMarkers";
 import { Plan, isSafeRelativePath } from "../plan/plan";
+import { listPendingPaths, pickNextPath } from "../plan/nextChange";
 
 /** Result of starting a review: a message for the status line, and whether it worked. */
 export type ReviewResult = { ok: true; message: string } | { ok: false; message: string };
@@ -92,6 +93,57 @@ function decorationTypes(): { added: vscode.TextEditorDecorationType; removed: v
     overviewRulerColor: new vscode.ThemeColor("editorOverviewRuler.deletedForeground"),
   });
   return { added: addedType, removed: removedType };
+}
+
+/** The "Next change (N)" status bar item. Created once in registerHunkReview. */
+let nextChangeItem: vscode.StatusBarItem | undefined;
+
+/** Returns the number of session files that still have a pending hunk (0 with no session). */
+export function pendingFileCount(): number {
+  return pendingPaths().length;
+}
+
+/** Lists the session's paths with a pending hunk, in plan order. */
+function pendingPaths(): string[] {
+  if (session === undefined) {
+    return [];
+  }
+  const files = [...session.files.values()].map((f) => ({ path: f.path, hunkCount: f.hunks.length }));
+  return listPendingPaths(files, new Set(session.decisions.keys()));
+}
+
+/** Shows the status bar item with the pending count while a session exists, and hides it otherwise. */
+function refreshNextChangeItem(): void {
+  if (nextChangeItem === undefined) {
+    return;
+  }
+  if (session === undefined) {
+    nextChangeItem.hide();
+    return;
+  }
+  nextChangeItem.text = `Next change (${pendingFileCount()})`;
+  nextChangeItem.show();
+}
+
+/**
+ * Opens the next file with a pending hunk, in plan order, starting after the active editor's
+ * file when it is a review document. Shows an information message when nothing is pending.
+ */
+export async function openNextChange(): Promise<void> {
+  if (session === undefined) {
+    return;
+  }
+  const pending = pendingPaths();
+  const allPaths = [...session.files.keys()];
+  const active = vscode.window.activeTextEditor;
+  const activeFile = active === undefined ? undefined : fileForUri(active.document.uri);
+  const next = pickNextPath(allPaths, pending, activeFile?.path);
+  const target = next === undefined ? undefined : session.files.get(next);
+  if (target === undefined) {
+    void vscode.window.showInformationMessage("No pending changes to review.");
+    return;
+  }
+  await vscode.window.showTextDocument(target.uri, { preview: false });
 }
 
 /** Builds the key used for one hunk's decision: "<path>#<hunk index>". */
@@ -224,6 +276,7 @@ export async function startImplementReview(plan: Plan, folder: vscode.Uri): Prom
     }
     session = { id, folder, files, decisions: new Map(), total };
     lensChanged.fire();
+    refreshNextChangeItem();
     for (const file of files.values()) {
       contentChanged.fire(file.uri);
       await vscode.window.showTextDocument(file.uri, { preview: false });
@@ -313,6 +366,7 @@ function decide(value: Decision, arg: unknown): void {
   }
   lensChanged.fire();
   refreshDecorations();
+  refreshNextChangeItem();
   void vscode.window.setStatusBarMessage(summaryMessage(), 10000);
 }
 
@@ -450,6 +504,7 @@ async function applyAccepted(arg: unknown): Promise<void> {
       session = undefined;
       lensChanged.fire();
       refreshDecorations();
+      refreshNextChangeItem();
     }
   } catch (err) {
     applying = false;
@@ -463,7 +518,13 @@ async function applyAccepted(arg: unknown): Promise<void> {
  */
 export function registerHunkReview(context: vscode.ExtensionContext): void {
   const contentProvider = new SessionContentProvider();
+  nextChangeItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
+  nextChangeItem.command = "claudeArtifact.nextChange";
+  nextChangeItem.tooltip = "Open the next file with a pending change";
+  refreshNextChangeItem();
   context.subscriptions.push(
+    nextChangeItem,
+    vscode.commands.registerCommand("claudeArtifact.nextChange", () => openNextChange()),
     vscode.workspace.registerTextDocumentContentProvider(INLINE_SCHEME, contentProvider),
     vscode.languages.registerCodeLensProvider(
       [{ scheme: INLINE_SCHEME }],
@@ -482,6 +543,7 @@ export function registerHunkReview(context: vscode.ExtensionContext): void {
     contentChanged,
     {
       dispose: () => {
+        nextChangeItem = undefined;
         addedType?.dispose();
         removedType?.dispose();
         addedType = undefined;
