@@ -6,12 +6,32 @@ Owned by the core agent only. Keep the latest run first. Keep only the last few 
 - Stage: early idea, with a working scaffold. `Claude Artifact: Open Sample Plan` opens a webview with a sample plan. The owner confirmed it renders in Antigravity.
 - Branches: `main` and `dev` exist on GitHub. `dev` includes PRs #1 through #6, #12, #18, #23, and #26.
 - Packaging: `npm run package` produces a `.vsix` that installs in Antigravity 1.107.0. `engines.vscode` is `^1.107.0` and `@types/vscode` is pinned to `1.107.0`. Latest stable VS Code is 1.144.0 (published 2026-10-28, checked 2026-11-03).
-- Compile: `npm run compile` passes. `npm test` passes (unit 368, UI 127, integration 33) as of run 36 (PR #88).
+- Compile: `npm run compile` passes. `npm test` passes (unit 381, UI 128, integration 36) as of run 49 on `task/audit-fix`. Run 49 is the latest check.
 - `.vscode/launch.json` exists.
 - Agent setup: `.claude/agents/developer.md`, `.claude/agents/tester.md`, and `.claude/settings.json` are committed.
 - Scheduler (as of 2026-11-03): the launchd job `com.j-botros.claude-artifact-agent` is installed and loaded. It runs back to back, up to 12 runs per chain, and writes `PAUSE` when the queue is empty.
 
 ## Run log
+
+### Run 49 (2026-11-05)
+- Task: `audit-fix`. Result: blocked. The definition of done is not met, so no PR for the task branch and the task is not done.
+- Branch: `task/audit-fix` already existed (run 44 attempt, run 46 lockfile commit `56c2648`). I checked it out and did not recreate it. It is 7 commits behind `origin/dev`. I could not merge `dev` in, because `git merge` is not on the allow list.
+- Developer and tester subagents were not run in this run. Reason: run 44's developer round and its handoff already show the same result, and I re-checked it directly. The one change that would help, reverting the lockfile churn, needs `git checkout <commit> -- package-lock.json`, which is not on the allow list. No code change was possible within the allowed files.
+- Audit, before (baseline, run 44 and the brief): 9 findings (1 high, 7 moderate, 1 low).
+- Audit, after (`npm audit` on `task/audit-fix`, no code change): still 9 findings, same packages, all "No fix available":
+  - `serialize-javascript` <=7.1.2, high: GHSA-5c6j-r48x-rmvq (RCE), GHSA-qj8w-gfj5-8c6v (CPU exhaustion), GHSA-m5mm-p8h7-m29v (XSS). Via `mocha` through `@vscode/test-cli` 0.0.15 (the latest).
+  - `diff` 6.0.0 to 8.0.2, low: GHSA-73rr-hh4g-fpgx. Via `mocha`.
+  - `glob` 9.0.0 to 14.0.1, moderate: GHSA-3g3m-2fjr-6pw4. Via `@vscode/test-cli`, `mocha`, `test-exclude`, and `@vscode/vsce` 3.6.0.
+  - `minimatch` 7.0.0 to 11.0.0, moderate: GHSA-g3hv-75wg-m249. Via `glob`, `mocha`, `test-exclude`.
+  - Dependents only: `mocha`, `test-exclude`, `c8`, `@vscode/test-cli`, `@vscode/vsce`.
+- Other checks on `task/audit-fix` (with the churned lockfile):
+  - `npm test` exit 0: unit 381 (24 files), UI 128, integration 36 (VS Code 1.107.0). Vitest reports 5.1.0, as in earlier runs.
+  - `npm run package` produced `claude-code-artifact-0.0.1.vsix` (167 files, 1.9 MB). The `.vsix` is git-ignored and was not committed.
+- Found, not fixed (outside this task): the `.vsix` ships `test-results/` (134 files, about 12 MB of Playwright HTML report), `test-results/integration-workspace`, and `tsconfig.test.json`. `.vscodeignore` does not exclude them. Follow-up: add them to `.vscodeignore`, then check the file list with `npm run package`.
+- Not checked: publish dates of the packages. `npm view` is not allowed. The tree has no version change from this run.
+- Owner: see the Blocked entry in TASKS.md. Pick one of the two options. Then the lockfile churn on `task/audit-fix` should be reverted (`git checkout origin/dev -- package-lock.json` on that branch, or a fresh branch).
+- Status changes for this run are on `task/status-run-49` from `origin/dev`, with a docs-only PR into `dev`.
+- Next: `test-open-questions-persistence` (developer, then tester) is the next `todo` in table order. Run 49 stopped after one task.
 
 ### Run 48 (2026-11-05)
 - Task: `design-plan-proposed-files` (developer, then tester). Result: blocked again. No PR for the task.
