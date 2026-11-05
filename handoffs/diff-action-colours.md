@@ -62,4 +62,20 @@ Do not edit `test/`, `README.md`, `TASKS.md`, `STATUS.md`, `CLAUDE.md`, or `hand
 
 ## Testing
 
-(tester fills this in)
+**Verdict: PASS.**
+
+**Commands run.**
+- `npm run compile`: OK, no errors.
+- `npm run test:unit`: 25 files, 385 tests passed (includes 4 new).
+- `npm run test:ui`: 130 passed.
+- `npm run test:integration` (run inside `npm test`): 42 passed (1 new).
+- `npm test`: passed on the final run (unit 385, ui 130, integration 42). One earlier `npm test` run had 1 failure in `Plan folder watcher: a new plan file opens the artifact...` (`no webview tab "Watcher new file plan"`). It is a timing flake in an existing, unrelated test (`test/integration/planWatcher.test.js`); the next full run passed. Worth watching, not caused by this task.
+
+**Tests added.**
+- `test/unit/decisionMarkers.test.ts` (4 tests): accept is `✓` with `charts.blue`; reject is `✗` with `charts.red`; glyphs and colour ids differ; colour ids are theme ids, not hex.
+- `test/integration/decisionMarkers.test.ts` (1 test), temporary workspace `out-test/marker-workspace` (removed afterwards): starts a review with two hunks; checks via a `createTextEditorDecorationType` spy that the marker types have a `before` attachment with `✓` and `✗`, whose `color` is a `ThemeColor` with id `charts.blue` and `charts.red`, and that they are two separate decoration types; checks that both marker types are applied to the inline editor when a decision triggers a refresh; checks lens titles `✓ Accept` and `✗ Reject` (two hunks each, same command ids) and, after accepting, `✓ Accepted` with `✗ Reject` still present.
+
+**Could not confirm.**
+- The editor and decoration type objects are frozen in the extension host, so `setDecorations` calls and their ranges cannot be intercepted. "Applied" is shown by counting reads of the type's `key` through a Proxy (which `setDecorations` reads). The marker ranges (hunk first line) are therefore not asserted; line placement relies on the code in `refreshDecorations()`.
+- Real rendering (both glyphs side by side on one line, colours in light and dark themes) in VS Code or Antigravity: not checked. Owner check in Antigravity still needed.
+- No src/ bug found.
