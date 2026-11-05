@@ -50,7 +50,15 @@ Do not edit `test/`, `README.md`, `TASKS.md`, `STATUS.md`, `CLAUDE.md`, or `hand
 
 ## Development
 
-(developer fills this in)
+**Files changed.**
+- `src/plan/decisionMarkers.ts` (new, pure): exports `ACCEPT_MARKER` (`✓`, `charts.blue`) and `REJECT_MARKER` (`✗`, `charts.red`), each `{ glyph, colorId }`.
+- `src/review/hunkReview.ts`: new `markerTypes()` creates two decoration types; `refreshDecorations()` applies them; the `dispose` handler disposes both.
+
+**Layout chosen.** One decoration type per marker, each with a `before` attachment (`contentText` = glyph, `color` = `new vscode.ThemeColor(colorId)`, `margin: "0 0.4em 0 0"`). Both types are set on the same zero-width range at the first line of each hunk (`viewFor(...).hunks[i].firstLine`, clamped to the document). Two separate types are used because one type holds only one `before` attachment. They are cleared (empty arrays) when there is no session or the editor is not an inline review document. Line backgrounds, overview ruler colours, lens titles and commands, and Apply are untouched.
+
+**Theme colour ids.** `charts.blue` (accept), `charts.red` (reject). No hex values.
+
+**Not confirmed.** I did not check in a real VS Code window or Antigravity that both glyphs render side by side on one line; they should, since each is a separate decoration, but that is untested. Compile passes (`npm run compile`). I did not run the tests; the tester owns test/. Owner check in Antigravity: not verified.
 
 ## Testing
 
