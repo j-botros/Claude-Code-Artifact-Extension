@@ -47,15 +47,20 @@ let addedType: vscode.TextEditorDecorationType | undefined;
 /** Decoration for removed lines (left side). Created on first use. */
 let removedType: vscode.TextEditorDecorationType | undefined;
 
-/** Returns the two decoration types, creating them from VS Code theme colours once. */
+/**
+ * Returns the two decoration types, creating them from VS Code theme colours once.
+ * Each type also sets an overview ruler colour so hunks show on the scrollbar strip.
+ */
 function decorationTypes(): { added: vscode.TextEditorDecorationType; removed: vscode.TextEditorDecorationType } {
   addedType ??= vscode.window.createTextEditorDecorationType({
     isWholeLine: true,
     backgroundColor: new vscode.ThemeColor("diffEditor.insertedLineBackground"),
+    overviewRulerColor: new vscode.ThemeColor("editorOverviewRuler.addedForeground"),
   });
   removedType ??= vscode.window.createTextEditorDecorationType({
     isWholeLine: true,
     backgroundColor: new vscode.ThemeColor("diffEditor.removedLineBackground"),
+    overviewRulerColor: new vscode.ThemeColor("editorOverviewRuler.deletedForeground"),
   });
   return { added: addedType, removed: removedType };
 }

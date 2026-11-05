@@ -38,7 +38,21 @@ Do not edit `test/`, `TASKS.md`, `STATUS.md`, `README.md`, `CLAUDE.md`, or `pack
 
 ## Development (developer)
 
-_Not yet started._
+**What changed.** In `src/review/hunkReview.ts`, `decorationTypes()` now sets `overviewRulerColor` on both decoration types. I also extended its doc comment. Nothing else in `src/` changed. `backgroundColor`, `isWholeLine`, the decision logic and the `setDecorations` calls are untouched. I left `overviewRulerLane` at its default.
+
+**Theme colour ids.**
+- Added: `editorOverviewRuler.addedForeground`
+- Removed: `editorOverviewRuler.deletedForeground`
+
+These are public VS Code theme colour ids used by the diff editor's overview ruler. I did not check them in a running VS Code window.
+
+**Results.**
+- `npm run compile`: passed.
+- `npm run test:unit`: passed, 24 files, 381 tests.
+
+**Left.** Nothing in scope. The minimap itself is not touched, because the public API has no colour option for it.
+
+**For the tester.** Check that both decoration types carry `overviewRulerColor` with the two ids above. Seeing the scrollbar marks needs a real window, which I could not do.
 
 ## Testing (tester)
 
