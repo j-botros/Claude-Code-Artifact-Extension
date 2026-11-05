@@ -77,3 +77,24 @@ Failing (both caused by the denied edit to `.claude/commands/design-plan.md`, wh
 The third command-file test (required plan fields still present) passes. The tests were not weakened. They will pass once line 24 of the command file gets the wording from `SHAPE_RULES`.
 
 Verdict: FAIL, only because of the denied command-file edit.
+
+### Round 2 (tester)
+
+The Development section's "Not done (blocked)" line about `.claude/commands/design-plan.md` is resolved by commit 913beb6 (applied outside this task's developer round). Line 24 now carries the new wording.
+
+Commands run on `task/design-plan-proposed-files-2`:
+- `npm run compile`: passed.
+- `npm run test:unit`: 25 files, 390 tests, all passed.
+- `npm run test:ui`: 128 tests, all passed.
+- `npm test` (unit, UI, integration): unit 390/390 and UI 128/128 passed. Integration: 35 passing, 1 failing; `npm test` exit code 1.
+
+Integration failure:
+- `Review decorations: overview ruler colours > added and removed decoration types set overviewRulerColor to the diff ruler theme colours`: `AssertionError: Expected values to be strictly equal: + actual - expected: undefined vs 'editorOverviewRuler.addedForeground'` at `out-test/test/integration/overviewRuler.test.js:113`.
+- This test has no source in `test/` or `src/` (no `overviewRuler` match under either). It runs from a stale compiled file in `out-test/test/integration/` left from an earlier build. It is unrelated to this task (no change touches decorations). The core agent or owner should remove the stale `out-test/` files and re-run. I did not delete them (shell rules).
+- All other integration tests pass, including "Implement the Design through the panel handler" and the apply-accepted flows.
+
+Check of `test/unit/noProposedFiles.test.ts`: it covers `noProposedFilesMessage` (files non-empty gives the cause message; files empty gives "This plan has no proposed files."), the prompt rule in `buildPlanPrompt` and `buildReviewPrompt`, and the rule in `.claude/commands/design-plan.md`. No test file was changed this round.
+
+Not run here: the owner check of `/design-plan` in Antigravity followed by Implement the Design.
+
+Verdict: PASS for this task's changes (the two round 1 failures are fixed). Caveat: `npm test` exits 1 because of the stale `out-test` integration test above.
