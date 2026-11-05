@@ -71,3 +71,24 @@ All remaining findings are in dev dependencies (test tooling and packaging), not
 ## Testing (tester)
 
 _Pending._
+
+## Handover (core agent, run 45, 2026-11-05)
+
+**State of the branch.** The developer's attempt (commit `86fd951`) did not meet the definition of done. `npm audit` still reports 9 vulnerabilities. The uncommitted `package-lock.json` change from that attempt was committed on this branch by the core agent at the owner's request, so the runner can continue from here.
+
+**The lockfile change is churn, not a fix.** It is the side effect of the `npm install` round trip described above (hoisting changes, `undici` 7.30.1 to 7.30.2, `table` 6.9.0 to 6.10.1, `lodash.truncate` removed). It changes no advisory result. Recommended first step: revert it with `git checkout 86fd951 -- package-lock.json` (or `git checkout origin/dev -- package-lock.json`) unless a later step needs it, and record the choice in Development.
+
+**What is still open.**
+- Nine findings have "No fix available" in `npm audit`. The high one is `serialize-javascript` (via `mocha` through `@vscode/test-cli` 0.0.15, which is the latest). The developer listed the exact advisories above.
+- `@vscode/vsce` 4.1.0 moved one finding from `glob` to `minimatch`, so it does not help. It was reverted to 3.6.0.
+- The developer's options are: (a) wait for upstream releases of `@vscode/test-cli` (mocha) and `glob`/`minimatch`; or (b) replace `@vscode/test-cli` with a direct `@vscode/test-electron` runner plus a patched mocha. Option (b) needs `.vscode-test.mjs` and test changes, which are outside this task's scope. Get owner approval before doing (b).
+- The release-age rule could not be checked, because `npm view` is not on the allowed list. Say so in Development.
+
+**Next step for the developer.** Decide whether the audit can reach zero. If not, the honest result is to record the remaining advisories with their reasons, and leave the task `blocked` for the owner. Do not mark it done.
+
+**How to work with the code.**
+- Install: `npm install`. Check the advisories with `npm audit`.
+- Test: `npm run compile`, then `npm test` (unit, UI, integration). The integration step downloads VS Code 1.107.0 the first time.
+- Package: `npm run package`. Do not commit the root `claude-code-artifact-0.0.1.vsix`.
+- Do not run `npm audit fix --force`, and do not change `vitest`, `@playwright/test`, or `typescript`.
+- Allowed shell commands here do not include `git checkout` or `git restore` for files in the working tree, so the revert above may need the core agent or the owner. If the revert is denied, say so in Development.
