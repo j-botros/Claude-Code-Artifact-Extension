@@ -13,6 +13,23 @@ Owned by the core agent only. Keep the latest run first. Keep only the last few 
 
 ## Run log
 
+### Run 47 (2026-11-05)
+- Task: `design-plan-proposed-files` (developer, then tester). Result: blocked. No PR.
+- Branch problems, all fixed or flagged:
+  - The local `task/design-plan-proposed-files` was one commit behind origin (`913beb6`, the line-24 wording fix). Commands allowed for this run cannot fast-forward it. I used `task/design-plan-proposed-files-2` from origin's tip.
+  - `-2` was based on an old `dev`. Its diff would have reverted minimap-hunk-markers and audit-fix work. PR #102 (`-2` into `dev`) was opened by mistake and must NOT be merged. Owner: close it. The core agent cannot close it (`gh pr close` is not on the allow list).
+  - Rebuilt on current `origin/dev` as `task/design-plan-proposed-files-3`, commit `88e500f`, pushed.
+- Verified on `-3`: `npm run compile` passes. `npm run test:unit`: 388 pass, 2 fail. Both failures are the command-file checks in `test/unit/noProposedFiles.test.ts`, because `.claude/commands/design-plan.md` line 24 still says "omit it when the plan proposes no file contents".
+- Why blocked: the edit to `.claude/commands/design-plan.md` was denied by the runner's permissions, again (runs 40 to 42 had the same denial). Not retried, no workaround. The line-24 wording is the same as `SHAPE_RULES` in `src/plan/planPrompt.ts`, and it is already on `task/design-plan-proposed-files-2` at `913beb6`.
+- Tester round 2 on `-2` (`29263ed`): PASS for the task's own tests. Its `npm test` exits 1 in integration from one failing test, `overview ruler colours`. That test has no source in `test/` or `src/`, so it is a stale compiled file in `out-test/test/integration/overviewRuler.test.js`. Owner: delete the stale `out-test/` and re-run `npm test`.
+- Owner, one of these:
+  - Allow the edit to `.claude/commands/design-plan.md`, or apply line 24 yourself with this text: `- "proposedFiles" (optional; include it for every path in "files", with the full new content of that file, because the format has no delete marker so every path counts; omit it only when "files" is empty): ...` (keep the rest of the line).
+  - Then set `design-plan-proposed-files` to `todo` and the next run finishes it on `task/design-plan-proposed-files-3`, which is based on current dev.
+  - Close PR #102.
+- Not verified: the Antigravity owner check of `/design-plan` then Implement the Design.
+- Process note: the main checkout and `dev` changed during the run. Edits to TASKS.md on the old branch failed with "modified since read". The run re-read the file.
+- Next: the queue after this task is `minimap-hunk-markers` (done, PR #97 on `dev`), so the next `todo` in table order is `audit-fix`. It is not started here. Run 47 stopped after one task.
+
 ### Run 46 (2026-11-05, owner session)
 - Owner asked for the runner to continue `audit-fix` from its branch. The developer's attempt did not meet the definition of done (9 `npm audit` findings remain, all "No fix available"). The core agent committed the leftover lockfile change and a handover note to `task/audit-fix` (`56c2648`). The note says the lockfile change is npm churn and should be reverted first, and says the task must stay blocked for the owner if the audit cannot reach zero.
 - Set `audit-fix` back to `todo` on `dev` so the scheduler resumes it from that branch. It runs after `design-plan-proposed-files`.
