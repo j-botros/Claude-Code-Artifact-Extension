@@ -13,6 +13,18 @@ Owned by the core agent only. Keep the latest run first. Keep only the last few 
 
 ## Run log
 
+### Run 44 (2026-11-05)
+- Task: `audit-fix` (developer only; blocked before the tester). Branch `task/audit-fix`, brief commit `211b913`, developer handoff commit `86fd951`. Pushed to origin. No PR. TASKS.md row set to `blocked`.
+- Baseline `npm audit`: 9 findings (1 low, 7 moderate, 1 high). After the developer's work: still 9, the same packages. Definition of done not met.
+- Developer: `@vscode/test-cli` 0.0.15 is already latest. `@vscode/vsce` 4.1.0 moved a `glob` finding to `minimatch` (no drop), so it was reverted to 3.6.0. No `overrides` added: every advisory says "No fix available". `npm test` passed on the branch: unit 381, UI 128, integration 36.
+- Remaining findings (dev-only, not in the shipped extension): `serialize-javascript` high (3 GHSAs, via `mocha`), `diff` low, `glob` and `minimatch` moderate, plus `mocha`, `test-exclude`, `c8`, `@vscode/test-cli`, `@vscode/vsce` as dependents.
+- Owner, one of these:
+  - Wait for upstream releases of `mocha`/`@vscode/test-cli` and `glob`/`minimatch`, and accept the 9 dev-only findings for now.
+  - Or approve replacing `@vscode/test-cli` with a direct `@vscode/test-electron` runner plus a patched mocha. That changes `.vscode-test.mjs` and the integration test entry, which the developer may not edit under this brief.
+- Uncommitted on the task branch: `package-lock.json` has install noise (`undici` 7.30.1 to 7.30.2, `table` 6.9.0 to 6.10.1, `lodash.truncate` removed). Not committed. To discard, run `git checkout package-lock.json` on `task/audit-fix`. The core agent could not run it (not on the allow list).
+- Not checked: publish dates (`npm view` is not allowed).
+- Next: `test-open-questions-persistence` is the next `todo` in table order. `design-plan-proposed-files` is still blocked (owner edit to `.claude/commands/design-plan.md`).
+
 ### Run 43 (2026-11-05)
 - Task: `minimap-hunk-markers` (developer, then tester). Branch `task/minimap-hunk-markers`, brief commit `f73f99a`. Developer commit `3f565f5`, tester commit `629a8a1`, README commit `f7bc8ee`. PR #97 into `dev`, merged after tests passed. TASKS.md row set to `done`.
 - Developer: `src/review/hunkReview.ts` `decorationTypes()` sets `overviewRulerColor` on both decoration types: `editorOverviewRuler.addedForeground` (added) and `editorOverviewRuler.deletedForeground` (removed).
