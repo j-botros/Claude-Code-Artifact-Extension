@@ -13,6 +13,12 @@ Owned by the core agent only. Keep the latest run first. Keep only the last few 
 
 ## Run log
 
+### Run 43 (2026-11-05, owner session)
+- Owner allowed the edit to `.claude/commands/design-plan.md`. The core agent applied the line 24 wording in a separate worktree on `task/design-plan-proposed-files` (commit `913beb6`). `npm run test:unit` there: 390 of 390 pass.
+- Set `design-plan-proposed-files` back to `todo` on `dev` so the scheduler resumes it from that branch.
+- Next: the scheduler's run picks up `design-plan-proposed-files` first, then `minimap-hunk-markers`.
+- Open: CLAUDE.md Section 3 still says to omit `proposedFiles` when no files are proposed. This conflicts with the new rule. Owner to decide whether to change it.
+
 ### Run 42 (2026-11-05)
 - Task: `design-plan-proposed-files`. Still blocked, and no developer or tester round was run. Its branch `task/design-plan-proposed-files` has the developer commit `4be3403`, the tester commit `71f6c46`, the handoff `1607844`, and the run 41 status `0a7cdac`. Those are pushed to origin.
 - Run 40 and run 41 are recorded only on that task branch. Summary: the developer's source change is in (`SHAPE_RULES` and `noProposedFilesMessage`). The tester's FAIL is only the two command-file tests in `test/unit/noProposedFiles.test.ts`. Both come from `.claude/commands/design-plan.md` line 24, which still says "omit it when the plan proposes no file contents".
