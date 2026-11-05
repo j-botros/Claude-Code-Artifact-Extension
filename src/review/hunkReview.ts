@@ -3,6 +3,7 @@ import { applyAcceptedHunks } from "../plan/applyHunks";
 import { DiffHunk, splitHunks } from "../plan/diffHunks";
 import { Decision, setDecision, summarizeDecisions } from "../plan/hunkDecisions";
 import { InlineView, LineSpan, buildInlineView } from "../plan/inlineReview";
+import { ACCEPT_MARKER, REJECT_MARKER } from "../plan/decisionMarkers";
 import { Plan, isSafeRelativePath } from "../plan/plan";
 
 /** Result of starting a review: a message for the status line, and whether it worked. */
@@ -46,6 +47,34 @@ let addedType: vscode.TextEditorDecorationType | undefined;
 
 /** Decoration for removed lines (left side). Created on first use. */
 let removedType: vscode.TextEditorDecorationType | undefined;
+
+/** Decoration for the blue accept marker on a hunk's first line. Created on first use. */
+let acceptMarkerType: vscode.TextEditorDecorationType | undefined;
+
+/** Decoration for the red reject marker on a hunk's first line. Created on first use. */
+let rejectMarkerType: vscode.TextEditorDecorationType | undefined;
+
+/**
+ * Returns the two marker decoration types (one per glyph, so both render on the same line),
+ * creating them from theme colours once.
+ */
+function markerTypes(): { accept: vscode.TextEditorDecorationType; reject: vscode.TextEditorDecorationType } {
+  acceptMarkerType ??= vscode.window.createTextEditorDecorationType({
+    before: {
+      contentText: ACCEPT_MARKER.glyph,
+      color: new vscode.ThemeColor(ACCEPT_MARKER.colorId),
+      margin: "0 0.4em 0 0",
+    },
+  });
+  rejectMarkerType ??= vscode.window.createTextEditorDecorationType({
+    before: {
+      contentText: REJECT_MARKER.glyph,
+      color: new vscode.ThemeColor(REJECT_MARKER.colorId),
+      margin: "0 0.4em 0 0",
+    },
+  });
+  return { accept: acceptMarkerType, reject: rejectMarkerType };
+}
 
 /**
  * Returns the two decoration types, creating them from VS Code theme colours once.
@@ -107,16 +136,22 @@ function spanRange(span: LineSpan): vscode.Range {
 /** Paints green (added) and red (removed) lines on every visible inline editor of the session. */
 function refreshDecorations(): void {
   const types = decorationTypes();
+  const markers = markerTypes();
   for (const editor of vscode.window.visibleTextEditors) {
     const file = fileForUri(editor.document.uri);
     if (file === undefined || session === undefined) {
       editor.setDecorations(types.added, []);
       editor.setDecorations(types.removed, []);
+      editor.setDecorations(markers.accept, []);
+      editor.setDecorations(markers.reject, []);
       continue;
     }
     const added: vscode.Range[] = [];
     const removed: vscode.Range[] = [];
+    const markerRanges: vscode.Range[] = [];
     for (const range of viewFor(session, file).hunks) {
+      const line = Math.min(range.firstLine, Math.max(0, editor.document.lineCount - 1));
+      markerRanges.push(new vscode.Range(line, 0, line, 0));
       if (range.added !== null) {
         added.push(spanRange(range.added));
       }
@@ -126,6 +161,8 @@ function refreshDecorations(): void {
     }
     editor.setDecorations(types.added, added);
     editor.setDecorations(types.removed, removed);
+    editor.setDecorations(markers.accept, markerRanges);
+    editor.setDecorations(markers.reject, markerRanges);
   }
 }
 
@@ -449,6 +486,10 @@ export function registerHunkReview(context: vscode.ExtensionContext): void {
         removedType?.dispose();
         addedType = undefined;
         removedType = undefined;
+        acceptMarkerType?.dispose();
+        rejectMarkerType?.dispose();
+        acceptMarkerType = undefined;
+        rejectMarkerType = undefined;
       },
     }
   );
