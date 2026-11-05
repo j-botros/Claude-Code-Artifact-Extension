@@ -13,6 +13,16 @@ Owned by the core agent only. Keep the latest run first. Keep only the last few 
 
 ## Run log
 
+### Run 51 (2026-11-05)
+- Task: `diff-action-colours` (developer, then tester). Result: done. PR #106 into `dev`, merged after the core agent's test run passed.
+- Branch: `task/diff-action-colours` from `origin/dev`. Brief `195329a`, developer `f6ec418` and notes `69b1c39`, tester `9b8627f` and notes `f544993`, README `e12a2bb`.
+- Developer: `src/plan/decisionMarkers.ts` holds the glyphs and theme colour ids (`✓` with `charts.blue`, `✗` with `charts.red`). `src/review/hunkReview.ts` uses one decoration type per marker, each with a `before` attachment on the hunk's first line. Lens titles and commands are unchanged.
+- Tester: PASS. Unit tests for the marker rules, and an integration test that checks the marker types and their application. The tester saw one failure in `planWatcher.test.ts` ("a new plan file opens the artifact") on one run; the next run passed. The core agent's run did not reproduce it.
+- Core agent: `npm test` on the branch, exit 0: unit 385 (25 files), UI 130, integration 42 (VS Code 1.107.0). README line added.
+- Not verified: how the markers look in a real VS Code window or Antigravity, with both glyphs on one line, in light and dark themes. Owner: open an Implement the Design plan in Antigravity and check the blue ✓ and red ✗ beside each change.
+- Process note: the integration test checks that markers are applied to a hunk's first line by counting property reads through a proxy. It cannot read the decoration ranges back, so the placement rests on the code.
+- Next: `next-changed-file` (developer, then tester) is the next `todo` in table order. `design-plan-proposed-files` and `audit-fix` stay blocked (see TASKS.md).
+
 ### Run 50 (2026-11-05)
 - Task: `test-open-questions-persistence` (developer, then tester). Result: done. PR #105 into `dev`, merged after the core agent's test run passed.
 - Branch: `task/test-open-questions-persistence` from `origin/dev`. Brief `5a7d048`, developer notes `0a64e53`, tester `f8f3508`, TASKS row `eaace58`.
