@@ -13,6 +13,16 @@ Owned by the core agent only. Keep the latest run first. Keep only the last few 
 
 ## Run log
 
+### Run 41 (2026-11-05)
+- Task: `design-plan-proposed-files` (still blocked). Branch `task/design-plan-proposed-files` already existed with run 40's three commits (`4be3403`, `71f6c46`, `1607844`), so this run checked it out and did not recreate it. No developer or tester round was run.
+- Core agent tried the one-line fix to `.claude/commands/design-plan.md` line 24 itself, using the wording in the handoff. The runner denied the Edit, so the file is unchanged. Not retried, and no workaround used.
+- Verification on the branch: `npm run compile` passes. `npm run test:unit`: 25 files, 390 tests, 388 pass and 2 fail. The failures are the same two command-file tests in `test/unit/noProposedFiles.test.ts`, both caused by line 24. Vitest reports 5.1.0 (see `vitest-pin-two-weeks`).
+- Task stays `blocked` on the branch. No PR is open, because the tests fail.
+- Owner, two things:
+  - Allow edits to `.claude/commands/design-plan.md`, or change line 24 yourself to: `(optional; include it for every path in "files", with the full new content of that file, because the format has no delete marker so every path counts; omit it only when "files" is empty)`. Then the next run passes the tests and opens the PR.
+  - `origin/dev` still lists this row as `todo`, because the blocked status is only on the task branch. The next scheduled run will pick it up again and hit the same denial unless one of the above happens first. Mark it `blocked` on `dev` or fix line 24.
+- Next: after line 24 is fixed, the core agent reruns `npm test` on the branch (UI and integration too; not run here), opens the PR into `dev`, and marks the task `done`. The queue's next `todo` is `minimap-hunk-markers`.
+
 ### Run 40 (2026-11-05)
 - Task: `design-plan-proposed-files` (developer, then tester). Branch `task/design-plan-proposed-files` from `origin/dev`, pushed to origin (no PR, because the task is blocked). Developer commit `4be3403`, tester commit `71f6c46`.
 - Developer: `SHAPE_RULES` in `src/plan/planPrompt.ts` now says to include `proposedFiles` for every path in `files`, and omit it only when `files` is empty. `startImplementReview` now uses the pure `noProposedFilesMessage` (`src/plan/noProposedFiles.ts`), which names the missing `proposedFiles` when `files` is non-empty. Compile passes.
