@@ -13,6 +13,16 @@ Owned by the core agent only. Keep the latest run first. Keep only the last few 
 
 ## Run log
 
+### Run 52 (2026-11-05)
+- Task: `next-changed-file` (developer, then tester). Result: done. PR #107 into `dev`, merged after the core agent's test run passed.
+- Branch: `task/next-changed-file` from `origin/dev`. Brief `handoffs/next-changed-file.md`, developer commit `25837e1`, tester commit `106d1b2`, README commit `dbf2ab3`.
+- Developer: `src/plan/nextChange.ts` (pure: pending paths, next path). `src/review/hunkReview.ts` adds the status bar item (`Next change (N)`, left, priority 100) and the `claudeArtifact.nextChange` command. No `package.json` or `src/extension.ts` change.
+- Tester: PASS. Unit tests in `test/unit/nextChange.test.ts`, and integration tests in `test/integration/nextChange.test.ts` (temporary workspace under `out-test/`). The item check is by spy, because the item is created at activation.
+- Core agent: `npm test` on the branch, exit 0: unit 399 (26 files), UI 130, integration 48 (VS Code 1.107.0). README line added.
+- Choices (not in CLAUDE.md or the owner's note): the item shows only during a review session, and hides after Apply ends it. With N = 0 it still shows, and a click shows "No pending changes to review." The cycle starts after the active editor's file, in plan order, and wraps.
+- Not verified: the item's look and click in a real VS Code window or Antigravity. Owner: open an Implement the Design plan in Antigravity, check the item at the bottom, click it to cycle through files, and check that it hides after Apply accepted.
+- Next: the queue has no `todo` row for developer or tester. `design-plan-proposed-files` and `audit-fix` are blocked (see TASKS.md). The next run should write `PAUSE` unless the owner adds a task or unblocks one of them.
+
 ### Run 51 (2026-11-05)
 - Task: `diff-action-colours` (developer, then tester). Result: done. PR #106 into `dev`, merged after the core agent's test run passed.
 - Branch: `task/diff-action-colours` from `origin/dev`. Brief `195329a`, developer `f6ec418` and notes `69b1c39`, tester `9b8627f` and notes `f544993`, README `e12a2bb`.
