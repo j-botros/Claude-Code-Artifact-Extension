@@ -13,6 +13,18 @@ Owned by the core agent only. Keep the latest run first. Keep only the last few 
 
 ## Run log
 
+### Run 39 (2026-11-05, owner session)
+- Owner Antigravity check of `antigravity-test-2`: sample plan, plan order, comments and edits, and the green/red hunks with ✓ and ✗ all work. Done.
+- Owner asked for four things. Added to TASKS.md (no code changed yet):
+  - `design-plan-proposed-files` (todo): owner ran `/design-plan`, got a plan with a Files entry but no `proposedFiles`, so Implement the Design said "no proposed files". Cause: the command and `planPrompt.ts` say to omit `proposedFiles` when no file contents are proposed, so the model skipped it.
+  - `minimap-hunk-markers` (blocked, owner choice): see Blocked in TASKS.md. Answer to "will `overviewRulerColor` work?": it is in the public API and colours the scrollbar marks, not the minimap. Not run in VS Code yet.
+  - `audit-fix` (todo): owner asked for the audits to be fixed. 9 findings: 1 high, 7 moderate, 1 low. Some have no fix in the current version range.
+  - `test-open-questions-persistence` (todo): owner asked for save and reload of questions to be tested.
+- `vitest-pin-two-weeks` removed from TASKS.md, as the owner asked.
+- Owner decisions (same session): minimap uses `overviewRulerColor`. `antigravity-test-2` is marked done. Owner asked for Accept green and Reject red. CodeLens text cannot take colour, so `diff-action-colours` adds coloured decorations beside the clickable CodeLens. Owner asked for a way to cycle through changed files. `next-changed-file` is a status bar item at the bottom of the IDE window, not inside the file. Owner approved upgrading parent packages for `audit-fix`.
+- `PAUSE` is still in the repo root. The core agent did not remove it: the auto-mode classifier denied a command that would have deleted it and reset the local checkout. Owner: remove `PAUSE` to start the queue.
+- Queue (table order): `design-plan-proposed-files`, `minimap-hunk-markers`, `audit-fix`, `test-open-questions-persistence`, `diff-action-colours`, `next-changed-file`.
+
 ### Run 38 (2026-11-04)
 - Owner bug report: the `+` comment buttons stayed visible with the Claude Code panel open. Cause: a media query `(hover: none), (max-width: 899px)` forced them to opacity 1 in a narrow pane. Fixed in PR #89 (rule limited to `hover: none`, plus a 600px UI test). Owner confirmed the buttons now stay hidden until hover.
 - PR #90: owner's `.claude/settings.json` change, adding `git switch` and `git checkout` to the allow list. Config only, merged without a test run.
@@ -448,12 +460,15 @@ Owned by the core agent only. Keep the latest run first. Keep only the last few 
 - Verified: `dev` is on GitHub and `gh` is logged in.
 - Stalled: the agent couldn't write files in headless mode. Fixed by PR #3 (`--permission-mode acceptEdits`).
 
-## Open questions (as of 2026-11-03)
-- Owner: `antigravity-test-2` (install the `.vsix` in Antigravity and check the features) is not recorded as done.
+## Open questions (as of 2026-11-05)
+- Resolved: `antigravity-test-2` passed (run 39). Owner's Antigravity checks of `/design-plan` and plan-folder watch are still open.
+- Owner: remove `PAUSE` to start the queued tasks.
+- Owner: check `minimap-hunk-markers` in Antigravity once it lands. Overview-ruler marks are not the minimap.
+- Owner: remove `PAUSE` to let the queued tasks run.
 - Owner: Open VSX publishing is not started. It needs your sign-off for each publish.
 - Resolved: CLAUDE.md has never had a Section 8 in its git history. The earlier note saying it was missing was wrong.
-- Vitest 5.1.0 is too new for the two-week rule. Queued as `vitest-pin-two-weeks`.
-- Audit: 9 findings remain on dev. 8 are dev-only tooling with no fix yet, and `@vscode/vsce` 4.x is a major upgrade. The high one is `serialize-javascript`, which comes from `mocha` through `@vscode/test-cli`.
+- Vitest pin: the owner removed `vitest-pin-two-weeks` (run 39). Vitest 5.1.0 is still in the repo, and CLAUDE.md's two-week rule is not met until it changes.
+- Audit: 9 findings remain on dev. Queued as `audit-fix` (run 39). The high one is `serialize-javascript`, which comes from `mocha` through `@vscode/test-cli`.
 - Login check: narrowed in `login-check-tighten` (run 23, PR #55). Owner: confirm the real CLI's not-logged-in wording. `not logged in` is not yet confirmed against the CLI.
 
 ## Blockers
