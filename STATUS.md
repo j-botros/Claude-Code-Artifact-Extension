@@ -13,6 +13,17 @@ Owned by the core agent only. Keep the latest run first. Keep only the last few 
 
 ## Run log
 
+### Run 43 (2026-11-05)
+- Task: `minimap-hunk-markers` (developer, then tester). Branch `task/minimap-hunk-markers`, brief commit `f73f99a`. Developer commit `3f565f5`, tester commit `629a8a1`, README commit `f7bc8ee`. PR #97 into `dev`, merged after tests passed. TASKS.md row set to `done`.
+- Developer: `src/review/hunkReview.ts` `decorationTypes()` sets `overviewRulerColor` on both decoration types: `editorOverviewRuler.addedForeground` (added) and `editorOverviewRuler.deletedForeground` (removed).
+- Tester: PASS. Added `test/integration/overviewRuler.test.ts`, which wraps `createTextEditorDecorationType` and checks both colours. No old assertion broke.
+- Core agent: `npm test` on the branch, exit 0: unit 381 (24 files), UI 128, integration 36 (VS Code 1.107.0). README line added: the marks show on the scrollbar, and the minimap cannot be coloured through the public API.
+- Not verified: real VS Code or Antigravity window. Owner: open a plan with `proposedFiles` in Antigravity and check that green and red marks appear on the scrollbar.
+- Process notes:
+  - `npm test` reports vitest 5.1.0. CLAUDE.md says that version is too new and queues a change to 5.0.5. The lock file was not changed in this run, and no task row covers it now.
+  - The integration log has the `EntryNotFound` local-history line from the apply test again. The run still passes.
+- Next: `design-plan-proposed-files` is still blocked (owner edit to `.claude/commands/design-plan.md`). The next `todo` in table order is `audit-fix`, because `test-open-questions-persistence` comes after it. Run 43 stopped after one task.
+
 ### Run 42 (2026-11-05)
 - Task: `design-plan-proposed-files`. Still blocked, and no developer or tester round was run. Its branch `task/design-plan-proposed-files` has the developer commit `4be3403`, the tester commit `71f6c46`, the handoff `1607844`, and the run 41 status `0a7cdac`. Those are pushed to origin.
 - Run 40 and run 41 are recorded only on that task branch. Summary: the developer's source change is in (`SHAPE_RULES` and `noProposedFilesMessage`). The tester's FAIL is only the two command-file tests in `test/unit/noProposedFiles.test.ts`. Both come from `.claude/commands/design-plan.md` line 24, which still says "omit it when the plan proposes no file contents".
