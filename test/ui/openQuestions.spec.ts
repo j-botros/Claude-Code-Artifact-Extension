@@ -116,6 +116,47 @@ test.describe("open questions section", () => {
     await expect(page.locator("[data-edit='question:1']")).toHaveText("Keep the v1 API?");
   });
 
+  test("question comments survive a panel reload (webview state)", async ({ page }) => {
+    await openPlan(page, "oq-reload-comments", withQuestions);
+    for (const [id, text] of [["question:0", "Postgres."], ["question:1", "Yes."]]) {
+      const blockEl = page.locator(`.block[data-block='${id}']`);
+      const margin = blockEl.locator(":scope > .margin");
+      await blockEl.hover();
+      await margin.locator("button.add-comment").click();
+      await margin.locator("textarea.comment-field").fill(text);
+      await margin.getByRole("button", { name: "Add Comment", exact: true }).click();
+      await expect(margin.locator(".bubble")).toHaveCount(1);
+    }
+    await page.reload();
+    await expect(page.locator(".block[data-block='question:0'] .bubble")).toHaveCount(1);
+    await expect(page.locator(".block[data-block='question:1'] .bubble")).toHaveCount(1);
+    await expect(page.locator(".block[data-block='question:0'] .bubble")).toContainText("Postgres.");
+    await expect(page.locator(".block[data-block='question:1'] .bubble")).toContainText("Yes.");
+    await expect(page.locator(".review-label")).toContainText("2");
+    const state = await page.evaluate(() => JSON.parse(sessionStorage.getItem("vscodeState") || "{}"));
+    expect(state.comments).toEqual({ "question:0": "Postgres.", "question:1": "Yes." });
+  });
+
+  test("an edited question and its comment both survive a panel reload", async ({ page }) => {
+    await openPlan(page, "oq-reload-edit", withQuestions);
+    await page.locator("[data-edit='question:0']").click();
+    await page.locator(".edit-field").fill("Which datastore?");
+    await page.locator(".edit-field").press("Enter");
+    await expect(page.locator("p.status")).toHaveText("Saved");
+    const blockEl = page.locator(".block[data-block='question:1']");
+    const margin = blockEl.locator(":scope > .margin");
+    await blockEl.hover();
+    await margin.locator("button.add-comment").click();
+    await margin.locator("textarea.comment-field").fill("Keep it.");
+    await margin.getByRole("button", { name: "Add Comment", exact: true }).click();
+    await expect(margin.locator(".bubble")).toHaveCount(1);
+
+    await page.reload();
+    await expect(page.locator("[data-edit='question:0']")).toHaveText("Which datastore?");
+    await expect(page.locator("[data-edit='question:1']")).toHaveText("Keep the v1 API?");
+    await expect(page.locator(".block[data-block='question:1'] .bubble")).toContainText("Keep it.");
+  });
+
   test("a blank question is rejected and not saved", async ({ page }) => {
     await openPlan(page, "oq-blank", withQuestions);
     await page.locator("[data-edit='question:0']").click();
