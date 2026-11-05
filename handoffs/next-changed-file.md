@@ -77,4 +77,22 @@ Do not edit `test/`, `README.md`, `TASKS.md`, `STATUS.md`, `CLAUDE.md`, or `hand
 
 ## Testing
 
-(to be filled by the tester)
+**Verdict: PASS.**
+
+**Commands run and results.**
+- `npm run compile`: passes.
+- `npm run test:unit`: 26 files, 399 tests passed, 0 failed (new file `test/unit/nextChange.test.ts` adds 15 tests).
+- `npm run test:ui`: 130 passed, 0 failed.
+- `npm test`: unit 399 passed, ui 130 passed, integration 48 passed, 0 failed (new file adds 6 integration tests).
+
+**Files added.** `test/unit/nextChange.test.ts`, `test/integration/nextChange.test.ts`. No changes under `src/`.
+
+**Unit coverage.** Count with no decisions (3), some decided, all decided (0), empty list; cycle order; wrap-around from last to first; skipping non-pending files; start file not in the list; start file the only pending one; start file decided (uses its plan position); no current file; single-file plan.
+
+**Integration coverage** (temporary workspace `out-test/next-change-workspace`, removed in teardown): the item text is "Next change (2)" and visible with two pending files; the command opens b.txt (last opened by the review) then wraps to a.txt, b.txt, a.txt; accepting both hunks of a.txt gives "Next change (1)" and the command then opens only b.txt; a partly decided b.txt stays pending; with all decided the item reads "Next change (0)", the command shows "No pending changes to review." and opens nothing; Apply writes a.txt, hides the item, and the command then does nothing; the Accept and Reject lens titles and commands are unchanged ("✓ Accept", "✗ Reject" per hunk).
+
+**Status bar check is by spy.** The extension creates its item at activation, possibly before the test file loads, so wrapping `createStatusBarItem` could miss it. The test instead creates a throwaway item to reach the item prototype and wraps the `text` setter, `show`, and `hide` there, identifying the item by its command `claudeArtifact.nextChange`. It records what the extension asked VS Code to show, not what was painted.
+
+**First integration run.** 4 of the 6 new tests failed with "no code lenses for a.txt" because my helper picked a lingering inline document from an earlier session. This was a test bug; I changed the helper to use the newest session id (as `applyFlows.test.ts` does). No source bug.
+
+**Not verified.** The real status bar in VS Code or Antigravity (position, click, visual text); the owner check in Antigravity is not done. Because the integration check is by spy, a click on the item itself is not exercised; the command is run with `executeCommand`.
