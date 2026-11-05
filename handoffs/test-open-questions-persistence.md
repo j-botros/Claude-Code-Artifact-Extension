@@ -65,4 +65,31 @@ Do not edit `test/`, `README.md`, `TASKS.md`, `STATUS.md`, `CLAUDE.md`, or `hand
 
 ## Testing
 
-_(tester fills this in)_
+**Verdict: PASS.** No bug found. No `src/` change.
+
+**Commands run.**
+- `npm run compile`: passed.
+- `npm run test:unit`: 24 files, 381 tests, all passed (no new unit tests; the developer changed no pure logic).
+- `npm run test:ui`: 130 passed, 0 failed (includes 2 new tests).
+- `npm test` (unit, ui, then integration): all passed. Integration: 41 passing, 0 failing (includes 5 new tests).
+
+**Tests added.**
+
+Integration, `test/integration/openQuestionsPersistence.test.ts` (drives the real `PlanPanel` `save` and `review` methods against `.claude/plans/<slug>.json` in the integration workspace, which is `test-results/integration-workspace` inside the repo; each test deletes its own file):
+1. Saved questions keep `openQuestions` in the file; re-parsing the file with `parsePlanJson` and opening a new panel renders the "Open Questions" section and the questions (check 1).
+2. An edited, untrimmed question is saved trimmed to the file and survives a reload; a later save without a `questions` field keeps the saved questions (check 2).
+3. A save with fewer, more, or a blank question is refused (`questions must have 2 items`) and the file bytes are unchanged (check 3, refusal part).
+4. Review Comments with a revised plan that has fewer questions: the review does not write the file; the old two-question save is then refused; a one-question save is accepted and the file holds the revised list (check 3, review route).
+5. Review Comments with a revised plan that has no questions: a save with `questions: []` succeeds and the file has no `openQuestions` key (check 3, edge case).
+
+UI (Playwright), `test/ui/openQuestions.spec.ts`:
+6. Question comments survive `page.reload()`: bubbles come back, review count is 2, and `getState().comments` is unchanged (check 4).
+7. An edited question and a comment on another question both survive `page.reload()` (checks 2 and 4 in the webview).
+
+**Could not confirm.**
+- Check 4 is only tested in the webview state stub (`sessionStorage` standing in for `getState`/`setState`). Real VS Code `retainContextWhenHidden` or panel-hide behaviour is not tested, because the integration host cannot read webview DOM or state.
+- The `Review Comments` tests call `PlanPanel.review` with a stubbed `onReview`. They do not run the real `claude` revision.
+- The file-watcher skip of the extension's own save is covered by the existing `planWatcher.test.ts`, not by the new tests.
+- The tests were not run against a deliberately broken `src/`, so "fails before the fix" is not applicable (no fix was made).
+
+**Bugs.** None found.
