@@ -56,4 +56,16 @@ These are public VS Code theme colour ids used by the diff editor's overview rul
 
 ## Testing (tester)
 
-_Not yet started._
+**Verdict: PASS.**
+
+**Added.** `test/integration/overviewRuler.test.ts` (one test, VS Code 1.107.0 host). `decorationTypes()` is not exported and the decoration type object exposes no options, so the test wraps `vscode.window.createTextEditorDecorationType` when the file loads (before any test runs), records every options object, and restores the original in `suiteTeardown`. It then opens the sample plan with a fake panel, posts `implementDesign`, and checks that the type with `backgroundColor` `diffEditor.insertedLineBackground` has `overviewRulerColor` `editorOverviewRuler.addedForeground`, and the type with `diffEditor.removedLineBackground` has `editorOverviewRuler.deletedForeground`. No change to `src/` was needed, so there is no blocker. The spy sees the types even if an earlier test file created them first, because the review caches them per host.
+
+**Commands and results.**
+- `npm run compile`: passed.
+- `npm run test:unit`: 24 files passed, 381 tests passed, 0 failed.
+- `npm run test:ui`: 128 passed, 0 failed.
+- `npm run test:integration`: 36 passing, 0 failing (35 existing plus the new one).
+
+**Old assertions broken.** None.
+
+**Not checked.** The scrollbar marks were not seen in a real VS Code or Antigravity window. The test checks only the options passed to the API, not how the colours render. The owner checks in Antigravity.
