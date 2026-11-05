@@ -13,6 +13,11 @@ Owned by the core agent only. Keep the latest run first. Keep only the last few 
 
 ## Run log
 
+### Run 45 (2026-11-05, owner session)
+- Owner asked for PR #98 to be merged and CLAUDE.md changed. #98 conflicted with `dev` on TASKS.md and STATUS.md. Resolved on a fresh branch from current `dev` (`unblock-v2`), with the same content: `design-plan-proposed-files` set to `todo` on `task/design-plan-proposed-files` (wording fix `913beb6`), and its Blocked entry removed. PR #98 is replaced by the new PR.
+- CLAUDE.md Section 3: the `proposedFiles` bullet now says to include it for every path in `files`, and to omit it only when `files` is empty. This matches the command wording.
+- PR #97 (`minimap-hunk-markers`) stays in `dev`. Tests pass on its branch. The owner's Antigravity check of the scrollbar marks is still open.
+
 ### Run 44 (2026-11-05)
 - Task: `audit-fix` (developer only; blocked before the tester). Branch `task/audit-fix`, brief commit `211b913`, developer handoff commit `86fd951`. Pushed to origin. No PR. TASKS.md row set to `blocked`.
 - Baseline `npm audit`: 9 findings (1 low, 7 moderate, 1 high). After the developer's work: still 9, the same packages. Definition of done not met.
