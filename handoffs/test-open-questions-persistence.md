@@ -40,7 +40,28 @@ Do not edit `test/`, `README.md`, `TASKS.md`, `STATUS.md`, `CLAUDE.md`, or `hand
 
 ## Development
 
-_(developer fills this in)_
+**Result: no bug found by reading. No `src/` change.** `npm run compile` passes.
+
+**Save path.**
+- Webview script in `src/webview/planPanel.ts`: `readEdits()` collects `question:<i>` elements into `questions`; `sendEdits()` posts `{type: "savePlan", ..., questions, code}`.
+- Host: `PlanPanel.save(input)` (`src/webview/planPanel.ts`) calls `applyPlanEdits` (`src/plan/planEdits.ts`), then `recordOwnSave(text)` and writes `JSON.stringify(plan, null, 2) + "\n"` to `<first workspace folder>/.claude/plans/<planFileName(title)>` with `vscode.workspace.fs.writeFile`. On success it sets `currentPlan`, `savedName`, and replies `saveResult`.
+- `applyPlanEdits` trims each question, rejects a non-string or blank one, keeps `openQuestions` in the output when the current plan has it, and copies `proposedFiles` unchanged.
+
+**Reload path.**
+- File to panel: `watchPlanFolder` and `handlePlanFile` in `src/extension.ts` read the file, `decidePlanFile` (`src/plan/planWatch.ts`) skips the extension's own saves by hash, else `parsePlanJson` (`src/plan/plan.ts`, copies `openQuestions`) and `PlanPanel.show`. `renderOpenQuestionsSection` renders the questions.
+- Webview state: on `saveResult` ok, the script calls `vscode.setState({ comments: readComments(), edits: lastSent })`; comment handlers use `setState(Object.assign({}, readState(), { comments }))`. On load, the script reads `getState().edits` and re-applies `questions[i]` into `question:<i>` elements via `applySaved`. Comments are read from `getState().comments`. `resetState: true` (only after a Review Comments revision) clears both.
+
+**Which path can remove a question.**
+- The webview cannot: `applyPlanEdits` refuses a `questions` array whose length differs from the current count (`questions must have N items`), and the file is not written.
+- The only path is Review Comments: `PlanPanel.review` replaces `currentPlan` with the revised plan from `onReview` (the prompt in `planPrompt.ts` lets Claude drop a question that a comment answers). That path does NOT write the file: it sets `savedName = undefined` and re-renders with `resetState: true`. The file is updated only when the user then edits and saves, because `save` writes `currentPlan` plus edits. After that, the saved file has the revised question count. Edge: if the revised plan has no `openQuestions`, `applyPlanEdits` sends `questions: []` against expected 0, which is accepted and the saved file has no `openQuestions`.
+- A hand edit of the JSON file that removes a question is reloaded by the watcher (`handlePlanFile`) as a new plan.
+
+**Bugs found and fixed.** None found.
+
+**Not confirmed by reading.**
+- Real behaviour of `vscode.getState`/`setState` across a panel reload (needs the integration/UI tests).
+- Whether the file watcher fires and `decidePlanFile` skips an own save in a real Extension Host (timing of `recordOwnSave` vs the watcher event).
+- Test hint: for check 4, the comment state lives in the webview (`getState().comments`), so it can only be checked in the UI/Playwright layer or by re-rendering with the same state, not through the host.
 
 ## Testing
 
