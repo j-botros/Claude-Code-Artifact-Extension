@@ -13,6 +13,11 @@ Owned by the core agent only. Keep the latest run first. Keep only the last few 
 
 ## Run log
 
+### Run 46 (2026-11-05, owner session)
+- Owner asked for the runner to continue `audit-fix` from its branch. The developer's attempt did not meet the definition of done (9 `npm audit` findings remain, all "No fix available"). The core agent committed the leftover lockfile change and a handover note to `task/audit-fix` (`56c2648`). The note says the lockfile change is npm churn and should be reverted first, and says the task must stay blocked for the owner if the audit cannot reach zero.
+- Set `audit-fix` back to `todo` on `dev` so the scheduler resumes it from that branch. It runs after `design-plan-proposed-files`.
+- Cause of the stalled runs: the main checkout had the lockfile change, so runs exited on a dirty working tree.
+
 ### Run 45 (2026-11-05, owner session)
 - Owner asked for PR #98 to be merged and CLAUDE.md changed. #98 conflicted with `dev` on TASKS.md and STATUS.md. Resolved on a fresh branch from current `dev` (`unblock-v2`), with the same content: `design-plan-proposed-files` set to `todo` on `task/design-plan-proposed-files` (wording fix `913beb6`), and its Blocked entry removed. PR #98 is replaced by the new PR.
 - CLAUDE.md Section 3: the `proposedFiles` bullet now says to include it for every path in `files`, and to omit it only when `files` is empty. This matches the command wording.
