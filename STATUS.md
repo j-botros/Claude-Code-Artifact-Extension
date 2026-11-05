@@ -13,6 +13,18 @@ Owned by the core agent only. Keep the latest run first. Keep only the last few 
 
 ## Run log
 
+### Run 42 (2026-11-05)
+- Task: `design-plan-proposed-files`. Still blocked, and no developer or tester round was run. Its branch `task/design-plan-proposed-files` has the developer commit `4be3403`, the tester commit `71f6c46`, the handoff `1607844`, and the run 41 status `0a7cdac`. Those are pushed to origin.
+- Run 40 and run 41 are recorded only on that task branch. Summary: the developer's source change is in (`SHAPE_RULES` and `noProposedFilesMessage`). The tester's FAIL is only the two command-file tests in `test/unit/noProposedFiles.test.ts`. Both come from `.claude/commands/design-plan.md` line 24, which still says "omit it when the plan proposes no file contents".
+- Run 42 check: `npm run test:unit` on the task branch gives 388 pass and 2 fail, the same as run 41.
+- Edit denied again. Run 41's core-agent Edit and run 40's developer Edit were both denied. Not retried, and no workaround used.
+- Change in this run: origin/dev listed the task as `todo`, so the next run would have picked it up and hit the same denial. This branch (`task/blocked-design-plan-proposed-files`) sets it to `blocked` in TASKS.md, with a Blocked entry, so the scheduler skips it. The task branch itself is not merged, because its tests fail.
+- Owner, one of these:
+  - Allow edits to `.claude/commands/design-plan.md`. Then the next run can finish the PR.
+  - Or change line 24 yourself to: `(optional; include it for every path in "files", with the full new content of that file, because the format has no delete marker so every path counts; omit it only when "files" is empty)`. Then tell the core agent to resume `task/design-plan-proposed-files`.
+- Also for the owner: CLAUDE.md Section 3 still says "omit the field when no files are proposed". This conflicts with the new rule, so I did not change it.
+- Next: after the owner's fix, `design-plan-proposed-files` resumes on its branch. The queue's next `todo` is `minimap-hunk-markers`, but the runner picks the first `todo` in table order, so it will be reached after this row is done or blocked.
+
 ### Run 39 (2026-11-05, owner session)
 - Owner Antigravity check of `antigravity-test-2`: sample plan, plan order, comments and edits, and the green/red hunks with ✓ and ✗ all work. Done.
 - Owner asked for four things. Added to TASKS.md (no code changed yet):
