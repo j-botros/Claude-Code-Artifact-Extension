@@ -3,6 +3,7 @@ import { applyAcceptedHunks } from "../plan/applyHunks";
 import { DiffHunk, splitHunks } from "../plan/diffHunks";
 import { Decision, setDecision, summarizeDecisions } from "../plan/hunkDecisions";
 import { InlineView, LineSpan, buildInlineView } from "../plan/inlineReview";
+import { noProposedFilesMessage } from "../plan/noProposedFiles";
 import { Plan, isSafeRelativePath } from "../plan/plan";
 
 /** Result of starting a review: a message for the status line, and whether it worked. */
@@ -157,7 +158,7 @@ export async function startImplementReview(plan: Plan, folder: vscode.Uri): Prom
   try {
     const proposed = plan.proposedFiles;
     if (proposed === undefined || proposed.length === 0) {
-      return { ok: false, message: "This plan has no proposed files." };
+      return { ok: false, message: noProposedFilesMessage(plan) };
     }
     const id = nextSessionId++;
     const files = new Map<string, ReviewFile>();
