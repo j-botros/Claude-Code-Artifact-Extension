@@ -6,5 +6,5 @@
     "types": ["mocha", "node"],
     "strict": true
   },
-  "include": ["test/integration/**/*"]
+  "include": ["test/integration/**/*", "test/runner/**/*"]
 }
