@@ -80,4 +80,20 @@ Earlier attempt: `handoffs/audit-fix.md` (runs 44 to 49) on `task/audit-fix`. Th
 
 ## Testing (tester)
 
-_Pending._
+Commands run: `npm audit`, `npm run compile`, `npm run test:integration` (twice), `npm test`, `npm run package`.
+
+1. `npm audit`: `found 0 vulnerabilities`. PASS.
+2. `npm run compile`: passes. PASS.
+3. `npm run test:integration` in VS Code 1.107.0: 48 passing, 0 failing, exit 0. Per-file test counts in `test/integration/` sum to 48 (applyFlows 11, planFlows 10, kebabActions 6, nextChange 6, openQuestionsPersistence 5, extension 4, planWatcher 2, implementFlow 2, overviewRuler 1, decisionMarkers 1). The output lists all 10 suites from all 10 non-empty spec files; none skipped. `zzTempFail.test.ts` (untracked, `export {};`) adds no tests. PASS.
+4. Runner semantics (temporary spec `zzTempRunner.test.ts`, never committed, emptied to `export {};` afterwards because I cannot delete files):
+   - Throwing test: reported `FAIL temp throws: Error: TEMP-DELIBERATE`; run ended `49 passing, 3 failing`, `Integration tests failed: TestRunFailedError`, exit code 1. PASS.
+   - Teardown after a failing test: `TEMP-TEARDOWN-RAN` was printed after the failure. PASS.
+   - `this.timeout(200)` in a `function` test that waits 1500 ms: `FAIL ... Timeout of 200ms exceeded: temp times out`. A second test with `this.timeout(5000)` waiting 300 ms passed. PASS.
+   - Failing `suiteSetup`: `FAIL suiteSetup hook: Error: TEMP-SETUP-BOOM`, counted as a failure, the suite's test did not run. PASS.
+5. `runCallback` review: the described ordering is real (for a callback that settles before the `setImmediate` fires, `finally` finds no timer, and a timer is created afterwards and not cleared). It is not a defect in practice: (a) the stale timer's `reject` only settles the `limit` promise, which `Promise.race` already handles, so there is no unhandled rejection and no spurious failure; (b) the extension host exited about 0.5 s after the summary line (`exited with code: 0`), so the leftover timers (up to 60 s) do not delay shutdown, because VS Code terminates the host; (c) the timeout tests above behaved correctly. Optional hygiene only: clear the timer when it is created after settlement, or use a `settled` flag. Not a FAIL.
+6. `npm test`: unit 408 passed (27 files), UI 130 passed, integration 48 passing, 0 failing. PASS.
+7. `npm run package`: `claude-code-artifact-0.0.1.vsix`, 31 files, 60.99 KB. Contents: `[Content_Types].xml`, `extension.vsixmanifest`, `.gitignore`, `LICENSE.txt`, `package.json`, `readme.md`, and `out/` (extension.js, agy, claude, plan, review, webview). Nothing from `test/`, `test-results/`, `out-test/`, or `src/`. The `.vsix` is untracked and ignored; not committed. PASS.
+
+Leftovers for the core agent: untracked `test/integration/zzTempFail.test.ts` and `test/integration/zzTempRunner.test.ts` (both `export {};`, not committed; delete them), and the `.vsix` in the repo root.
+
+Verdict: PASS
