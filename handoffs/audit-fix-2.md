@@ -48,7 +48,33 @@ Earlier attempt: `handoffs/audit-fix.md` (runs 44 to 49) on `task/audit-fix`. Th
 
 ## Development (developer)
 
-_Pending._
+**Before (`npm audit` on dev, start of run):** 9 vulnerabilities (1 low, 7 moderate, 1 high): `diff` 6.0.0 to 8.0.2, `glob` 9.0.0 to 14.0.1, `minimatch` 7.0.0 to 11.0.0, `serialize-javascript` <=7.1.2 (high), and dependents `mocha`, `@vscode/test-cli`, `test-exclude`, `c8`, `@vscode/vsce`.
+
+**After:** `npm audit` reports `found 0 vulnerabilities` (from `npm install`). Intermediate steps: removing `@vscode/test-cli` left 3 moderate (`glob`, `minimatch`, `@vscode/vsce` 3.6.0); `@vscode/vsce` 4.1.1 left 2 moderate (`minimatch` via vsce); the override below cleared them.
+
+**Package changes (publish dates not checked; `npm view` not allowed):**
+- Removed `@vscode/test-cli` 0.0.15 (took out mocha, c8, test-exclude, diff, serialize-javascript, and 97 packages).
+- `@vscode/vsce` 3.6.0 to 4.1.1 (exact pin; publish date not checked).
+- Added npm `overrides`: `"minimatch": ">=11.0.1"` (installed version is whatever npm resolved; publish date not checked). Kept because `npm run package` still works.
+- `@vscode/test-electron` 3.1.0 unchanged. `@types/mocha` 10.0.10 kept (types only; audit clean).
+
+**Runner (`test/runner/`).** `runIntegration.ts` creates `test-results/integration-workspace`, then calls `runTests` with version 1.107.0, `extensionDevelopmentPath` = repo root, `extensionTestsPath` = compiled `index`, `launchArgs` = [workspace]. It exits 1 on failure. `index.ts` exports `run()` and installs the globals on `globalThis`, requires every `*.test.js` under `out-test/test/integration` (sorted, recursive `readdirSync`), runs them, prints `PASS`/`FAIL` per test and `N passing, M failing`, and rejects if any failed. Mapping:
+- `suite(title, fn)`: runs `fn` at once and collects into a suite; nesting works.
+- `test(title, fn)`: registered in the current suite; sync or promise-returning.
+- `suiteSetup` / `suiteTeardown`: once before / after the suite's tests; a failing suiteSetup skips the suite's tests and counts as a failure; teardown still runs.
+- `setup` / `teardown`: around every test (ancestor hooks included); teardown runs even after a failed test.
+- `this.timeout(ms)`: callbacks run with a context `{ timeout }`; default 60000 ms for every test and hook; `0` disables the limit.
+- `done`-style callbacks are not supported (not used).
+
+**Results.**
+- `npm run compile`: pass.
+- `npm run test:integration`: 48 passing, 0 failing in VS Code 1.107.0 (same as run 54, 48).
+- Failing check: a temporary spec with a throwing test gave `48 passing, 1 failing`, `Integration tests failed: TestRunFailedError`, exit code 1.
+- `npm test`: unit 408 passed (27 files), UI 130 passed, integration 48 passing.
+- `npm run package`: 31 files, 60.99 KB. The first run gave 171 files because `test-results/**` and `tsconfig.test.json` were not ignored; I added both to `.vscodeignore`. The `.vsix` is not committed.
+
+**Not done / needs the core agent.**
+- I could not delete files (no `rm` or `git rm` allowed). `.vscode-test.mjs` is now a comment-only stub; delete it (and its `.vscodeignore` line) with `git rm`. Same for the temporary spec `test/integration/zzTempFail.test.ts`, which I emptied to `export {};` and did NOT commit; delete the untracked file. Also `claude-code-artifact-0.0.1.vsix` sits untracked in the repo root (ignored); remove it.
 
 ---
 
