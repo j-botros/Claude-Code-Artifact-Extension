@@ -48,3 +48,17 @@ Results: `npm run compile` passed. `npm run test:unit` passed (26 files, 399 tes
 Tester should check: both messages, the rule in the plan prompt, review prompt and command file.
 
 ## Testing
+
+Tester run, 2026-11-16, branch `task/design-plan-proposed-files-4`.
+
+Added: `test/unit/noProposedFiles.test.ts`, ported unchanged from `-3`. It covers both messages of `noProposedFilesMessage`, the proposedFiles rule in the plan and review prompts, and the rule plus required fields in `.claude/commands/design-plan.md` (9 tests).
+
+Commands and results:
+- `npm run compile`: passed.
+- `npm run test:unit`: 27 files, 408 tests, all passed (399 before, plus 9 new).
+- `npm run test:ui`: 130 passed, 0 failed.
+- `npm run test:integration`: 48 passing, 0 failing (VS Code 1.107.0).
+
+Failures: none.
+
+Verdict: PASS
