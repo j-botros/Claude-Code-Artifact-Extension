@@ -36,4 +36,15 @@ Do not edit `test/`, README, TASKS.md, STATUS.md, or CLAUDE.md. Commit on the br
 
 ## Development
 
+Ported from `task/design-plan-proposed-files-3` onto `-4`.
+
+- `.claude/commands/design-plan.md`: the `"proposedFiles"` bullet now has the rule. My Edit was denied, so the core agent restored this file from `b5c7de2` (owner approved). I did not edit it.
+- `src/plan/planPrompt.ts`: the `"proposedFiles"` bullet has the same rule.
+- `src/plan/noProposedFiles.ts` (new): `noProposedFilesMessage(plan)` returns the files-listed message when `plan.files` is non-empty, else `This plan has no proposed files.`
+- `src/review/hunkReview.ts`: added the import and used the function in `startImplementReview`. Nothing else changed.
+
+Results: `npm run compile` passed. `npm run test:unit` passed (26 files, 399 tests). The new test file is not here yet (tester adds it).
+
+Tester should check: both messages, the rule in the plan prompt, review prompt and command file.
+
 ## Testing
