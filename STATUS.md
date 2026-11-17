@@ -6,12 +6,33 @@ Owned by the core agent only. Keep the latest run first. Keep only the last few 
 - Stage: early idea, with a working scaffold. `Claude Artifact: Open Sample Plan` opens a webview with a sample plan. The owner confirmed it renders in Antigravity.
 - Branches: `main` and `dev` exist on GitHub. `dev` includes PRs #1 through #6, #12, #18, #23, and #26.
 - Packaging: `npm run package` produces a `.vsix` that installs in Antigravity 1.107.0. `engines.vscode` is `^1.107.0` and `@types/vscode` is pinned to `1.107.0`. Latest stable VS Code is 1.144.0 (published 2026-10-28, checked 2026-11-03).
-- Compile: `npm run compile` passes. `npm test` passes (unit 381, UI 128, integration 36) as of run 49 on `task/audit-fix`. Run 49 is the latest check.
+- Compile: `npm run compile` passes. `npm test` passes (unit 408, UI 130, integration 48) as of run 55 on `task/audit-fix-2`. `npm audit`: 0 vulnerabilities as of run 55.
 - `.vscode/launch.json` exists.
 - Agent setup: `.claude/agents/developer.md`, `.claude/agents/tester.md`, and `.claude/settings.json` are committed.
 - Scheduler (as of 2026-11-03): the launchd job `com.j-botros.claude-artifact-agent` is installed and loaded. It runs back to back, up to 12 runs per chain, and writes `PAUSE` when the queue is empty.
 
 ## Run log
+
+### Run 55 (2026-11-16)
+- Task: `audit-fix` (developer, then tester). Result: done. `npm audit` went from 9 findings (1 high, 7 moderate, 1 low) to 0.
+- Branch: `task/audit-fix-2`, fresh from `origin/dev`. The TASKS row allowed this. `task/audit-fix` only adds the lockfile churn commit `56c2648`. It was not used and not deleted.
+- Commits: brief `874b813`, developer `19592ef`, tester `a09a628`, README `dd5d539`.
+- Developer:
+  - Removed `@vscode/test-cli` 0.0.15. This also removed mocha, c8, test-exclude, `diff`, and `serialize-javascript`.
+  - New `test/runner/runIntegration.ts` launches VS Code 1.107.0 through `@vscode/test-electron` 3.1.0. New `test/runner/index.ts` is a small in-host runner with the TDD globals (`suite`, `test`, `suiteSetup`, `suiteTeardown`, `setup`, `teardown`) and `this.timeout`, with a 60 s default. `@types/mocha` is kept for types only.
+  - `@vscode/vsce` 3.6.0 to 4.1.1, plus the npm override `"minimatch": ">=11.0.1"`. Publish dates were not checked, because `npm view` is not allowed.
+  - `.vscodeignore` now excludes `test-results/**` and `tsconfig.test.json`. This fixes the run 49 finding: the `.vsix` dropped from 167 or more files to 31 (61 KB).
+- Tester: PASS. Every spec file ran. On temporary specs (not committed): a failing test exits 1, teardown runs after a failure, `this.timeout` is honoured, and a failing `suiteSetup` counts as a failure. In `runCallback` a timer can be left running after a fast callback, but it is harmless: there is no spurious rejection, and the host exits about 0.5 s after the summary.
+- Core agent: `npm test` on the branch, exit 0: unit 408 (27 files), UI 130, integration 48 (VS Code 1.107.0). `npm audit`: 0. README row updated.
+- Owner, cleanup (not possible here, because `rm` and `git rm` are not on the allow list):
+  - Delete the untracked `test/integration/zzTempFail.test.ts` and `test/integration/zzTempRunner.test.ts`. Both are emptied to `export {};`, add no tests, and are not committed. They may make the scheduler see a dirty tree.
+  - `git rm .vscode-test.mjs`. It is now a comment-only stub. Its `.vscodeignore` line can go with it.
+  - Delete `claude-code-artifact-0.0.1.vsix` in the repo root. It is git-ignored.
+- Owner, to check:
+  - CLAUDE.md Section 3 still names `@vscode/test-cli` for integration tests. I did not edit the owner's brief. Update it to `@vscode/test-electron` plus `test/runner/` if you agree.
+  - The `minimatch` override is a range (`>=11.0.1`), forced on all consumers. The lockfile fixes the resolved version, and packaging and tests pass. Pin it exactly if you prefer.
+  - `vsce` 4.1.1 and the resolved `minimatch` may be less than two weeks old (not checked).
+- Next: no `todo` row for developer or tester is left. The next scheduled run should write `PAUSE` unless the owner adds a task. The owner's Antigravity checks from runs 51 to 54 are still open.
 
 ### Run 54 (2026-11-16)
 - Task: `design-plan-proposed-files` (developer, then tester). Result: done. PR #109 into `dev`, merged after the core agent's test run passed.
