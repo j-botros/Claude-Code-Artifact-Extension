@@ -16,7 +16,6 @@ PAUSE
 tsconfig.json
 vitest.config.*
 playwright.config.*
-.vscode-test.mjs
 out-test/**
 test-results/**
 tsconfig.test.json

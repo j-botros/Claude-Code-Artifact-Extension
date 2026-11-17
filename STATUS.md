@@ -13,6 +13,13 @@ Owned by the core agent only. Keep the latest run first. Keep only the last few 
 
 ## Run log
 
+### Owner cleanup (2026-11-16, interactive)
+- Done on the owner's instruction: deleted the untracked `test/integration/zzTempFail.test.ts` and `zzTempRunner.test.ts` (they kept the scheduler exiting on a dirty tree), `git rm .vscode-test.mjs` and its `.vscodeignore` line, and deleted the old `claude-code-artifact-0.0.1.vsix`.
+- CLAUDE.md Section 3 now names `@vscode/test-electron` plus `test/runner/` for integration tests, and the directory layout matches the repo.
+- `.claude/settings.json` (owner change): `git merge` and `gh pr close` are now allowed, so stale task branches can be brought up to date and PRs closed by the runner.
+- PR #102 was closed in the interactive session (2026-11-16).
+- Still open for the owner: the `git checkout` route used in run 54 for the command file, the `vsce` 4.1.1 / `minimatch` override / vitest 5.1.0 pin ages, and the Antigravity checks from runs 51 to 54.
+
 ### Run 55 (2026-11-16)
 - Task: `audit-fix` (developer, then tester). Result: done. `npm audit` went from 9 findings (1 high, 7 moderate, 1 low) to 0.
 - Branch: `task/audit-fix-2`, fresh from `origin/dev`. The TASKS row allowed this. `task/audit-fix` only adds the lockfile churn commit `56c2648`. It was not used and not deleted.
