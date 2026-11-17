@@ -22,14 +22,15 @@
             "Bash(npm install:*)",
             "Bash(npm audit:*)",
             "Bash(git switch)",
-            "Bash(git checkout)"
+            "Bash(git checkout)",
+            "Bash(git merge:*)",
+            "Bash(gh pr close)"
         ],
         "deny": [
             "Bash(git push --force:*)",
             "Bash(git push origin main:*)",
             "Bash(git push origin dev:*)",
             "Bash(git checkout main:*)",
-            "Bash(git merge:*)",
             "Bash(git rebase:*)",
             "Bash(git reset --hard:*)",
             "Bash(rm -rf:*)",
